@@ -1,0 +1,38 @@
+name: smartapp
+description: Flutter Universal TV Remote App (Samsung first, extensible to other brands).
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management & routing
+  get: ^4.6.6
+
+  # Network info (WiFi IP, gateway, etc.)
+  network_info_plus: ^6.1.0
+
+  # HTTP client for discovery (REST probe on port 8001)
+  http: ^1.2.2
+
+  # WebSocket client for Samsung TV control (port 8002)
+  web_socket_channel: ^3.0.1
+
+  # Local storage for last connected TV and tokens
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

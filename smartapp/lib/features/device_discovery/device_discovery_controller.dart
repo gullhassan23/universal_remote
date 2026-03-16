@@ -1,0 +1,67 @@
+import 'package:get/get.dart';
+
+import '../../models/tv_brand.dart';
+import '../../models/tv_device.dart';
+import '../../services/tv_service_interface.dart';
+import '../../controllers/tv_connection_controller.dart';
+import '../remote/remote_screen.dart';
+import 'sony_pairing_dialog.dart';
+
+class DeviceDiscoveryController extends GetxController {
+  final ITvService _tvService = Get.find<ITvService>();
+  final TvConnectionController _connectionController =
+      Get.find<TvConnectionController>();
+
+  final RxList<TvDevice> devices = <TvDevice>[].obs;
+  final RxBool isLoading = false.obs;
+  final RxString errorMessage = ''.obs;
+
+  Future<void> discoverDevices() async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    devices.clear();
+
+    try {
+      final results = await _tvService.discoverDevices();
+      if (results.isEmpty) {
+        errorMessage.value =
+            'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
+      }
+      devices.assignAll(results);
+    } catch (e) {
+      errorMessage.value = 'Failed to discover devices: $e';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> connectTo(TvDevice device, {bool navigateToRemote = true}) async {
+    TvDevice deviceToUse = device;
+    if (device.brand == TvBrand.sony &&
+        (device.token == null || device.token!.isEmpty)) {
+      final context = Get.context;
+      if (context == null) return false;
+      final psk = await showSonyPairingDialog(context);
+      if (psk == null || psk.isEmpty) return false;
+      deviceToUse = device.copyWith(token: psk);
+    }
+
+    final success = await _connectionController.connectTo(deviceToUse);
+    if (success) {
+      if (navigateToRemote) {
+        Get.to(() => const RemoteScreen());
+      }
+      return true;
+    } else {
+      final hint = device.brand == TvBrand.sony
+          ? 'Ensure the TV is on and the Pre-Shared Key is set in TV Settings > Network > IP Control.'
+          : 'Please ensure the TV is on and try again.';
+      Get.snackbar(
+        'Connection failed',
+        'Unable to connect to ${device.name}. $hint',
+      );
+      return false;
+    }
+  }
+}
+
