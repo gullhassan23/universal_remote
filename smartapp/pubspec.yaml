@@ -27,6 +27,7 @@ dependencies:
 
   # Local storage for last connected TV and tokens
   shared_preferences: ^2.3.2
+  smooth_page_indicator: ^1.1.0
 
 dev_dependencies:
   flutter_test:

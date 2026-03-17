@@ -227,7 +227,7 @@ class AndroidTvService implements ITvService {
       return ok;
     } catch (e) {
       print('AndroidTvService.sendKey: exception while sending key "$key": $e');
-      // Do not change connection state here; treat command as best-effort.
+  
       return false;
     }
   }

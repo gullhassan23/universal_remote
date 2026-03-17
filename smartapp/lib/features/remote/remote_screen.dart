@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../../controllers/tv_connection_controller.dart';
 import '../../services/tv_service_interface.dart';
@@ -11,10 +12,9 @@ class RemoteScreen extends GetView<RemoteController> {
   @override
   Widget build(BuildContext context) {
     final connectionController = Get.find<TvConnectionController>();
-
+    final PageController pageController = PageController();
     return Scaffold(
       backgroundColor: const Color(0xFF444643),
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -24,7 +24,6 @@ class RemoteScreen extends GetView<RemoteController> {
         ),
         centerTitle: true,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -46,7 +45,28 @@ class RemoteScreen extends GetView<RemoteController> {
                 length: 2,
                 child: Column(
                   children: [
-                    buildSideButtons(),
+                    // buildSideButtons(),
+                    SizedBox(
+                      height: 202,
+                      child: PageView(
+                        controller: pageController,
+                        children: [
+                          buildMainButtons(),
+                          buildSideMainButtons(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SmoothPageIndicator(
+                      controller: pageController,
+                      count: 2,
+                      effect: const ExpandingDotsEffect(
+                        dotHeight: 8,
+                        dotWidth: 8,
+                        activeDotColor: Colors.white,
+                        dotColor: Colors.grey,
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     _buildTabs(),
                     const SizedBox(height: 16),
@@ -62,21 +82,6 @@ class RemoteScreen extends GetView<RemoteController> {
           ),
         ),
       ),
-
-      /// Bottom Navigation
-      // bottomNavigationBar: Container(
-      //   height: 70,
-      //   color: const Color(0xFF1A1A1A),
-      //   child: Row(
-      //     mainAxisAlignment: MainAxisAlignment.spaceAround,
-      //     children: const [
-      //       _NavItem(icon: Icons.settings_remote, label: "Remote"),
-      //       _NavItem(icon: Icons.apps, label: "Apps"),
-      //       _NavItem(icon: Icons.cast, label: "Cast"),
-      //       _NavItem(icon: Icons.settings, label: "Settings"),
-      //     ],
-      //   ),
-      // ),
     );
   }
 
@@ -96,8 +101,16 @@ class RemoteScreen extends GetView<RemoteController> {
 //           borderRadius: BorderRadius.circular(12),
 //         ),
   /// BUTTON STYLE
-  Widget remoteButton(
-      IconData icon, VoidCallback onTap, bool border, Color color) {
+  Widget remoteButton({
+    required bool text,
+    String? label,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool border,
+    required Color color,
+    required Color containercolor,
+    bool? isActive,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -106,17 +119,26 @@ class RemoteScreen extends GetView<RemoteController> {
         height: 50,
         decoration: border
             ? BoxDecoration(
+                color: isActive == true ? containercolor : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black),
+                border: Border.all(
+                    color: isActive == true ? containercolor : Colors.black),
               )
             : null,
-        child: Icon(icon, color: color),
+        child: Center(
+          child: text
+              ? Text(
+                  label ?? '',
+                  style: TextStyle(color: color),
+                )
+              : Icon(icon, color: color),
+        ),
       ),
     );
   }
 
   /// SIDE BUTTONS (Volume / Power / Channel)
-  Widget buildSideButtons() {
+  Widget buildMainButtons() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Row(
@@ -133,25 +155,37 @@ class RemoteScreen extends GetView<RemoteController> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  remoteButton(Icons.add, () => controller.send('KEY_VOLUP'),
-                      false, Colors.white),
+                  remoteButton(
+                      containercolor: Colors.white,
+                      text: false,
+                      icon: Icons.add,
+                      onTap: () => controller.send('KEY_VOLUP'),
+                      border: false,
+                      color: Colors.white),
                   const Divider(
                     color: Colors.black,
                     height: 10,
                     thickness: 5,
                   ),
-                  remoteButton(Icons.volume_off,
-                      () => controller.send('KEY_MUTE'), false, Colors.white),
+                  remoteButton(
+                      containercolor: Colors.white,
+                      text: false,
+                      icon: Icons.volume_off,
+                      onTap: () => controller.send('KEY_MUTE'),
+                      border: false,
+                      color: Colors.white),
                   const Divider(
                     color: Colors.black,
                     height: 12,
                     thickness: 1,
                   ),
                   remoteButton(
-                      Icons.remove,
-                      () => controller.send('KEY_VOLDOWN'),
-                      false,
-                      Colors.white),
+                      containercolor: Colors.white,
+                      text: false,
+                      icon: Icons.remove,
+                      onTap: () => controller.send('KEY_VOLDOWN'),
+                      border: false,
+                      color: Colors.white),
                 ],
               ),
             ),
@@ -165,20 +199,35 @@ class RemoteScreen extends GetView<RemoteController> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: remoteButton(Icons.power_settings_new,
-                    () => controller.send('KEY_POWER'), true, Colors.red),
+                child: remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.power_settings_new,
+                    onTap: () => controller.send('KEY_POWER'),
+                    border: true,
+                    color: Colors.red),
               ),
               const SizedBox(height: 2),
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: remoteButton(Icons.keyboard,
-                    () => controller.send('KEY_KEYBOARD'), true, Colors.white),
+                child: remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.keyboard,
+                    onTap: () => controller.send('KEY_KEYBOARD'),
+                    border: true,
+                    color: Colors.white),
               ),
               const SizedBox(height: 2),
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: remoteButton(Icons.exit_to_app,
-                    () => controller.send('KEY_RETURN'), true, Colors.white),
+                child: remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.exit_to_app,
+                    onTap: () => controller.send('KEY_RETURN'),
+                    border: true,
+                    color: Colors.white),
               ),
             ],
           ),
@@ -196,19 +245,149 @@ class RemoteScreen extends GetView<RemoteController> {
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
-                    remoteButton(Icons.keyboard_arrow_up,
-                        () => controller.send('KEY_CHUP'), false, Colors.white),
-                    const SizedBox(height: 10),
-                    remoteButton(Icons.menu, () {}, false, Colors.white),
+                    remoteButton(
+                        containercolor: Colors.white,
+                        text: false,
+                        icon: Icons.keyboard_arrow_up,
+                        onTap: () => controller.send('KEY_CHUP'),
+                        border: false,
+                        color: Colors.white),
                     const SizedBox(height: 10),
                     remoteButton(
-                        Icons.keyboard_arrow_down,
-                        () => controller.send('KEY_CHDOWN'),
-                        false,
-                        Colors.white),
+                        containercolor: Colors.white,
+                        text: false,
+                        icon: Icons.menu,
+                        onTap: () {},
+                        border: false,
+                        color: Colors.white),
+                    const SizedBox(height: 10),
+                    remoteButton(
+                        containercolor: Colors.white,
+                        text: false,
+                        icon: Icons.keyboard_arrow_down,
+                        onTap: () => controller.send('KEY_CHDOWN'),
+                        border: false,
+                        color: Colors.white),
                   ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildSideMainButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          /// VOLUME
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                remoteButton(
+                  isActive: true,
+                  containercolor: Color(0xffF27E74),
+                  label: 'A',
+                  text: true,
+                  icon: Icons.add,
+                  onTap: () => controller.send('KEY_VOLUP'),
+                  border: true,
+                  color: Colors.white,
+                ),
+                SizedBox(height: 15),
+                remoteButton(
+                    isActive: true,
+                    containercolor: Color(0xff7ED875),
+                    label: 'B',
+                    text: true,
+                    icon: Icons.volume_off,
+                    onTap: () => controller.send('KEY_MUTE'),
+                    border: true,
+                    color: Colors.white),
+                SizedBox(height: 15),
+                remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.fast_rewind_sharp,
+                    onTap: () => controller.send('KEY_VOLDOWN'),
+                    border: true,
+                    color: Colors.white),
+              ],
+            ),
+          ),
+
+          /// CENTER BUTTONS
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.search,
+                    onTap: () => controller.send('KEY_POWER'),
+                    border: true,
+                    color: Colors.red),
+                remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.pause,
+                    onTap: () => controller.send('KEY_KEYBOARD'),
+                    border: true,
+                    color: Colors.white),
+                remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.play_arrow,
+                    onTap: () => controller.send('KEY_RETURN'),
+                    border: true,
+                    color: Colors.white),
+              ],
+            ),
+          ),
+
+          /// CHANNEL
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                remoteButton(
+                    isActive: true,
+                    containercolor: Color(0xffF6CC56),
+                    label: 'C',
+                    text: true,
+                    icon: Icons.volume_off,
+                    onTap: () => controller.send('KEY_CHUP'),
+                    border: true,
+                    color: Colors.white),
+                const SizedBox(height: 15),
+                remoteButton(
+                    isActive: true,
+                    containercolor: Color(0xffA1CAFE),
+                    label: 'D',
+                    text: true,
+                    icon: Icons.volume_off,
+                    onTap: () {},
+                    border: true,
+                    color: Colors.white),
+                const SizedBox(height: 15),
+                remoteButton(
+                    containercolor: Colors.white,
+                    text: false,
+                    icon: Icons.fast_forward,
+                    onTap: () => controller.send('KEY_CHDOWN'),
+                    border: true,
+                    color: Colors.white),
+              ],
             ),
           ),
         ],
@@ -438,12 +617,27 @@ class RemoteScreen extends GetView<RemoteController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          remoteButton(Icons.arrow_back, () => controller.send('KEY_RETURN'),
-              true, Colors.white),
-          remoteButton(Icons.home, () => controller.send('KEY_HOME'), true,
-              Colors.white),
-          remoteButton(Icons.menu, () => controller.send('KEY_MENU'), true,
-              Colors.white),
+          remoteButton(
+              containercolor: Colors.white,
+              text: false,
+              icon: Icons.arrow_back,
+              onTap: () => controller.send('KEY_RETURN'),
+              border: true,
+              color: Colors.white),
+          remoteButton(
+              containercolor: Colors.white,
+              text: false,
+              icon: Icons.home,
+              onTap: () => controller.send('KEY_HOME'),
+              border: true,
+              color: Colors.white),
+          remoteButton(
+              containercolor: Colors.white,
+              text: false,
+              icon: Icons.menu,
+              onTap: () => controller.send('KEY_MENU'),
+              border: true,
+              color: Colors.white),
         ],
       ),
     );
