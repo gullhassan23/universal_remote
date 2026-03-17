@@ -36,17 +36,84 @@ class AndroidTvService implements ITvService {
 
   @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
-    // Temporary: for emulator testing, return a single hard-coded Android TV.
-    // When automatic discovery is enabled, replace this with SSDP/mDNS probing.
-    return [
-      TvDevice(
-        id: 'android_emulator_10.0.2.15_6466',
-        name: 'Android TV Emulator',
-        ip: '10.0.2.15',
-        port: 6466,
-        brand: TvBrand.androidTv,
-      ),
-    ];
+    // Legacy: emulator-only static device (10.0.2.15).
+    // This block is intentionally commented out so production builds always rely
+    // on real-network discovery. To temporarily force an emulator device for
+    // local testing, you can uncomment this early return.
+    //
+    // return [
+    //   TvDevice(
+    //     id: 'android_emulator_10.0.2.15_6466',
+    //     name: 'Android TV Emulator',
+    //     ip: '10.0.2.15',
+    //     port: 6466,
+    //     brand: TvBrand.androidTv,
+    //   ),
+    // ];
+
+    final devices = <TvDevice>[];
+    RawDatagramSocket? socket;
+
+    try {
+      socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      socket.joinMulticast(InternetAddress(_ssdpMulticast));
+      socket.multicastHops = 2;
+      socket.broadcastEnabled = true;
+
+      final searchMessage = [
+        'M-SEARCH * HTTP/1.1',
+        'HOST: $_ssdpMulticast:$_ssdpPort',
+        'MAN: "ssdp:discover"',
+        'MX: 3',
+        'ST: ssdp:all',
+        '',
+        '',
+      ].join('\r\n');
+
+      final data = utf8.encode(searchMessage);
+      socket.send(
+        data,
+        InternetAddress(_ssdpMulticast),
+        _ssdpPort,
+      );
+
+      final completer = Completer<void>();
+      final seenLocations = <String>{};
+
+      void onDatagram(Datagram event) {
+        final response = utf8.decode(event.data);
+        final location = _parseHeader(response, 'LOCATION');
+        final server = _parseHeader(response, 'SERVER');
+        if (location != null &&
+            location.isNotEmpty &&
+            seenLocations.add(location)) {
+          final device = _deviceFromLocation(location, server: server);
+          if (device != null) {
+            devices.add(device);
+          }
+        }
+      }
+
+      socket.listen((event) {
+        if (event == RawSocketEvent.read) {
+          final datagram = socket?.receive();
+          if (datagram != null) {
+            onDatagram(datagram);
+          }
+        }
+      });
+
+      Timer(_discoverTimeout, () {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await completer.future;
+    } catch (e) {
+      print('AndroidTvService.discoverDevices: SSDP discovery error: $e');
+    } finally {
+      socket?.close();
+    }
+
+    return devices;
   }
 
   String? _parseHeader(String response, String header) {
