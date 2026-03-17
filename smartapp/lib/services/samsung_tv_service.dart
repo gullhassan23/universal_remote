@@ -28,10 +28,41 @@ class SamsungTvService implements ITvService {
 
   SamsungTvService();
 
+  Future<String?> _getLocalIpv4() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLinkLocal: false,
+      );
+
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address;
+          if (ip == '127.0.0.1') continue;
+          if (addr.isLoopback) continue;
+          // Keep to RFC1918 private ranges; subnet scan only makes sense there.
+          if (ip.startsWith('10.') ||
+              ip.startsWith('192.168.') ||
+              ip.startsWith('172.16.') ||
+              ip.startsWith('172.17.') ||
+              ip.startsWith('172.18.') ||
+              ip.startsWith('172.19.') ||
+              ip.startsWith('172.2') || // includes 172.20-172.29
+              ip.startsWith('172.3')) { // includes 172.30-172.31
+            return ip;
+          }
+        }
+      }
+    } catch (_) {
+      // ignore
+    }
+    return null;
+  }
+
   @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
     final info = NetworkInfo();
-    final wifiIp = await info.getWifiIP();
+    final wifiIp = await info.getWifiIP() ?? await _getLocalIpv4();
 
     if (wifiIp == null) {
       print('SamsungTvService: No WiFi IP found, cannot scan for TVs.');

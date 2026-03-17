@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app discovers and controls TVs on your local Wi‑Fi network.</string>
+
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInLocalNetwork</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
