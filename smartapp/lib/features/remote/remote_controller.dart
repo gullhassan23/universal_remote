@@ -39,6 +39,7 @@ class RemoteController extends GetxController {
         Get.snackbar('Connection issue',
             'Failed to send command. Connection may have been lost.');
       }
+
       return;
     }
 
@@ -222,7 +223,9 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                               ? 'Sony'
                               : device.brand == TvBrand.samsung
                                   ? 'Samsung'
-                                  : device.brand.name;
+                                  : device.brand == TvBrand.androidTv
+                                      ? 'Android TV'
+                                      : device.brand.name;
                           return ListTile(
                             leading: const Icon(Icons.tv,
                                 color: Colors.white70, size: 28),

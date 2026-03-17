@@ -12,9 +12,16 @@ class DeviceDiscoveryController extends GetxController {
   final TvConnectionController _connectionController =
       Get.find<TvConnectionController>();
 
+  /// The brand the user selected on the home screen, used to filter discovery.
+  TvBrand? _preferredBrand;
+
   final RxList<TvDevice> devices = <TvDevice>[].obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+
+  void setPreferredBrand(TvBrand brand) {
+    _preferredBrand = brand;
+  }
 
   Future<void> discoverDevices() async {
     isLoading.value = true;
@@ -22,7 +29,8 @@ class DeviceDiscoveryController extends GetxController {
     devices.clear();
 
     try {
-      final results = await _tvService.discoverDevices();
+      final results =
+          await _tvService.discoverDevices(filterBrand: _preferredBrand);
       if (results.isEmpty) {
         errorMessage.value =
             'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
@@ -48,6 +56,10 @@ class DeviceDiscoveryController extends GetxController {
 
     final success = await _connectionController.connectTo(deviceToUse);
     if (success) {
+      Get.snackbar(
+        'Connected',
+        'Connected to ${deviceToUse.name}.',
+      );
       if (navigateToRemote) {
         Get.to(() => const RemoteScreen());
       }

@@ -1,3 +1,4 @@
+import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
 
 enum TvConnectionState {
@@ -8,7 +9,12 @@ enum TvConnectionState {
 }
 
 abstract class ITvService {
-  Future<List<TvDevice>> discoverDevices();
+  /// Discover TVs available on the network.
+  ///
+  /// If [filterBrand] is provided, the implementation should prefer or
+  /// restrict discovery to that brand when possible. If null, it should
+  /// discover all supported brands.
+  Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand});
 
   Future<bool> connect(TvDevice device);
 

@@ -31,7 +31,11 @@ class HomeScreen extends GetView<HomeController> {
           itemCount: controller.brands.length,
           itemBuilder: (context, index) {
             final brand = controller.brands[index];
-            final activeBrands = [TvBrand.samsung, TvBrand.sony];
+            final activeBrands = [
+              TvBrand.samsung,
+              TvBrand.sony,
+              TvBrand.androidTv
+            ];
             final isActive = activeBrands.contains(brand);
 
             return GestureDetector(

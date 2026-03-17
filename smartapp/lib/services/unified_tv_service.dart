@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
 import 'tv_service_interface.dart';
+import 'android_tv_service.dart';
 import 'samsung_tv_service.dart';
 import 'sony_tv_service.dart';
 
@@ -15,6 +16,7 @@ const _prefsLastDeviceKey = 'last_tv';
 class UnifiedTvService implements ITvService {
   final SamsungTvService _samsung = SamsungTvService();
   final SonyTvService _sony = SonyTvService();
+  final AndroidTvService _androidTv = AndroidTvService();
 
   final _connectionStateController =
       StreamController<TvConnectionState>.broadcast();
@@ -33,6 +35,8 @@ class UnifiedTvService implements ITvService {
       case TvBrand.samsung:
       case TvBrand.lg:
         return _samsung;
+      case TvBrand.androidTv:
+        return _androidTv;
     }
   }
 
@@ -47,10 +51,18 @@ class UnifiedTvService implements ITvService {
       _connectionStateController.stream;
 
   @override
-  Future<List<TvDevice>> discoverDevices() async {
+  Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
+    // If a specific brand is requested, only use the corresponding service.
+    if (filterBrand != null) {
+      final service = _serviceFor(filterBrand);
+      return service.discoverDevices(filterBrand: filterBrand);
+    }
+
+    // Otherwise, discover across all known services and merge results.
     final results = await Future.wait([
       _samsung.discoverDevices(),
       _sony.discoverDevices(),
+      _androidTv.discoverDevices(),
     ]);
     final merged = <TvDevice>[];
     final seenIps = <String>{};

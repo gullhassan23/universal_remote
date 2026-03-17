@@ -29,7 +29,7 @@ class SamsungTvService implements ITvService {
   SamsungTvService();
 
   @override
-  Future<List<TvDevice>> discoverDevices() async {
+  Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
     final info = NetworkInfo();
     final wifiIp = await info.getWifiIP();
 

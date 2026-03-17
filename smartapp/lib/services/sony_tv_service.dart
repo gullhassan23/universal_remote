@@ -34,7 +34,7 @@ class SonyTvService implements ITvService {
   SonyTvService();
 
   @override
-  Future<List<TvDevice>> discoverDevices() async {
+  Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
     final devices = <TvDevice>[];
     RawDatagramSocket? socket;
 
