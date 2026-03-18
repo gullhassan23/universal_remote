@@ -129,7 +129,8 @@ class RemoteScreen extends GetView<RemoteController> {
           child: text
               ? Text(
                   label ?? '',
-                  style: TextStyle(color: color),
+                  style: TextStyle(
+                      color: color, fontWeight: FontWeight.bold, fontSize: 22),
                 )
               : Icon(icon, color: color),
         ),
@@ -142,7 +143,7 @@ class RemoteScreen extends GetView<RemoteController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Row(
-        // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           /// VOLUME
           Container(
@@ -190,9 +191,6 @@ class RemoteScreen extends GetView<RemoteController> {
               ),
             ),
           ),
-          SizedBox(
-            width: 40,
-          ),
 
           /// CENTER BUTTONS
           Column(
@@ -231,12 +229,10 @@ class RemoteScreen extends GetView<RemoteController> {
               ),
             ],
           ),
-          SizedBox(
-            width: 40,
-          ),
 
           /// CHANNEL
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.all(8.0),
             child: Container(
               decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
@@ -252,7 +248,7 @@ class RemoteScreen extends GetView<RemoteController> {
                         onTap: () => controller.send('KEY_CHUP'),
                         border: false,
                         color: Colors.white),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 9),
                     remoteButton(
                         containercolor: Colors.white,
                         text: false,
@@ -260,7 +256,7 @@ class RemoteScreen extends GetView<RemoteController> {
                         onTap: () {},
                         border: false,
                         color: Colors.white),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 9),
                     remoteButton(
                         containercolor: Colors.white,
                         text: false,
@@ -298,7 +294,7 @@ class RemoteScreen extends GetView<RemoteController> {
                   label: 'A',
                   text: true,
                   icon: Icons.add,
-                  onTap: () => controller.send('KEY_VOLUP'),
+                  onTap: () => controller.send('KEY_RED'),
                   border: true,
                   color: Colors.white,
                 ),
@@ -309,7 +305,7 @@ class RemoteScreen extends GetView<RemoteController> {
                     label: 'B',
                     text: true,
                     icon: Icons.volume_off,
-                    onTap: () => controller.send('KEY_MUTE'),
+                    onTap: () => controller.send('KEY_GREEN'),
                     border: true,
                     color: Colors.white),
                 SizedBox(height: 15),
@@ -317,7 +313,7 @@ class RemoteScreen extends GetView<RemoteController> {
                     containercolor: Colors.white,
                     text: false,
                     icon: Icons.fast_rewind_sharp,
-                    onTap: () => controller.send('KEY_VOLDOWN'),
+                    onTap: () => controller.send('KEY_REWIND'),
                     border: true,
                     color: Colors.white),
               ],
@@ -334,21 +330,21 @@ class RemoteScreen extends GetView<RemoteController> {
                     containercolor: Colors.white,
                     text: false,
                     icon: Icons.search,
-                    onTap: () => controller.send('KEY_POWER'),
+                    onTap: () => controller.send('KEY_SEARCH'),
                     border: true,
-                    color: Colors.red),
+                    color: Colors.white),
                 remoteButton(
                     containercolor: Colors.white,
                     text: false,
                     icon: Icons.pause,
-                    onTap: () => controller.send('KEY_KEYBOARD'),
+                    onTap: () => controller.send('KEY_PAUSE'),
                     border: true,
                     color: Colors.white),
                 remoteButton(
                     containercolor: Colors.white,
                     text: false,
                     icon: Icons.play_arrow,
-                    onTap: () => controller.send('KEY_RETURN'),
+                    onTap: () => controller.send('KEY_PLAY'),
                     border: true,
                     color: Colors.white),
               ],
@@ -366,7 +362,7 @@ class RemoteScreen extends GetView<RemoteController> {
                     label: 'C',
                     text: true,
                     icon: Icons.volume_off,
-                    onTap: () => controller.send('KEY_CHUP'),
+                    onTap: () => controller.send('KEY_YELLOW'),
                     border: true,
                     color: Colors.white),
                 const SizedBox(height: 15),
@@ -376,7 +372,7 @@ class RemoteScreen extends GetView<RemoteController> {
                     label: 'D',
                     text: true,
                     icon: Icons.volume_off,
-                    onTap: () {},
+                    onTap: () => controller.send('KEY_BLUE'),
                     border: true,
                     color: Colors.white),
                 const SizedBox(height: 15),
@@ -384,7 +380,7 @@ class RemoteScreen extends GetView<RemoteController> {
                     containercolor: Colors.white,
                     text: false,
                     icon: Icons.fast_forward,
-                    onTap: () => controller.send('KEY_CHDOWN'),
+                    onTap: () => controller.send('KEY_FF'),
                     border: true,
                     color: Colors.white),
               ],
