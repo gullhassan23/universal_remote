@@ -14,7 +14,7 @@ class RemoteScreen extends GetView<RemoteController> {
     final connectionController = Get.find<TvConnectionController>();
     final PageController pageController = PageController();
     return Scaffold(
-      backgroundColor: const Color(0xFF444643),
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -74,7 +74,7 @@ class RemoteScreen extends GetView<RemoteController> {
                       height: 280,
                       child: _buildTabViews(),
                     ),
-                    buildBottomButtons(),
+                    buildBottomButtons(context),
                   ],
                 ),
               ),
@@ -430,40 +430,18 @@ class RemoteScreen extends GetView<RemoteController> {
           child: buildDpad(),
         ),
         // _buildKeyboardTab(),
-        _buildNumberTab(),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _buildNumberTab()),
+        ),
       ],
     );
   }
-
-  /// Keyboard TAB: simple keyboard prompt
-  // Widget _buildKeyboardTab() {
-  //   return Center(
-  //     child: Container(
-  //       margin: const EdgeInsets.symmetric(horizontal: 24),
-  //       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-  //       decoration: BoxDecoration(
-  //         color: const Color(0xFF2A2A2A),
-  //         borderRadius: BorderRadius.circular(24),
-  //       ),
-  //       child: Row(
-  //         children: [
-  //           const Icon(Icons.keyboard, color: Colors.white70),
-  //           const SizedBox(width: 8),
-  //           const Expanded(
-  //             child: Text(
-  //               'Use phone keyboard to type on TV',
-  //               style: TextStyle(color: Colors.white70, fontSize: 13),
-  //             ),
-  //           ),
-  //           IconButton(
-  //             icon: const Icon(Icons.send, color: Colors.white70),
-  //             onPressed: () => controller.send('KEY_TTX_SUBFACE'),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   /// 123 TAB: numeric keypad (1–9, 0, GUIDE, TOOLS)
   Widget _buildNumberTab() {
@@ -479,12 +457,12 @@ class RemoteScreen extends GetView<RemoteController> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: rows.map((row) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            padding: const EdgeInsets.symmetric(vertical: 5.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: row.map((label) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   child: _numberPadButton(label),
                 );
               }).toList(),
@@ -497,6 +475,8 @@ class RemoteScreen extends GetView<RemoteController> {
 
   Widget _numberPadButton(String label) {
     late final String keyCode;
+    final bool isUtilityButton = label == 'GUIDE' || label == 'TOOLS';
+
     if (label == 'GUIDE') {
       keyCode = 'KEY_GUIDE';
     } else if (label == 'TOOLS') {
@@ -509,8 +489,8 @@ class RemoteScreen extends GetView<RemoteController> {
       borderRadius: BorderRadius.circular(20),
       onTap: () => controller.send(keyCode),
       child: Container(
-        width: 100,
-        height: 60,
+        width: isUtilityButton ? 84 : 72,
+        height: 56,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: const Color(0xFF2A2A2A),
@@ -518,7 +498,11 @@ class RemoteScreen extends GetView<RemoteController> {
         ),
         child: Text(
           label,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: isUtilityButton ? 12 : 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -536,9 +520,9 @@ class RemoteScreen extends GetView<RemoteController> {
           Container(
             width: 260,
             height: 260,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFA9ACAB),
+              color: Colors.grey[600],
             ),
           ),
 
@@ -607,7 +591,7 @@ class RemoteScreen extends GetView<RemoteController> {
   }
 
   /// BOTTOM BUTTONS
-  Widget buildBottomButtons() {
+  Widget buildBottomButtons(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 50),
       child: Row(
@@ -624,7 +608,9 @@ class RemoteScreen extends GetView<RemoteController> {
               containercolor: Colors.white,
               text: false,
               icon: Icons.home,
-              onTap: () => controller.send('KEY_HOME'),
+              onTap: () {
+                Navigator.pop(context);
+              },
               border: true,
               color: Colors.white),
           remoteButton(
