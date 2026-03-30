@@ -71,6 +71,7 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
       return 15;
     case 'KEY_9':
       return 16;
+
     default:
       return null;
   }

@@ -20,6 +20,25 @@ class RemoteController extends GetxController {
   String? _pendingKey;
   bool _pickerSheetVisible = false;
 
+  void logButtonEvent({
+    required String buttonKey,
+    required String event,
+    String? action,
+  }) {
+    final actionSegment = action == null ? '' : ' action=$action';
+    debugPrint('[button] key=$buttonKey event=$event$actionSegment');
+  }
+
+  void handleButtonTap({
+    required String buttonKey,
+    required VoidCallback onTap,
+    String action = 'tap',
+  }) {
+    logButtonEvent(buttonKey: buttonKey, event: 'pressed', action: action);
+    onTap();
+    logButtonEvent(buttonKey: buttonKey, event: 'released', action: action);
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -32,6 +51,12 @@ class RemoteController extends GetxController {
   }
 
   Future<void> send(String key) async {
+    logButtonEvent(
+      buttonKey: key,
+      event: 'action_triggered',
+      action: 'send_key',
+    );
+
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {
       final ok = await _connectionController.sendKey(key);
@@ -39,8 +64,6 @@ class RemoteController extends GetxController {
         Get.snackbar('Connection issue',
             'Failed to send command. Connection may have been lost.');
       }
-
-      print('send key: $key');
 
       return;
     }
@@ -137,10 +160,14 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white70),
-                    onPressed: () {
-                      Get.back();
-                      widget.onDismiss();
-                    },
+                    onPressed: () => Get.find<RemoteController>().handleButtonTap(
+                      buttonKey: 'DEVICE_PICKER_CLOSE',
+                      action: 'dismiss_picker',
+                      onTap: () {
+                        Get.back();
+                        widget.onDismiss();
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -199,6 +226,7 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                         ),
                         const SizedBox(height: 200),
                         _RescanButton(
+                          buttonKey: 'DISCOVERY_RESCAN_EMPTY',
                           onTap: () =>
                               widget.discoveryController.discoverDevices(),
                         ),
@@ -244,15 +272,22 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                               style: const TextStyle(
                                   color: Colors.white54, fontSize: 13),
                             ),
-                            onTap: () async {
-                              Get.back();
-                              await widget.onDeviceSelected(device);
+                            onTap: () {
+                              Get.find<RemoteController>().handleButtonTap(
+                                buttonKey: 'DEVICE_${device.name}',
+                                action: 'select_device',
+                                onTap: () {
+                                  Get.back();
+                                  widget.onDeviceSelected(device);
+                                },
+                              );
                             },
                           );
                         },
                       ),
                     ),
                     _RescanButton(
+                      buttonKey: 'DISCOVERY_RESCAN_LIST',
                       onTap: () => widget.discoveryController.discoverDevices(),
                     ),
                   ],
@@ -267,15 +302,20 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
 }
 
 class _RescanButton extends StatelessWidget {
-  const _RescanButton({required this.onTap});
+  const _RescanButton({required this.buttonKey, required this.onTap});
 
+  final String buttonKey;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: TextButton(
-        onPressed: onTap,
+        onPressed: () => Get.find<RemoteController>().handleButtonTap(
+          buttonKey: buttonKey,
+          action: 'discover_devices',
+          onTap: onTap,
+        ),
         child: Text(
           "Don't see your device?",
           style: TextStyle(
