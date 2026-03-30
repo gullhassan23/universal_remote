@@ -27,6 +27,7 @@ class AndroidTvService implements ITvService {
   TvConnectionState _state = TvConnectionState.disconnected;
   TvDevice? _currentDevice;
   String? _lastError;
+  String? _lastCertificateError;
 
   String? get lastError => _lastError;
 
@@ -179,25 +180,47 @@ class AndroidTvService implements ITvService {
   }
 
   Future<String?> _ensurePkcs12Path() async {
+    _lastCertificateError = null;
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString(_prefsPkcs12);
     if (cached != null && File(cached).existsSync()) {
       return cached;
+    }
+    if (cached != null && cached.isNotEmpty) {
+      await prefs.remove(_prefsPkcs12);
     }
     if (!Platform.isAndroid) return null;
 
     try {
       final map = await AndroidTvRemotePlatform.instance.generateCertificates();
       final success = map['success'] == true;
-      if (!success) return null;
+      if (!success) {
+        _lastCertificateError =
+            'Native certificate generation returned success=false: $map';
+        return null;
+      }
       final path = map['pkcs12Path'];
-      if (path is! String || !File(path).existsSync()) return null;
+      if (path is! String || path.isEmpty) {
+        _lastCertificateError =
+            'Native certificate generation did not return pkcs12Path: $map';
+        return null;
+      }
+      final pkcs12File = File(path);
+      if (!pkcs12File.existsSync()) {
+        _lastCertificateError =
+            'Generated PKCS12 file does not exist at path: $path';
+        return null;
+      }
       await prefs.setString(_prefsPkcs12, path);
       return path;
     } catch (e) {
+      _lastCertificateError = 'Native certificate generation threw: $e';
       if (kDebugMode) {
         // ignore: avoid_print
-        print('AndroidTvService._ensurePkcs12Path: $e');
+        print(
+          'AndroidTvService._ensurePkcs12Path: '
+          '${_lastCertificateError ?? e}',
+        );
       }
       return null;
     }
@@ -221,10 +244,12 @@ class AndroidTvService implements ITvService {
     try {
       final pkcs12 = await _ensurePkcs12Path();
       if (pkcs12 == null) {
-        _lastError = 'Certificate setup failed (PKCS12 path missing).';
+        _lastError = _lastCertificateError != null
+            ? 'Certificate setup failed. ${_lastCertificateError!}'
+            : 'Certificate setup failed (PKCS12 path missing).';
         if (kDebugMode) {
           // ignore: avoid_print
-          print('AndroidTvService.connect: missing PKCS12 certificate path');
+          print('AndroidTvService.connect: ${_lastError ?? 'unknown error'}');
         }
         _syncState(TvConnectionState.error);
         return false;
@@ -232,10 +257,6 @@ class AndroidTvService implements ITvService {
 
       final attempts = <(int pairingPort, int remotePort)>[
         (6467, 6466),
-        (
-          device.port,
-          device.port == 6467 ? 6466 : device.port,
-        ),
       ].toSet().toList();
 
       for (final attempt in attempts) {

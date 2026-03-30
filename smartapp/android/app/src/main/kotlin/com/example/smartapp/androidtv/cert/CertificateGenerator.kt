@@ -63,8 +63,12 @@ class CertificateGenerator {
     }
 
     private fun generateKeyPair(): KeyPair {
-        val keyGen = KeyPairGenerator.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME)
-        keyGen.initialize(2048)
+        val keyGen = try {
+            KeyPairGenerator.getInstance("RSA")
+        } catch (_: Exception) {
+            KeyPairGenerator.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME)
+        }
+        keyGen.initialize(2048, SecureRandom())
         return keyGen.generateKeyPair()
     }
 
@@ -90,13 +94,21 @@ class CertificateGenerator {
             true,
             BasicConstraints(true),
         )
-        val contentSigner = JcaContentSignerBuilder("SHA256WithRSA")
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-            .build(privateKey)
+        val contentSigner = try {
+            JcaContentSignerBuilder("SHA256withRSA").build(privateKey)
+        } catch (_: Exception) {
+            JcaContentSignerBuilder("SHA256withRSA")
+                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                .build(privateKey)
+        }
         val certHolder = builder.build(contentSigner)
-        return JcaX509CertificateConverter()
-            .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-            .getCertificate(certHolder)
+        return try {
+            JcaX509CertificateConverter().getCertificate(certHolder)
+        } catch (_: Exception) {
+            JcaX509CertificateConverter()
+                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                .getCertificate(certHolder)
+        }
     }
 
     private fun saveDERCertificate(context: Context, certificate: X509Certificate): String {
@@ -114,7 +126,11 @@ class CertificateGenerator {
         certificateName: String,
     ): String {
         val file = File(context.filesDir, "cert.p12")
-        val keyStore = KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME)
+        val keyStore = try {
+            KeyStore.getInstance("PKCS12")
+        } catch (_: Exception) {
+            KeyStore.getInstance("PKCS12", BouncyCastleProvider.PROVIDER_NAME)
+        }
         keyStore.load(null, null)
         val chain = arrayOf<Certificate>(certificate)
         keyStore.setKeyEntry(

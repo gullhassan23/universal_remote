@@ -17,10 +17,15 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+import java.security.MessageDigest
+import java.security.interfaces.RSAPublicKey
 
 class AndroidTvRemotePlugin(private val context: Context) {
 
@@ -32,6 +37,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private var tlsPairing: TLSManager? = null
     private var tlsRemote: TLSManager? = null
     private var remoteController: RemoteController? = null
+    private var remoteReaderJob: Job? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun registerWith(flutterEngine: FlutterEngine) {
@@ -111,6 +117,15 @@ class AndroidTvRemotePlugin(private val context: Context) {
             val certResult: CertificateFilesResult = generator.generateCertificates(context)
             certificateManager = CertificateManager()
             if (certResult.success) {
+                val derExists = certResult.derPath.isNotBlank() && java.io.File(certResult.derPath).exists()
+                val pkcs12Exists = certResult.pkcs12Path.isNotBlank() && java.io.File(certResult.pkcs12Path).exists()
+                if (!derExists || !pkcs12Exists) {
+                    val details = "Certificate files missing after generation: derExists=$derExists pkcs12Exists=$pkcs12Exists derPath=${certResult.derPath} pkcs12Path=${certResult.pkcs12Path}"
+                    mainHandler.post {
+                        result.error("CERT_ERROR", details, null)
+                    }
+                    return
+                }
                 mainHandler.post {
                     result.success(
                         mapOf(
@@ -168,6 +183,46 @@ class AndroidTvRemotePlugin(private val context: Context) {
             return
         }
 
+        if (!awaitPairingStep(MessageParser.PairingStep.REQUEST_ACK, 8)) {
+            Logger.e("connectAndPair: pairing request ACK not received")
+            tlsPairing?.disconnect()
+            tlsPairing = null
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        if (!tlsPairing!!.sendData(ProtobufMessage.createOptionsMessage())) {
+            Logger.e("connectAndPair: failed to send options message")
+            tlsPairing?.disconnect()
+            tlsPairing = null
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        if (!awaitPairingStep(MessageParser.PairingStep.OPTION, 8)) {
+            Logger.e("connectAndPair: pairing option from TV not received")
+            tlsPairing?.disconnect()
+            tlsPairing = null
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        if (!tlsPairing!!.sendData(ProtobufMessage.createConfigurationMessage())) {
+            Logger.e("connectAndPair: failed to send configuration message")
+            tlsPairing?.disconnect()
+            tlsPairing = null
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        if (!awaitPairingStep(MessageParser.PairingStep.CONFIG_ACK, 8)) {
+            Logger.e("connectAndPair: configuration ACK not received (PIN screen not triggered)")
+            tlsPairing?.disconnect()
+            tlsPairing = null
+            mainHandler.post { result.success(false) }
+            return
+        }
+
         val pin = requestPinFromFlutter()
         if (pin.isNullOrBlank()) {
             Logger.e("Pairing cancelled or empty PIN")
@@ -177,7 +232,16 @@ class AndroidTvRemotePlugin(private val context: Context) {
             return
         }
 
-        val secret = ProtobufMessage.createSecretMessage(pin)
+        val secretBytes = buildPairingSecret(pin)
+        if (secretBytes == null) {
+            Logger.e("connectAndPair: invalid code format or failed to create pairing secret")
+            tlsPairing?.disconnect()
+            tlsPairing = null
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        val secret = ProtobufMessage.createSecretMessage(secretBytes)
         if (!tlsPairing!!.sendData(secret)) {
             Logger.e("connectAndPair: failed to send secret message")
             tlsPairing?.disconnect()
@@ -186,14 +250,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
             return
         }
 
-        var paired = false
-        repeat(12) {
-            val resp = tlsPairing!!.receiveData() ?: return@repeat
-            if (MessageParser.isPairingSuccessful(resp)) {
-                paired = true
-                return@repeat
-            }
-        }
+        val paired = awaitPairingStep(MessageParser.PairingStep.SECRET_ACK, 12)
 
         tlsPairing?.disconnect()
         tlsPairing = null
@@ -213,6 +270,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
 
         remoteController = RemoteController(tlsRemote!!)
+        startRemoteReaderLoop()
         mainHandler.post { result.success(true) }
     }
 
@@ -262,6 +320,8 @@ class AndroidTvRemotePlugin(private val context: Context) {
     }
 
     private fun disconnectTlsOnly() {
+        remoteReaderJob?.cancel()
+        remoteReaderJob = null
         remoteController?.destroy()
         remoteController = null
         tlsRemote?.disconnect()
@@ -284,5 +344,87 @@ class AndroidTvRemotePlugin(private val context: Context) {
 
     companion object {
         private const val CHANNEL = "com.example.smartapp/android_tv_remote"
+    }
+
+    private fun startRemoteReaderLoop() {
+        remoteReaderJob?.cancel()
+        val remote = tlsRemote ?: return
+        remoteReaderJob = scope.launch {
+            while (isActive && remote.isConnected()) {
+                val msg = remote.receiveData() ?: continue
+                when (MessageParser.parseRemoteMessageType(msg)) {
+                    MessageParser.RemoteMessageType.CONFIGURE -> {
+                        remote.sendData(ProtobufMessage.createRemoteConfigureMessage())
+                    }
+                    MessageParser.RemoteMessageType.SET_ACTIVE -> {
+                        remote.sendData(ProtobufMessage.createRemoteSetActiveMessage())
+                    }
+                    MessageParser.RemoteMessageType.PING_REQUEST -> {
+                        val ping = MessageParser.parseRemotePingValue(msg)
+                        if (ping != null) {
+                            remote.sendData(ProtobufMessage.createRemotePingResponseMessage(ping))
+                        }
+                    }
+                    MessageParser.RemoteMessageType.OTHER -> Unit
+                }
+            }
+        }
+    }
+
+    private suspend fun awaitPairingStep(
+        expected: MessageParser.PairingStep,
+        tries: Int,
+    ): Boolean {
+        repeat(tries) {
+            val resp = tlsPairing?.receiveData() ?: return@repeat
+            val step = MessageParser.parsePairingStep(resp)
+            if (step == expected) return true
+            // Small yield before reading next frame.
+            delay(30)
+        }
+        return false
+    }
+
+    private fun buildPairingSecret(pinInput: String): ByteArray? {
+        val pinHex = normalizeHexPin(pinInput) ?: return null
+        val codeBytes = hexToBytes(pinHex) ?: return null
+        if (codeBytes.isEmpty()) return null
+        val clientCert = tlsPairing?.getLocalCertificate() ?: return null
+        val serverCert = tlsPairing?.getPeerCertificate() ?: return null
+        val clientKey = clientCert.publicKey as? RSAPublicKey ?: return null
+        val serverKey = serverCert.publicKey as? RSAPublicKey ?: return null
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.update(unsignedBigIntBytes(clientKey.modulus))
+        digest.update(unsignedBigIntBytes(clientKey.publicExponent))
+        digest.update(unsignedBigIntBytes(serverKey.modulus))
+        digest.update(unsignedBigIntBytes(serverKey.publicExponent))
+        digest.update(hexToBytes(pinHex.substring(2)) ?: return null)
+
+        val hash = digest.digest()
+        if (hash.isEmpty()) return null
+        return if (hash[0] == codeBytes[0]) hash else null
+    }
+
+    private fun normalizeHexPin(input: String): String? {
+        val value = input.trim().replace(" ", "").replace("-", "").uppercase()
+        if (value.length != 6) return null
+        return if (value.all { it in '0'..'9' || it in 'A'..'F' }) value else null
+    }
+
+    private fun hexToBytes(value: String): ByteArray? {
+        if (value.length % 2 != 0) return null
+        return try {
+            ByteArray(value.length / 2) { idx ->
+                value.substring(idx * 2, idx * 2 + 2).toInt(16).toByte()
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun unsignedBigIntBytes(value: java.math.BigInteger): ByteArray {
+        val bytes = value.toByteArray()
+        return if (bytes.size > 1 && bytes[0].toInt() == 0) bytes.copyOfRange(1, bytes.size) else bytes
     }
 }

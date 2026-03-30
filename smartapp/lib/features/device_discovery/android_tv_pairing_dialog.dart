@@ -14,12 +14,12 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Enter the 6-digit code shown on your TV, then confirm on the TV if asked.',
+              'Enter the 6-character code shown on your TV (0-9, A-F), then confirm on TV if asked.',
             ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.visiblePassword,
               maxLength: 6,
               autofocus: true,
               decoration: const InputDecoration(
