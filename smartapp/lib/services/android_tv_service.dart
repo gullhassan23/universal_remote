@@ -1,150 +1,204 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import 'package:multicast_dns/multicast_dns.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
+import 'android_tv/android_tv_keycodes.dart';
+import 'android_tv/android_tv_remote_platform.dart';
 import 'tv_service_interface.dart';
 
-/// Best-effort Android TV service.
-///
-/// Discovery strategy:
-/// - SSDP search for generic media renderers and Android-like servers.
-///
-/// Control strategy:
-/// - Simple HTTP POST of key commands to a lightweight `/android-remote` endpoint
-///   if present. Many OEMs expose vendor-specific endpoints; this implementation
-///   is intentionally minimal and may not work on all Android TVs out of the box.
+/// Android TV Remote v2: mDNS discovery, TLS pairing on 6467, keys on 6466 (Android native).
 class AndroidTvService implements ITvService {
-  static const _ssdpPort = 1900;
-  static const _ssdpMulticast = '239.255.255.250';
-  static const _discoverTimeout = Duration(seconds: 4);
+  static const _prefsPkcs12 = 'android_tv_pkcs12_path';
+  static const _ptrScanWindow = Duration(seconds: 6);
+  static const _lookupTimeout = Duration(seconds: 2);
+  static const _serviceTypes = <String>[
+    '_androidtvremote._tcp.local',
+    '_androidtvremote2._tcp.local',
+  ];
 
   final _connectionStateController =
       StreamController<TvConnectionState>.broadcast();
 
   TvConnectionState _state = TvConnectionState.disconnected;
   TvDevice? _currentDevice;
+  String? _lastError;
+
+  String? get lastError => _lastError;
+
+  AndroidTvService() {
+    if (!kIsWeb && Platform.isAndroid) {
+      AndroidTvRemotePlatform.instance.ensureInitialized();
+    }
+  }
 
   @override
   Stream<TvConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
 
-  AndroidTvService();
+  void _syncState(TvConnectionState s) {
+    _state = s;
+    _connectionStateController.add(s);
+  }
 
   @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
-    // Legacy: emulator-only static device (10.0.2.15).
-    // This block is intentionally commented out so production builds always rely
-    // on real-network discovery. To temporarily force an emulator device for
-    // local testing, you can uncomment this early return.
-    //
-    // return [
-    //   TvDevice(
-    //     id: 'android_emulator_10.0.2.15_6466',
-    //     name: 'Android TV Emulator',
-    //     ip: '10.0.2.15',
-    //     port: 6466,
-    //     brand: TvBrand.androidTv,
-    //   ),
-    // ];
+    if (filterBrand != null && filterBrand != TvBrand.androidTv) {
+      return [];
+    }
+    return _discoverMdns();
+  }
 
+  Future<List<TvDevice>> _discoverMdns() async {
     final devices = <TvDevice>[];
-    RawDatagramSocket? socket;
-
+    final seen = <String>{};
+    MDnsClient? mdns;
+    var hasMulticastLock = false;
     try {
-      socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-      socket.joinMulticast(InternetAddress(_ssdpMulticast));
-      socket.multicastHops = 2;
-      socket.broadcastEnabled = true;
+      hasMulticastLock =
+          await AndroidTvRemotePlatform.instance.acquireMulticastLock();
+      if (!hasMulticastLock && kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService._discoverMdns: failed to acquire multicast lock');
+      }
+      mdns = MDnsClient();
+      await mdns.start();
 
-      final searchMessage = [
-        'M-SEARCH * HTTP/1.1',
-        'HOST: $_ssdpMulticast:$_ssdpPort',
-        'MAN: "ssdp:discover"',
-        'MX: 3',
-        'ST: ssdp:all',
-        '',
-        '',
-      ].join('\r\n');
+      final ptrDomains = <String>{};
+      StreamSubscription<PtrResourceRecord>? ptrSub;
+      ptrSub = mdns
+          .lookup<PtrResourceRecord>(
+            ResourceRecordQuery.serverPointer(_serviceTypes.first),
+          )
+          .listen((ptr) => ptrDomains.add(ptr.domainName));
+      final extraPtrSubs = <StreamSubscription<PtrResourceRecord>>[];
+      for (final serviceType in _serviceTypes.skip(1)) {
+        extraPtrSubs.add(
+          mdns
+              .lookup<PtrResourceRecord>(
+                ResourceRecordQuery.serverPointer(serviceType),
+              )
+              .listen((ptr) => ptrDomains.add(ptr.domainName)),
+        );
+      }
 
-      final data = utf8.encode(searchMessage);
-      socket.send(
-        data,
-        InternetAddress(_ssdpMulticast),
-        _ssdpPort,
-      );
+      await Future<void>.delayed(_ptrScanWindow);
+      await ptrSub.cancel();
+      for (final sub in extraPtrSubs) {
+        await sub.cancel();
+      }
 
-      final completer = Completer<void>();
-      final seenLocations = <String>{};
+      for (final domain in ptrDomains) {
+        await for (final srv in mdns
+            .lookup<SrvResourceRecord>(
+              ResourceRecordQuery.service(domain),
+            )
+            .timeout(_lookupTimeout)) {
+          try {
+            final addresses = await _lookupServiceAddresses(mdns, srv.target);
+            if (addresses.isEmpty) continue;
+            final ip = addresses.first.address;
+            final key = '$ip:${srv.port}';
+            if (!seen.add(key)) continue;
 
-      void onDatagram(Datagram event) {
-        final response = utf8.decode(event.data);
-        final location = _parseHeader(response, 'LOCATION');
-        final server = _parseHeader(response, 'SERVER');
-        if (location != null &&
-            location.isNotEmpty &&
-            seenLocations.add(location)) {
-          final device = _deviceFromLocation(location, server: server);
-          if (device != null) {
-            devices.add(device);
+            final name = _extractServiceName(domain);
+            devices.add(
+              TvDevice(
+                id: key,
+                name: name.isEmpty ? 'Android TV ($ip)' : name,
+                ip: ip,
+                port: srv.port,
+                brand: TvBrand.androidTv,
+              ),
+            );
+          } catch (_) {
+            continue;
           }
         }
       }
-
-      socket.listen((event) {
-        if (event == RawSocketEvent.read) {
-          final datagram = socket?.receive();
-          if (datagram != null) {
-            onDatagram(datagram);
-          }
-        }
-      });
-
-      Timer(_discoverTimeout, () {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await completer.future;
     } catch (e) {
-      print('AndroidTvService.discoverDevices: SSDP discovery error: $e');
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService._discoverMdns: $e');
+      }
     } finally {
-      socket?.close();
+      mdns?.stop();
+      if (hasMulticastLock) {
+        await AndroidTvRemotePlatform.instance.releaseMulticastLock();
+      }
     }
 
     return devices;
   }
 
-  String? _parseHeader(String response, String header) {
-    final upper = header.toUpperCase();
-    final lines = response.split(RegExp(r'\r?\n'));
-    for (final line in lines) {
-      if (line.toUpperCase().startsWith('$upper:')) {
-        return line.substring(header.length + 1).trim();
-      }
+  String _extractServiceName(String domainName) {
+    final idx = domainName.indexOf('._');
+    if (idx > 0) {
+      return domainName.substring(0, idx);
     }
-    return null;
+    final parts = domainName.split('.');
+    return parts.isNotEmpty ? parts.first : domainName;
   }
 
-  TvDevice? _deviceFromLocation(String locationUrl, {String? server}) {
+  Future<List<InternetAddress>> _lookupServiceAddresses(
+    MDnsClient mdns,
+    String host,
+  ) async {
+    final results = <InternetAddress>[];
+
     try {
-      final uri = Uri.parse(locationUrl);
-      final host = uri.host;
-      if (host.isEmpty) return null;
-      final port = uri.hasPort ? uri.port : 80;
-      final id = '$host:$port';
-      final name = server != null && server.isNotEmpty
-          ? 'Android TV ($server)'
-          : 'Android TV ($host)';
-      return TvDevice(
-        id: id,
-        name: name,
-        ip: host,
-        port: port,
-        brand: TvBrand.androidTv,
-      );
+      await for (final record in mdns
+          .lookup<IPAddressResourceRecord>(
+            ResourceRecordQuery.addressIPv4(host),
+          )
+          .timeout(_lookupTimeout)) {
+        results.add(record.address);
+      }
+    } on TimeoutException {
+      // No mDNS A records arrived in the current scan window.
     } catch (_) {
+      // Fall back to system lookup below.
+    }
+
+    if (results.isNotEmpty) {
+      return results;
+    }
+
+    try {
+      return await InternetAddress.lookup(
+        host,
+        type: InternetAddressType.IPv4,
+      ).timeout(_lookupTimeout);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<String?> _ensurePkcs12Path() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(_prefsPkcs12);
+    if (cached != null && File(cached).existsSync()) {
+      return cached;
+    }
+    if (!Platform.isAndroid) return null;
+
+    try {
+      final map = await AndroidTvRemotePlatform.instance.generateCertificates();
+      final success = map['success'] == true;
+      if (!success) return null;
+      final path = map['pkcs12Path'];
+      if (path is! String || !File(path).existsSync()) return null;
+      await prefs.setString(_prefsPkcs12, path);
+      return path;
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService._ensurePkcs12Path: $e');
+      }
       return null;
     }
   }
@@ -152,89 +206,108 @@ class AndroidTvService implements ITvService {
   @override
   Future<bool> connect(TvDevice device) async {
     if (device.brand != TvBrand.androidTv) return false;
+    _lastError = null;
 
-    print(
-        'AndroidTvService.connect: requested for ${device.ip}:${device.port}, id=${device.id}, name=${device.name}');
-
-    await disconnect();
-    _updateState(TvConnectionState.connecting);
-    _currentDevice = device;
-
-    // For any other port, keep a lightweight reachability probe.
-    try {
-      final reachable = await _probeReachable(device.ip, device.port);
-      print(
-          'AndroidTvService.connect: reachability probe to http://${device.ip}:${device.port}/ => $reachable');
-      if (!reachable) {
-        _updateState(TvConnectionState.error);
-        return false;
-      }
-      _updateState(TvConnectionState.connected);
-      return true;
-    } catch (e) {
-      print('AndroidTvService.connect: exception during probe: $e');
-      _updateState(TvConnectionState.error);
+    if (!Platform.isAndroid) {
+      await disconnect();
+      _syncState(TvConnectionState.error);
       return false;
     }
-  }
 
-  Future<bool> _probeReachable(String ip, int port) async {
-    final uri = Uri.parse('http://$ip:$port/');
+    await disconnect();
+    _syncState(TvConnectionState.connecting);
+    _currentDevice = device;
+
     try {
-      final response =
-          await http.get(uri).timeout(const Duration(seconds: 3));
-      return response.statusCode >= 200 && response.statusCode < 500;
-    } catch (_) {
+      final pkcs12 = await _ensurePkcs12Path();
+      if (pkcs12 == null) {
+        _lastError = 'Certificate setup failed (PKCS12 path missing).';
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('AndroidTvService.connect: missing PKCS12 certificate path');
+        }
+        _syncState(TvConnectionState.error);
+        return false;
+      }
+
+      final attempts = <(int pairingPort, int remotePort)>[
+        (6467, 6466),
+        (
+          device.port,
+          device.port == 6467 ? 6466 : device.port,
+        ),
+      ].toSet().toList();
+
+      for (final attempt in attempts) {
+        final ok = await AndroidTvRemotePlatform.instance.connectAndPair(
+          host: device.ip,
+          pkcs12Path: pkcs12,
+          pairingPort: attempt.$1,
+          remotePort: attempt.$2,
+        );
+        if (ok) {
+          _lastError = null;
+          _syncState(TvConnectionState.connected);
+          return true;
+        }
+        _lastError =
+            'Pair/connect failed at ${device.ip} (pairing:${attempt.$1}, remote:${attempt.$2}).';
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print(
+            'AndroidTvService.connect: attempt failed for ${device.ip} pairingPort=${attempt.$1} remotePort=${attempt.$2}',
+          );
+        }
+      }
+
+      _currentDevice = null;
+      _syncState(TvConnectionState.error);
+      return false;
+    } catch (e) {
+      _lastError = 'Connection exception: $e';
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService.connect: $e');
+      }
+      _currentDevice = null;
+      _syncState(TvConnectionState.error);
       return false;
     }
   }
 
   @override
   Future<void> disconnect() async {
+    if (Platform.isAndroid) {
+      await AndroidTvRemotePlatform.instance.disconnectNative();
+    }
     _currentDevice = null;
-    _updateState(TvConnectionState.disconnected);
+    _syncState(TvConnectionState.disconnected);
   }
 
   @override
   Future<bool> sendKey(String key) async {
-    final device = _currentDevice;
-    if (device == null || _state != TvConnectionState.connected) {
-      print(
-          'AndroidTvService.sendKey: cannot send, device=${device?.id}, state=$_state');
+    if (_currentDevice == null || _state != TvConnectionState.connected) {
       return false;
     }
+    if (!Platform.isAndroid) return false;
 
-    // Extremely simple, best-effort key endpoint. This is intentionally generic;
-    // specific OEMs may require custom integrations to be truly reliable.
-    final uri = Uri.parse('http://${device.ip}:${device.port}/android-remote');
-    print(
-        'AndroidTvService.sendKey: POST $uri with key="$key", token=${device.token != null ? '***' : 'null'}');
+    final code = mapRemoteKeyToAndroidKeyCode(key);
+    if (code == null) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService.sendKey: unmapped key "$key"');
+      }
+      return false;
+    }
     try {
-      final response = await http
-          .post(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'key': key,
-              if (device.token != null && device.token!.isNotEmpty)
-                'token': device.token,
-            }),
-          )
-          .timeout(const Duration(seconds: 3));
-      print(
-          'AndroidTvService.sendKey: response status=${response.statusCode}, body=${response.body}');
-      final ok = response.statusCode >= 200 && response.statusCode < 300;
-      return ok;
+      return await AndroidTvRemotePlatform.instance.sendKeyCode(code);
     } catch (e) {
-      print('AndroidTvService.sendKey: exception while sending key "$key": $e');
-  
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService.sendKey: $e');
+      }
+      _syncState(TvConnectionState.error);
       return false;
     }
-  }
-
-  void _updateState(TvConnectionState newState) {
-    _state = newState;
-    _connectionStateController.add(newState);
   }
 }
-

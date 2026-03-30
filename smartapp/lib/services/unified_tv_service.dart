@@ -127,4 +127,12 @@ class UnifiedTvService implements ITvService {
       return null;
     }
   }
+
+  String? getLastErrorMessage() {
+    final service = _activeService;
+    if (service is AndroidTvService) {
+      return service.lastError;
+    }
+    return null;
+  }
 }

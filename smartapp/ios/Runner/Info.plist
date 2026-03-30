@@ -49,6 +49,11 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>This app discovers and controls TVs on your local Wi‑Fi network.</string>
 
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_androidtvremote._tcp</string>
+	</array>
+
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoadsInLocalNetwork</key>

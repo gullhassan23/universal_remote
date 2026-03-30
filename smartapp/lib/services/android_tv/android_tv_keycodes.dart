@@ -1,0 +1,77 @@
+/// Maps [RemoteController.send] key names to Android KeyEvent keycodes.
+int? mapRemoteKeyToAndroidKeyCode(String key) {
+  switch (key) {
+    case 'KEY_VOLUP':
+      return 24;
+    case 'KEY_VOLDOWN':
+      return 25;
+    case 'KEY_MUTE':
+      return 91;
+    case 'KEY_POWER':
+      return 116;
+    case 'KEY_KEYBOARD':
+      return 84;
+    case 'KEY_RETURN':
+      return 4;
+    case 'KEY_CHUP':
+      return 166;
+    case 'KEY_CHDOWN':
+      return 167;
+    case 'KEY_RED':
+      return 183;
+    case 'KEY_GREEN':
+      return 184;
+    case 'KEY_YELLOW':
+      return 185;
+    case 'KEY_BLUE':
+      return 186;
+    case 'KEY_REWIND':
+      return 89;
+    case 'KEY_SEARCH':
+      return 84;
+    case 'KEY_PAUSE':
+      return 127;
+    case 'KEY_PLAY':
+      return 126;
+    case 'KEY_FF':
+      return 90;
+    case 'KEY_UP':
+      return 19;
+    case 'KEY_DOWN':
+      return 20;
+    case 'KEY_LEFT':
+      return 21;
+    case 'KEY_RIGHT':
+      return 22;
+    case 'KEY_ENTER':
+      return 66;
+    case 'KEY_MENU':
+      return 82;
+    case 'KEY_GUIDE':
+      return 172;
+    case 'KEY_TOOLS':
+      return 176;
+    case 'KEY_0':
+      return 7;
+    case 'KEY_1':
+      return 8;
+    case 'KEY_2':
+      return 9;
+    case 'KEY_3':
+      return 10;
+    case 'KEY_4':
+      return 11;
+    case 'KEY_5':
+      return 12;
+    case 'KEY_6':
+      return 13;
+    case 'KEY_7':
+      return 14;
+    case 'KEY_8':
+      return 15;
+    case 'KEY_9':
+      return 16;
+    default:
+      return null;
+  }
+}

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../models/tv_brand.dart';
 import '../../models/tv_device.dart';
 import '../../services/tv_service_interface.dart';
+import '../../services/unified_tv_service.dart';
 import '../../controllers/tv_connection_controller.dart';
 import '../remote/remote_screen.dart';
 import 'sony_pairing_dialog.dart';
@@ -65,13 +66,25 @@ class DeviceDiscoveryController extends GetxController {
       }
       return true;
     } else {
+      final detailedError = _tvService is UnifiedTvService
+          ? (_tvService as UnifiedTvService).getLastErrorMessage()
+          : null;
       final hint = device.brand == TvBrand.sony
           ? 'Ensure the TV is on and the Pre-Shared Key is set in TV Settings > Network > IP Control.'
-          : 'Please ensure the TV is on and try again.';
+          : device.brand == TvBrand.androidTv
+              ? 'On Android, use the same Wi‑Fi as the TV, accept pairing on the TV, and enter the PIN shown on screen. iOS is not supported for Android TV control yet.'
+              : 'Please ensure the TV is on and try again.';
+      final reason = (detailedError != null && detailedError.isNotEmpty)
+          ? '\nReason: $detailedError'
+          : '';
       Get.snackbar(
         'Connection failed',
-        'Unable to connect to ${device.name}. $hint',
+        'Unable to connect to ${device.name}. $hint$reason',
       );
+      if (detailedError != null && detailedError.isNotEmpty) {
+        // ignore: avoid_print
+        print('DeviceDiscoveryController.connectTo error: $detailedError');
+      }
       return false;
     }
   }

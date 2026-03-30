@@ -40,6 +40,8 @@ class RemoteController extends GetxController {
             'Failed to send command. Connection may have been lost.');
       }
 
+      print('send key: $key');
+
       return;
     }
 
