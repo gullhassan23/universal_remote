@@ -47,6 +47,8 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
       return 66;
     case 'KEY_MENU':
       return 82;
+    case 'KEY_HOME':
+      return 3;
     case 'KEY_GUIDE':
       return 172;
     case 'KEY_TOOLS':

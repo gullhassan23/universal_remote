@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -14,11 +16,15 @@ class RemoteScreen extends GetView<RemoteController> {
     VoidCallback onTap, {
     String action = 'tap',
   }) {
-    return () => controller.handleButtonTap(
+    return () {
+      unawaited(
+        controller.handleButtonTap(
           buttonKey: buttonKey,
           onTap: onTap,
           action: action,
-        );
+        ),
+      );
+    };
   }
 
   @override
@@ -294,9 +300,9 @@ class RemoteScreen extends GetView<RemoteController> {
                         text: false,
                         icon: Icons.menu,
                         onTap: _loggedTap(
-                          'CHANNEL_MENU',
-                          () {},
-                          action: 'tap',
+                          'KEY_MENU',
+                          () => controller.send('KEY_MENU'),
+                          action: 'send_key',
                         ),
                         border: false,
                         color: Colors.white),
@@ -726,11 +732,10 @@ class RemoteScreen extends GetView<RemoteController> {
               text: false,
               icon: Icons.home,
               onTap: _loggedTap(
-                'NAV_BACK_HOME',
-                () => Navigator.pop(context),
-                action: 'navigate_back',
+                'KEY_HOME',
+                () => controller.send('KEY_HOME'),
+                action: 'send_key',
               ),
-            
               border: true,
               color: Colors.white),
           remoteButton(

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,14 +30,22 @@ class RemoteController extends GetxController {
     debugPrint('[button] key=$buttonKey event=$event$actionSegment');
   }
 
-  void handleButtonTap({
+  Future<void> handleButtonTap({
     required String buttonKey,
-    required VoidCallback onTap,
+    required FutureOr<void> Function() onTap,
     String action = 'tap',
-  }) {
+  }) async {
     logButtonEvent(buttonKey: buttonKey, event: 'pressed', action: action);
-    onTap();
-    logButtonEvent(buttonKey: buttonKey, event: 'released', action: action);
+    try {
+      await onTap();
+    } catch (error, stackTrace) {
+      logButtonEvent(buttonKey: buttonKey, event: 'error', action: action);
+      debugPrint(
+        '[button] key=$buttonKey action=$action failed: $error\n$stackTrace',
+      );
+    } finally {
+      logButtonEvent(buttonKey: buttonKey, event: 'released', action: action);
+    }
   }
 
   @override
@@ -160,14 +169,18 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white70),
-                    onPressed: () => Get.find<RemoteController>().handleButtonTap(
-                      buttonKey: 'DEVICE_PICKER_CLOSE',
-                      action: 'dismiss_picker',
-                      onTap: () {
-                        Get.back();
-                        widget.onDismiss();
-                      },
-                    ),
+                    onPressed: () {
+                      unawaited(
+                        Get.find<RemoteController>().handleButtonTap(
+                          buttonKey: 'DEVICE_PICKER_CLOSE',
+                          action: 'dismiss_picker',
+                          onTap: () {
+                            Get.back();
+                            widget.onDismiss();
+                          },
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -273,13 +286,15 @@ class _DevicePickerSheetState extends State<_DevicePickerSheet> {
                                   color: Colors.white54, fontSize: 13),
                             ),
                             onTap: () {
-                              Get.find<RemoteController>().handleButtonTap(
-                                buttonKey: 'DEVICE_${device.name}',
-                                action: 'select_device',
-                                onTap: () {
-                                  Get.back();
-                                  widget.onDeviceSelected(device);
-                                },
+                              unawaited(
+                                Get.find<RemoteController>().handleButtonTap(
+                                  buttonKey: 'DEVICE_${device.name}',
+                                  action: 'select_device',
+                                  onTap: () async {
+                                    Get.back();
+                                    await widget.onDeviceSelected(device);
+                                  },
+                                ),
                               );
                             },
                           );
@@ -311,11 +326,15 @@ class _RescanButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: TextButton(
-        onPressed: () => Get.find<RemoteController>().handleButtonTap(
-          buttonKey: buttonKey,
-          action: 'discover_devices',
-          onTap: onTap,
-        ),
+        onPressed: () {
+          unawaited(
+            Get.find<RemoteController>().handleButtonTap(
+              buttonKey: buttonKey,
+              action: 'discover_devices',
+              onTap: onTap,
+            ),
+          );
+        },
         child: Text(
           "Don't see your device?",
           style: TextStyle(
