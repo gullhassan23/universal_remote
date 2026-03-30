@@ -26,6 +26,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import java.security.MessageDigest
 import java.security.interfaces.RSAPublicKey
+import java.util.concurrent.atomic.AtomicBoolean
 
 class AndroidTvRemotePlugin(private val context: Context) {
 
@@ -38,6 +39,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private var tlsRemote: TLSManager? = null
     private var remoteController: RemoteController? = null
     private var remoteReaderJob: Job? = null
+    private val remoteReady = AtomicBoolean(false)
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun registerWith(flutterEngine: FlutterEngine) {
@@ -271,6 +273,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
 
         remoteController = RemoteController(tlsRemote!!)
         startRemoteReaderLoop()
+        waitForRemoteReady()
         mainHandler.post { result.success(true) }
     }
 
@@ -306,7 +309,15 @@ class AndroidTvRemotePlugin(private val context: Context) {
             mainHandler.post { result.success(false) }
             return
         }
-        val ok = remoteController?.sendKeyCode(code) == true
+        if (!remoteReady.get()) {
+            waitForRemoteReady()
+        }
+        var ok = remoteController?.sendKeyCode(code) == true
+        if (!ok && remoteReady.get()) {
+            // One quick retry handles occasional first-frame race conditions.
+            Thread.sleep(40)
+            ok = remoteController?.sendKeyCode(code) == true
+        }
         mainHandler.post { result.success(ok) }
     }
 
@@ -322,6 +333,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private fun disconnectTlsOnly() {
         remoteReaderJob?.cancel()
         remoteReaderJob = null
+        remoteReady.set(false)
         remoteController?.destroy()
         remoteController = null
         tlsRemote?.disconnect()
@@ -348,6 +360,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
 
     private fun startRemoteReaderLoop() {
         remoteReaderJob?.cancel()
+        remoteReady.set(false)
         val remote = tlsRemote ?: return
         remoteReaderJob = scope.launch {
             while (isActive && remote.isConnected()) {
@@ -355,6 +368,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 when (MessageParser.parseRemoteMessageType(msg)) {
                     MessageParser.RemoteMessageType.CONFIGURE -> {
                         remote.sendData(ProtobufMessage.createRemoteConfigureMessage())
+                        remoteReady.set(true)
                     }
                     MessageParser.RemoteMessageType.SET_ACTIVE -> {
                         remote.sendData(ProtobufMessage.createRemoteSetActiveMessage())
@@ -368,6 +382,13 @@ class AndroidTvRemotePlugin(private val context: Context) {
                     MessageParser.RemoteMessageType.OTHER -> Unit
                 }
             }
+        }
+    }
+
+    private fun waitForRemoteReady(timeoutMs: Long = 1800) {
+        val started = System.currentTimeMillis()
+        while (!remoteReady.get() && (System.currentTimeMillis() - started) < timeoutMs) {
+            Thread.sleep(30)
         }
     }
 
