@@ -69,12 +69,11 @@ class RemoteController extends GetxController {
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {
       final ok = await _connectionController.sendKey(key);
-      if (!ok) {
-        Get.snackbar('Connection issue',
-            'Failed to send command. Connection may have been lost.');
+      if (ok) {
+        return;
       }
 
-      return;
+      await _connectionController.disconnect();
     }
 
     _pendingKey = key;

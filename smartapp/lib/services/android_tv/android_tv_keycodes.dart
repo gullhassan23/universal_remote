@@ -44,7 +44,8 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
     case 'KEY_RIGHT':
       return 22;
     case 'KEY_ENTER':
-      return 66;
+      // Use DPAD_CENTER so "OK" selects focused item in Android TV UI/keyboard.
+      return 23;
     case 'KEY_MENU':
       return 82;
     case 'KEY_HOME':

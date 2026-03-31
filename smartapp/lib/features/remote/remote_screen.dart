@@ -41,6 +41,32 @@ class RemoteScreen extends GetView<RemoteController> {
           style: TextStyle(color: Colors.white),
         ),
         centerTitle: true,
+        actions: [
+          Obx(() {
+            final isConnected = connectionController.connectionState.value ==
+                TvConnectionState.connected;
+            return TextButton.icon(
+              onPressed: isConnected
+                  ? () async {
+                      await connectionController.disconnect();
+                      controller.logButtonEvent(
+                        buttonKey: 'DISCONNECT',
+                        event: 'action_triggered',
+                        action: 'disconnect',
+                      );
+                    }
+                  : null,
+              icon: const Icon(Icons.link_off, color: Colors.white70, size: 18),
+              label: Text(
+                'Disconnect',
+                style: TextStyle(
+                  color: isConnected ? Colors.white : Colors.white38,
+                ),
+              ),
+            );
+          }),
+          const SizedBox(width: 6),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
