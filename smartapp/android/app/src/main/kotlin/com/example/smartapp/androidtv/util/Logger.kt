@@ -1,4 +1,4 @@
-package com.example.smartapp.androidtv.util
+package com.mg.smart.tv.remote.control.androidtv.util
 
 import android.util.Log
 

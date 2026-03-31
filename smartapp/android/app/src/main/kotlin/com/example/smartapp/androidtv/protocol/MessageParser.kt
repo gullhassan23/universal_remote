@@ -1,4 +1,4 @@
-package com.example.smartapp.androidtv.protocol
+package com.mg.smart.tv.remote.control.androidtv.protocol
 
 import java.io.ByteArrayInputStream
 

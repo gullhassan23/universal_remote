@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "109265895311",
+    "project_id": "smart-tv-remote-ios",
+    "storage_bucket": "smart-tv-remote-ios.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109265895311:android:c05f88ce3b69e0fa5f55fa",
+        "android_client_info": {
+          "package_name": "com.mg.smart.tv.remote.control"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDR6w4vFhR_ixpYtlLrfYcC1lM4DCLRVU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

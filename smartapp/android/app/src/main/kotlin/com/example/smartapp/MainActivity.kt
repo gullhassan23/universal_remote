@@ -1,6 +1,6 @@
-package com.example.smartapp
+package com.mg.smart.tv.remote.control
 
-import com.example.smartapp.androidtv.AndroidTvRemotePlugin
+import com.mg.smart.tv.remote.control.androidtv.AndroidTvRemotePlugin
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 

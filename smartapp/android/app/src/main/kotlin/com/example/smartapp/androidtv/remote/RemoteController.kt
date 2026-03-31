@@ -1,8 +1,8 @@
-package com.example.smartapp.androidtv.remote
+package com.mg.smart.tv.remote.control.androidtv.remote
 
-import com.example.smartapp.androidtv.connection.TLSManager
-import com.example.smartapp.androidtv.protocol.ProtobufMessage
-import com.example.smartapp.androidtv.util.Logger
+import com.mg.smart.tv.remote.control.androidtv.connection.TLSManager
+import com.mg.smart.tv.remote.control.androidtv.protocol.ProtobufMessage
+import com.mg.smart.tv.remote.control.androidtv.util.Logger
 
 class RemoteController(
     private val tlsManager: TLSManager,

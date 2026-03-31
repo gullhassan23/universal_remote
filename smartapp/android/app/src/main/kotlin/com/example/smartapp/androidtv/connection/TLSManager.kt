@@ -1,4 +1,4 @@
-package com.example.smartapp.androidtv.connection
+package com.mg.smart.tv.remote.control.androidtv.connection
 
 import android.util.Log
 import java.io.DataInputStream

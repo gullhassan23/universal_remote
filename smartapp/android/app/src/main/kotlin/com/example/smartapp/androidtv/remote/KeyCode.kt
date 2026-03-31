@@ -1,4 +1,4 @@
-package com.example.smartapp.androidtv.remote
+package com.mg.smart.tv.remote.control.androidtv.remote
 
 object KeyCode {
     const val DPAD_UP = 19

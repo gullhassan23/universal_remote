@@ -1,4 +1,4 @@
-package com.example.smartapp.androidtv.cert
+package com.mg.smart.tv.remote.control.androidtv.cert
 
 import android.content.Context
 import java.io.File
