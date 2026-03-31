@@ -92,25 +92,19 @@ class RemoteScreen extends GetView<RemoteController> {
                     // buildSideButtons(),
                     SizedBox(
                       height: 202,
-                      child: PageView(
-                        controller: pageController,
-                        children: [
-                          buildMainButtons(),
-                          buildSideMainButtons(),
-                        ],
-                      ),
+                      child: buildMainButtons(),
                     ),
                     const SizedBox(height: 12),
-                    SmoothPageIndicator(
-                      controller: pageController,
-                      count: 2,
-                      effect: const ExpandingDotsEffect(
-                        dotHeight: 8,
-                        dotWidth: 8,
-                        activeDotColor: Colors.white,
-                        dotColor: Colors.grey,
-                      ),
-                    ),
+                    // SmoothPageIndicator(
+                    //   controller: pageController,
+                    //   count: 2,
+                    //   effect: const ExpandingDotsEffect(
+                    //     dotHeight: 8,
+                    //     dotWidth: 8,
+                    //     activeDotColor: Colors.white,
+                    //     dotColor: Colors.grey,
+                    //   ),
+                    // ),
                     const SizedBox(height: 24),
                     _buildTabs(),
                     const SizedBox(height: 16),
@@ -247,6 +241,78 @@ class RemoteScreen extends GetView<RemoteController> {
               ),
             ),
           ),
+          // Padding(
+          //   padding: const EdgeInsets.all(8.0),
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //         borderRadius: BorderRadius.circular(20),
+          //         border: Border.all(color: Colors.black)),
+          //     child: Padding(
+          //       padding: const EdgeInsets.all(8.0),
+          //       child: Column(
+          //         children: [
+          //           // remoteButton(
+          //           //     containercolor: Colors.white,
+          //           //     text: false,
+          //           //     icon: Icons.keyboard_arrow_up,
+          //           //     onTap: _loggedTap(
+          //           //       'KEY_CHUP',
+          //           //       () => controller.send('KEY_CHUP'),
+          //           //       action: 'send_key',
+          //           //     ),
+          //           //     border: false,
+          //           //     color: Colors.white),
+          //           remoteButton(
+          //               containercolor: Colors.white,
+          //               text: false,
+          //               icon: Icons.search,
+          //               onTap: _loggedTap(
+          //                 'KEY_SEARCH',
+          //                 () => controller.send('KEY_SEARCH'),
+          //                 action: 'send_key',
+          //               ),
+          //               border: true,
+          //               color: Colors.white),
+          //           const SizedBox(height: 9),
+          //           remoteButton(
+          //               containercolor: Colors.white,
+          //               text: false,
+          //               icon: Icons.menu,
+          //               onTap: _loggedTap(
+          //                 'KEY_MENU',
+          //                 () => controller.send('KEY_MENU'),
+          //                 action: 'send_key',
+          //               ),
+          //               border: false,
+          //               color: Colors.white),
+          //           const SizedBox(height: 9),
+          //           remoteButton(
+          //               containercolor: Colors.white,
+          //               text: false,
+          //               icon: Icons.keyboard_arrow_down,
+          //               onTap: _loggedTap(
+          //                 'KEY_CHDOWN',
+          //                 () => controller.send('KEY_CHDOWN'),
+          //                 action: 'send_key',
+          //               ),
+          //               border: false,
+          //               color: Colors.white),
+          //         ],
+          //       ),
+          //     ),
+          //   ),
+          // ),
+          remoteButton(
+              containercolor: Colors.white,
+              text: false,
+              icon: Icons.search,
+              onTap: _loggedTap(
+                'KEY_SEARCH',
+                () => controller.send('KEY_SEARCH'),
+                action: 'send_key',
+              ),
+              border: true,
+              color: Colors.white),
 
           /// CENTER BUTTONS
           Column(
@@ -299,56 +365,6 @@ class RemoteScreen extends GetView<RemoteController> {
           ),
 
           /// CHANNEL
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black)),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    remoteButton(
-                        containercolor: Colors.white,
-                        text: false,
-                        icon: Icons.keyboard_arrow_up,
-                        onTap: _loggedTap(
-                          'KEY_CHUP',
-                          () => controller.send('KEY_CHUP'),
-                          action: 'send_key',
-                        ),
-                        border: false,
-                        color: Colors.white),
-                    const SizedBox(height: 9),
-                    remoteButton(
-                        containercolor: Colors.white,
-                        text: false,
-                        icon: Icons.menu,
-                        onTap: _loggedTap(
-                          'KEY_MENU',
-                          () => controller.send('KEY_MENU'),
-                          action: 'send_key',
-                        ),
-                        border: false,
-                        color: Colors.white),
-                    const SizedBox(height: 9),
-                    remoteButton(
-                        containercolor: Colors.white,
-                        text: false,
-                        icon: Icons.keyboard_arrow_down,
-                        onTap: _loggedTap(
-                          'KEY_CHDOWN',
-                          () => controller.send('KEY_CHDOWN'),
-                          action: 'send_key',
-                        ),
-                        border: false,
-                        color: Colors.white),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
