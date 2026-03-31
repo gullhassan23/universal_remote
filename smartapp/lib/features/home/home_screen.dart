@@ -78,84 +78,82 @@ class HomeScreen extends GetView<HomeController> {
       //   ),
       // ),
 
-      body: Obx(() => ListView(
-            padding: const EdgeInsets.all(16),
-            children: controller.brands.map((brand) {
-              final activeBrands = [
-                TvBrand.samsung,
-                TvBrand.sony,
-                TvBrand.androidTv
-              ];
-              final isActive = activeBrands.contains(brand);
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: controller.brands.map((brand) {
+          final activeBrands = [
+            TvBrand.samsung,
+            TvBrand.sony,
+            TvBrand.androidTv
+          ];
+          final isActive = activeBrands.contains(brand);
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Stack(
-                  children: [
-                    // Main Button
-                    ElevatedButton(
-                      onPressed: isActive
-                          ? () => controller.onBrandSelected(brand)
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueGrey,
-                        disabledBackgroundColor:
-                            Colors.blueGrey.withOpacity(0.5),
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Stack(
+              children: [
+                // Main Button
+                ElevatedButton(
+                  onPressed: isActive ? () => controller.onBrandSelected(brand) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    disabledBackgroundColor: Colors.blueGrey.withOpacity(0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.tv,
+                          size: 48,
+                          // color: isActive ? Colors.blueGrey : Colors.grey,
+                        ),
+                        Text(
+                          brand.name.toUpperCase(),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 🔴 Coming Soon Banner
+                if (!isActive)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(12),
+                          bottomLeft: Radius.circular(12),
                         ),
                       ),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.tv,
-                              size: 48,
-                              // color: isActive ? Colors.blueGrey : Colors.grey,
-                            ),
-                            Text(
-                              brand.name.toUpperCase(),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(color: Colors.white),
-                            ),
-                          ],
+                      child: const Text(
+                        'COMING SOON',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-
-                    // 🔴 Coming Soon Banner
-                    if (!isActive)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(12),
-                              bottomLeft: Radius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'COMING SOON',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }).toList(),
-          )),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }

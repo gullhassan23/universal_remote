@@ -28,12 +28,31 @@ Future<void> main() async {
 
 void _registerDependencies() {
   // Services
-  Get.put<ITvService>(UnifiedTvService(), permanent: true);
+  final tvService = UnifiedTvService();
+  Get.put<ITvService>(tvService, permanent: true);
 
   // Controllers
-  Get.put(TvConnectionController(), permanent: true); // ✅ first
+  final tvConnectionController = Get.put(
+    TvConnectionController(tvService: tvService),
+    permanent: true,
+  ); // ✅ first
+  final discoveryController = Get.put(
+    DeviceDiscoveryController(
+      tvService: tvService,
+      connectionController: tvConnectionController,
+    ),
+    permanent: true,
+  );
 
-  Get.put(HomeController(), permanent: true);
-  Get.put(DeviceDiscoveryController(), permanent: true);
-  Get.put(RemoteController(), permanent: true);
+  Get.put(
+    HomeController(discoveryController: discoveryController),
+    permanent: true,
+  );
+  Get.put(
+    RemoteController(
+      connectionController: tvConnectionController,
+      discoveryController: discoveryController,
+    ),
+    permanent: true,
+  );
 }

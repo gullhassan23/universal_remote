@@ -272,7 +272,8 @@ class AndroidTvService implements ITvService {
           return true;
         }
         _lastError =
-            'Pair/connect failed at ${device.ip} (pairing:${attempt.$1}, remote:${attempt.$2}).';
+            'Pair/connect failed at ${device.ip} (pairing:${attempt.$1}, remote:${attempt.$2}). '
+            'Pairing code may be incorrect or expired.';
         if (kDebugMode) {
           // ignore: avoid_print
           print(
