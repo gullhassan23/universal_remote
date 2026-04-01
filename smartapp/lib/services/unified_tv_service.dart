@@ -6,9 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
 import 'tv_service_interface.dart';
-import 'android_tv_service.dart';
-import 'samsung_tv_service.dart';
-import 'sony_tv_service.dart';
+import 'android_tv/android_tv_service.dart';
+import 'samsung/samsung_tv_service.dart';
+import 'sony/sony_tv_service.dart';
 
 const _prefsLastDeviceKey = 'last_tv';
 
