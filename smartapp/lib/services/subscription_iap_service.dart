@@ -199,7 +199,10 @@ class SubscriptionIAPService extends GetxService {
     );
     if (verification.isValid) {
       _log('Verification succeeded for ${purchase.productID}');
-      await _unlockPremium(productId: purchase.productID);
+      await _unlockPremium(
+        productId: purchase.productID,
+        verification: verification,
+      );
       _processedPurchaseKeys.add(_buildPurchaseKey(purchase));
       await _completePurchaseIfNeeded(purchase);
       return;
@@ -294,7 +297,10 @@ class SubscriptionIAPService extends GetxService {
     );
   }
 
-  Future<void> _unlockPremium({required String productId}) async {
+  Future<void> _unlockPremium({
+    required String productId,
+    required SubscriptionVerificationResult verification,
+  }) async {
     if (!Get.isRegistered<PremiumController>()) {
       _log('PremiumController not registered. Skipping premium unlock.');
       return;
@@ -303,7 +309,10 @@ class SubscriptionIAPService extends GetxService {
       enabled: true,
       productId: productId,
     );
-    await _persistPremiumSubscriptionMetadata(productId: productId);
+    await _persistPremiumSubscriptionMetadata(
+      productId: productId,
+      verification: verification,
+    );
 
     if (_premiumActivationHook != null) {
       await _premiumActivationHook!(productId);
@@ -312,14 +321,23 @@ class SubscriptionIAPService extends GetxService {
 
   Future<void> _persistPremiumSubscriptionMetadata({
     required String productId,
+    required SubscriptionVerificationResult verification,
   }) async {
     try {
       final String userId = await getOrCreateUserId();
       final String? fcmToken = await FirebaseMessaging.instance.getToken();
+      final String platform = _platformLabel();
       final Map<String, dynamic> payload = <String, dynamic>{
         'isPremium': true,
         'lastSubscribeDate': FieldValue.serverTimestamp(),
         'premiumProductId': productId,
+        'iap': <String, dynamic>{
+          'platform': platform,
+          'productId': productId,
+          'state': verification.state,
+          'expiryTime': verification.expiryTime,
+          'verifiedAt': FieldValue.serverTimestamp(),
+        },
       };
       if (fcmToken != null && fcmToken.isNotEmpty) {
         payload['fcmToken'] = fcmToken;

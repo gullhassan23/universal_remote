@@ -40,11 +40,15 @@ class SubscriptionVerificationResult {
   SubscriptionVerificationResult({
     required this.isValid,
     this.message,
+    this.state,
+    this.expiryTime,
     this.raw,
   });
 
   final bool isValid;
   final String? message;
+  final String? state;
+  final String? expiryTime;
   final Map<String, dynamic>? raw;
 
   factory SubscriptionVerificationResult.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,8 @@ class SubscriptionVerificationResult {
     return SubscriptionVerificationResult(
       isValid: validity == true,
       message: json['message']?.toString(),
+      state: json['state']?.toString(),
+      expiryTime: json['expiryTime']?.toString(),
       raw: json,
     );
   }

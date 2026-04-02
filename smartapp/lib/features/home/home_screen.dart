@@ -277,7 +277,7 @@ class HomeScreen extends GetView<HomeController> {
                       child: OutlinedButton(
                         onPressed:
                             isPurchasing ? null : iapService.restorePurchases,
-                        child: const Text('Subscribe'),
+                        child: const Text('Restore purchases'),
                       ),
                     ),
                     const SizedBox(width: 10),

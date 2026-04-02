@@ -11,6 +11,9 @@ const {setGlobalOptions} = require("firebase-functions");
 const {onRequest} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const {GoogleAuth} = require("google-auth-library");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
 
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
@@ -36,6 +39,8 @@ const PLAY_SCOPE = "https://www.googleapis.com/auth/androidpublisher";
 const PLAY_API_ROOT =
   "https://androidpublisher.googleapis.com/androidpublisher/v3/applications";
 const ALLOWED_ORIGINS = ["*"];
+const APPLE_PROD_URL = "https://buy.itunes.apple.com/verifyReceipt";
+const APPLE_SANDBOX_URL = "https://sandbox.itunes.apple.com/verifyReceipt";
 
 /**
  * CORS helper for browser/mobile clients.
@@ -151,6 +156,137 @@ async function verifySubscriptionWithPlay(
   };
 }
 
+/**
+ * Verify Apple receipt via Apple verifyReceipt endpoint (legacy).
+ * For subscriptions, we look for the latest receipt info of the productId.
+ *
+ * Env:
+ * - APPLE_SHARED_SECRET: App Store Connect subscription shared secret
+ *
+ * @param {string} receiptData base64 receipt data (from serverVerificationData)
+ * @param {string} productId expected product identifier
+ * @param {boolean} useSandbox whether to call sandbox endpoint
+ * @return {Promise<Object>} verification result
+ */
+async function verifySubscriptionWithApple(receiptData, productId, useSandbox) {
+  const sharedSecret = process.env.APPLE_SHARED_SECRET || "";
+  if (!sharedSecret) {
+    return {
+      ok: false,
+      status: 500,
+      message: "Server not configured. Set APPLE_SHARED_SECRET",
+    };
+  }
+
+  const url = useSandbox ? APPLE_SANDBOX_URL : APPLE_PROD_URL;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      "receipt-data": receiptData,
+      "password": sharedSecret,
+      "exclude-old-transactions": true,
+    }),
+  });
+
+  const responseText = await response.text();
+  let payload = {};
+  try {
+    payload = responseText ? JSON.parse(responseText) : {};
+  } catch (_) {
+    payload = {raw: responseText};
+  }
+
+  if (!response.ok) {
+    logger.error("Apple verifyReceipt HTTP error", {
+      status: response.status,
+      body: payload,
+    });
+    return {ok: false, status: response.status, raw: payload};
+  }
+
+  const appleStatus = Number(payload.status);
+  // 0=OK
+  // 21007=sandbox receipt sent to production
+  // 21008=production receipt sent to sandbox
+  if (appleStatus === 21007 && !useSandbox) {
+    return await verifySubscriptionWithApple(receiptData, productId, true);
+  }
+  if (appleStatus === 21008 && useSandbox) {
+    return await verifySubscriptionWithApple(receiptData, productId, false);
+  }
+
+  if (appleStatus !== 0) {
+    return {
+      ok: true,
+      status: 200,
+      isValid: false,
+      message: `Apple receipt invalid (status=${appleStatus})`,
+      raw: payload,
+    };
+  }
+
+  const latestReceiptInfo = Array.isArray(payload.latest_receipt_info) ?
+    payload.latest_receipt_info : [];
+
+  const candidates = latestReceiptInfo.filter((item) =>
+    item && item.product_id === productId,
+  );
+  const pick = (candidates.length ? candidates : latestReceiptInfo)
+      .sort(
+          (a, b) =>
+            Number(b.expires_date_ms || 0) - Number(a.expires_date_ms || 0),
+      )[0];
+
+  const expiresMs = pick ? Number(pick.expires_date_ms || 0) : 0;
+  const isActive = expiresMs > Date.now();
+
+  return {
+    ok: true,
+    status: 200,
+    isValid: Boolean(isActive),
+    expiryTimeMs: expiresMs || null,
+    raw: payload,
+  };
+}
+
+/**
+ * Persist verified entitlement into Firestore.
+ * Uses device-based userId passed from the app (not Firebase Auth UID).
+ *
+ * @param {Object} data
+ * @return {Promise<void>}
+ */
+async function writeEntitlementToFirestore(data) {
+  const userId = data.userId;
+  if (!userId || typeof userId !== "string") return;
+
+  const docRef = admin.firestore().collection("Users").doc(userId);
+  const payload = {
+    iap: {
+      platform: data.platform || null,
+      productId: data.productId || null,
+      state: data.state || null,
+      expiryTime: data.expiryTime || null,
+      transactionId: data.transactionId || null,
+      orderId: data.orderId || null,
+      isRestore: Boolean(data.isRestore),
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    isPremium: Boolean(data.isPremium),
+    premiumProductId: data.isPremium ? (data.productId || null) : null,
+    lastSubscribeDate: data.isPremium ?
+      admin.firestore.FieldValue.serverTimestamp() :
+      admin.firestore.FieldValue.delete(),
+  };
+
+  if (data.fcmToken && typeof data.fcmToken === "string") {
+    payload.fcmToken = data.fcmToken;
+  }
+
+  await docRef.set(payload, {merge: true});
+}
+
 exports.verifyIapPurchase = onRequest(
     {region: "us-central1"},
     async (request, response) => {
@@ -167,11 +303,13 @@ exports.verifyIapPurchase = onRequest(
         const {
           productId,
           purchaseToken,
+          receiptData,
           platform,
           userId,
           transactionId,
           orderId,
           isRestore,
+          fcmToken,
         } = request.body || {};
 
         if (!productId || typeof productId !== "string") {
@@ -182,47 +320,82 @@ exports.verifyIapPurchase = onRequest(
           return;
         }
 
-        if (platform !== "android") {
+        let result = null;
+        if (platform === "android") {
+          if (!purchaseToken || typeof purchaseToken !== "string") {
+            response.status(400).json({
+              isValid: false,
+              message: "Missing purchaseToken for Android verification",
+            });
+            return;
+          }
+
+          const packageName = process.env.ANDROID_PACKAGE_NAME || "";
+          const serviceAccountJson =
+            process.env.GOOGLE_SERVICE_ACCOUNT_JSON || "";
+          if (!packageName || !serviceAccountJson) {
+            response.status(500).json({
+              isValid: false,
+              message:
+                "Server not configured. Set ANDROID_PACKAGE_NAME and " +
+                "GOOGLE_SERVICE_ACCOUNT_JSON",
+            });
+            return;
+          }
+
+          const credentials = parseServiceAccount(serviceAccountJson);
+          const play = await verifySubscriptionWithPlay(
+              packageName,
+              productId,
+              purchaseToken,
+              credentials,
+          );
+          if (!play.ok) {
+            response.status(200).json({
+              isValid: false,
+              message: "Purchase could not be validated by Google Play",
+            });
+            return;
+          }
+          result = {
+            isValid: Boolean(play.isValid),
+            state: play.state || null,
+            expiryTime: play.expiryTime || null,
+            raw: play.payload || null,
+          };
+        } else if (platform === "ios") {
+          if (!receiptData || typeof receiptData !== "string") {
+            response.status(400).json({
+              isValid: false,
+              message: "Missing receiptData for iOS verification",
+            });
+            return;
+          }
+          const apple = await verifySubscriptionWithApple(
+              receiptData,
+              productId,
+              false,
+          );
+          if (!apple.ok) {
+            response.status(200).json({
+              isValid: false,
+              message:
+                apple.message || "Purchase could not be validated by Apple",
+            });
+            return;
+          }
+          result = {
+            isValid: Boolean(apple.isValid),
+            state: apple.isValid ? "APPLE_ACTIVE" : "APPLE_INACTIVE",
+            expiryTime: apple.expiryTimeMs ?
+              new Date(apple.expiryTimeMs).toISOString() :
+              null,
+            raw: apple.raw || null,
+          };
+        } else {
           response.status(400).json({
             isValid: false,
-            message: "Only android verification is currently supported",
-          });
-          return;
-        }
-
-        if (!purchaseToken || typeof purchaseToken !== "string") {
-          response.status(400).json({
-            isValid: false,
-            message: "Missing purchaseToken for Android verification",
-          });
-          return;
-        }
-
-        const packageName = process.env.ANDROID_PACKAGE_NAME || "";
-        const serviceAccountJson =
-          process.env.GOOGLE_SERVICE_ACCOUNT_JSON || "";
-        if (!packageName || !serviceAccountJson) {
-          response.status(500).json({
-            isValid: false,
-            message:
-          "Server not configured. Set ANDROID_PACKAGE_NAME and " +
-          "GOOGLE_SERVICE_ACCOUNT_JSON",
-          });
-          return;
-        }
-
-        const credentials = parseServiceAccount(serviceAccountJson);
-        const result = await verifySubscriptionWithPlay(
-            packageName,
-            productId,
-            purchaseToken,
-            credentials,
-        );
-
-        if (!result.ok) {
-          response.status(200).json({
-            isValid: false,
-            message: "Purchase could not be validated by Google Play",
+            message: "Unsupported platform",
           });
           return;
         }
@@ -230,6 +403,7 @@ exports.verifyIapPurchase = onRequest(
         logger.info("IAP verification result", {
           userId: userId || null,
           productId,
+          platform,
           transactionId: transactionId || null,
           orderId: orderId || null,
           isRestore: Boolean(isRestore),
@@ -238,11 +412,24 @@ exports.verifyIapPurchase = onRequest(
           isValid: result.isValid,
         });
 
+        await writeEntitlementToFirestore({
+          userId,
+          productId,
+          platform,
+          transactionId,
+          orderId,
+          isRestore,
+          fcmToken,
+          isPremium: result.isValid,
+          state: result.state,
+          expiryTime: result.expiryTime,
+        });
+
         response.status(200).json({
           isValid: result.isValid,
           message: result.isValid ?
-        "Purchase verified and active" :
-        "Subscription is not active",
+            "Purchase verified and active" :
+            "Subscription is not active",
           state: result.state,
           expiryTime: result.expiryTime,
         });
