@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -302,9 +303,35 @@ class SubscriptionIAPService extends GetxService {
       enabled: true,
       productId: productId,
     );
+    await _persistPremiumSubscriptionMetadata(productId: productId);
 
     if (_premiumActivationHook != null) {
       await _premiumActivationHook!(productId);
+    }
+  }
+
+  Future<void> _persistPremiumSubscriptionMetadata({
+    required String productId,
+  }) async {
+    try {
+      final String userId = await getOrCreateUserId();
+      final String? fcmToken = await FirebaseMessaging.instance.getToken();
+      final Map<String, dynamic> payload = <String, dynamic>{
+        'isPremium': true,
+        'lastSubscribeDate': FieldValue.serverTimestamp(),
+        'premiumProductId': productId,
+      };
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        payload['fcmToken'] = fcmToken;
+      }
+
+      await FirebaseFirestore.instance.collection('Users').doc(userId).set(
+            payload,
+            SetOptions(merge: true),
+          );
+      _log('Premium subscription metadata saved for user=$userId');
+    } catch (error) {
+      _log('Failed to persist premium subscription metadata: $error');
     }
   }
 
