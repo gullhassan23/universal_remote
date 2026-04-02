@@ -28,7 +28,8 @@ class HomeScreen extends GetView<HomeController> {
             final isPremium = premiumController.isPremium.value;
             final isLoading = iapService.isLoading.value;
             return TextButton.icon(
-              onPressed: isLoading ? null : () => _showSubscriptionSheet(context),
+              onPressed:
+                  isLoading ? null : () => _showSubscriptionSheet(context),
               icon: Icon(
                 isPremium ? Icons.workspace_premium : Icons.lock_open,
                 color: Colors.amber.shade200,
@@ -117,7 +118,8 @@ class HomeScreen extends GetView<HomeController> {
               children: [
                 // Main Button
                 ElevatedButton(
-                  onPressed: isActive ? () => controller.onBrandSelected(brand) : null,
+                  onPressed:
+                      isActive ? () => controller.onBrandSelected(brand) : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueGrey,
                     disabledBackgroundColor: Colors.blueGrey.withOpacity(0.5),
@@ -138,7 +140,10 @@ class HomeScreen extends GetView<HomeController> {
                           brand.name.toUpperCase(),
                           style: Theme.of(
                             context,
-                          ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                          )
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(color: Colors.white),
                         ),
                       ],
                     ),
@@ -270,8 +275,9 @@ class HomeScreen extends GetView<HomeController> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: isPurchasing ? null : iapService.restorePurchases,
-                        child: const Text('Restore Purchases'),
+                        onPressed:
+                            isPurchasing ? null : iapService.restorePurchases,
+                        child: const Text('Subscribe'),
                       ),
                     ),
                     const SizedBox(width: 10),
