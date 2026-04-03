@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:smartapp/features/home/home_screen.dart';
+import 'package:smartapp/features/get_started.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -10,11 +10,8 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'Universal TV Remote',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
+
+      home: GetStarted(),
       // home: const RemoteScreen(),
     );
   }

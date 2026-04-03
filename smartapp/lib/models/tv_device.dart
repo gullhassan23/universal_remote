@@ -54,7 +54,7 @@ class TvDevice {
       port: json['port'] as int,
       brand: TvBrand.values.firstWhere(
         (b) => b.name == json['brand'],
-        orElse: () => TvBrand.samsung,
+        orElse: () => TvBrand.androidTv,
       ),
       token: json['token'] as String?,
     );

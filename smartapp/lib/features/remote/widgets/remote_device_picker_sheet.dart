@@ -153,13 +153,8 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                           const Divider(height: 1, color: Colors.white24),
                       itemBuilder: (context, index) {
                         final device = devices[index];
-                        final brandLabel = device.brand == TvBrand.sony
-                            ? 'Sony'
-                            : device.brand == TvBrand.samsung
-                                ? 'Samsung'
-                                : device.brand == TvBrand.androidTv
-                                    ? 'Android TV'
-                                    : device.brand.name;
+                        final brandLabel =
+                            device.brand == TvBrand.androidTv ? 'Android TV' : device.brand.name;
                         return ListTile(
                           leading:
                               const Icon(Icons.tv, color: Colors.white70, size: 28),
@@ -310,7 +305,7 @@ class _AnimatedDotsLoaderState extends State<_AnimatedDotsLoader>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: _dotColors[index].withOpacity(0.5),
+                        color: _dotColors[index].withValues(alpha: 0.5),
                         blurRadius: 4,
                         spreadRadius: 0.5,
                       ),

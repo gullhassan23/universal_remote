@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 
-import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
 import '../services/tv_service_interface.dart';
 import '../services/unified_tv_service.dart';
@@ -32,8 +31,6 @@ class TvConnectionController extends GetxController {
       if (_tvService is! UnifiedTvService) return;
       final lastDevice = await (_tvService as UnifiedTvService).getLastDevice();
       if (lastDevice == null) return;
-      // Avoid triggering Android TV pairing prompt automatically on app restart.
-      if (lastDevice.brand == TvBrand.androidTv) return;
       if (connectionState.value == TvConnectionState.connected) return;
       await connectTo(lastDevice);
     } finally {

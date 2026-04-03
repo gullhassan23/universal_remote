@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
+import 'package:smartapp/models/tv_brand.dart';
+import 'package:smartapp/utils/constant.dart';
 
-import '../../models/tv_brand.dart';
 import 'home_controller.dart';
 
 class HomeScreen extends GetView<HomeController> {
@@ -13,174 +15,175 @@ class HomeScreen extends GetView<HomeController> {
   Widget build(BuildContext context) {
     final premiumController = Get.find<PremiumController>();
     final iapService = Get.find<SubscriptionIAPService>();
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final topContentPadding =
+        MediaQuery.paddingOf(context).top + kToolbarHeight;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF444643),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: Text(
-          'Universal TV Remote',
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-        actions: [
-          Obx(() {
-            final isPremium = premiumController.isPremium.value;
-            final isLoading = iapService.isLoading.value;
-            return TextButton.icon(
-              onPressed:
-                  isLoading ? null : () => _showSubscriptionSheet(context),
-              icon: Icon(
-                isPremium ? Icons.workspace_premium : Icons.lock_open,
-                color: Colors.amber.shade200,
-              ),
-              label: Text(
-                isPremium ? 'Premium' : 'Go Premium',
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          }),
-          const SizedBox(width: 8),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
-      // body: Obx(
-      //   () => GridView.builder(
-      //     padding: const EdgeInsets.all(16),
-      //     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      //       crossAxisCount: 2,
-      //       crossAxisSpacing: 16,
-      //       mainAxisSpacing: 16,
-      //       childAspectRatio: 1.1,
-      //     ),
-      //     itemCount: controller.brands.length,
-      //     itemBuilder: (context, index) {
-      //       final brand = controller.brands[index];
-      //       final activeBrands = [
-      //         TvBrand.samsung,
-      //         TvBrand.sony,
-      //         TvBrand.androidTv
-      //       ];
-      //       final isActive = activeBrands.contains(brand);
-
-      //       return GestureDetector(
-      //         onTap: () => controller.onBrandSelected(brand),
-      //         child: AnimatedOpacity(
-      //           duration: const Duration(milliseconds: 200),
-      //           opacity: isActive ? 1.0 : 0.4,
-      //           child: Card(
-      //             shape: RoundedRectangleBorder(
-      //               borderRadius: BorderRadius.circular(16),
-      //             ),
-      //             elevation: 4,
-      //             child: Column(
-      //               mainAxisAlignment: MainAxisAlignment.center,
-      //               children: [
-      //                 Icon(
-      //                   Icons.tv,
-      //                   size: 48,
-      //                   color: isActive ? Colors.blueGrey : Colors.grey,
-      //                 ),
-      //                 const SizedBox(height: 12),
-      //                 Text(
-      //                   brand.name.toUpperCase(),
-      //                   style: Theme.of(context).textTheme.titleMedium,
-      //                 ),
-      //                 if (!isActive)
-      //                   const Padding(
-      //                     padding: EdgeInsets.only(top: 4.0),
-      //                     child: Text(
-      //                       'Coming soon',
-      //                       style: TextStyle(fontSize: 12, color: Colors.grey),
-      //                     ),
-      //                   ),
-      //               ],
-      //             ),
-      //           ),
-      //         ),
-      //       );
-      //     },
-      //   ),
-      // ),
-
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: controller.brands.map((brand) {
-          final activeBrands = [
-            TvBrand.samsung,
-            TvBrand.sony,
-            TvBrand.androidTv
-          ];
-          final isActive = activeBrands.contains(brand);
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Stack(
-              children: [
-                // Main Button
-                ElevatedButton(
-                  onPressed:
-                      isActive ? () => controller.onBrandSelected(brand) : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey,
-                    disabledBackgroundColor: Colors.blueGrey.withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.tv,
-                          size: 48,
-                          // color: isActive ? Colors.blueGrey : Colors.grey,
-                        ),
-                        Text(
-                          brand.name.toUpperCase(),
-                          style: Theme.of(
-                            context,
-                          )
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(color: Colors.white),
-                        ),
-                      ],
-                    ),
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: kGradientBottom,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          title: const Text(
+            'Universal TV Remote',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 17,
+            ),
+          ),
+          actions: [
+            Obx(() {
+              final isPremium = premiumController.isPremium.value;
+              final isLoading = iapService.isLoading.value;
+              return TextButton.icon(
+                onPressed:
+                    isLoading ? null : () => _showSubscriptionSheet(context),
+                icon: Icon(
+                  isPremium ? Icons.workspace_premium : Icons.lock_open,
+                  color: Colors.amber.shade200,
+                  size: 20,
+                ),
+                label: Text(
+                  isPremium ? 'Premium' : 'Go Premium',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-
-                // 🔴 Coming Soon Banner
-                if (!isActive)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+              );
+            }),
+            const SizedBox(width: 4),
+          ],
+        ),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              kGetStartedBackgroundAsset,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              filterQuality: FilterQuality.high,
+              gaplessPlayback: true,
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    kGradientTop.withValues(alpha: 0.58),
+                    kGradientBottom.withValues(alpha: 0.62),
+                  ],
+                ),
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  topContentPadding + 8,
+                  24,
+                  16 + bottomInset,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'R',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 56,
+                        height: 0.95,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: -2,
+                        fontFamily: 'serif',
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            blurRadius: 14,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(12),
-                          bottomLeft: Radius.circular(12),
-                        ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Universal Remote',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
                       ),
-                      child: const Text(
-                        'COMING SOON',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Control your Android TV on the same Wi‑Fi network.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 15,
+                        height: 1.35,
+                      ),
+                    ),
+                    const Spacer(),
+                    ...controller.brands.map(
+                      (brand) => Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: buttonText,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: () => controller.onBrandSelected(brand),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.tv,
+                                color: buttonText.withValues(alpha: 0.85),
+                                size: 26,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                brand == TvBrand.androidTv
+                                    ? 'ANDROID TV'
+                                    : brand.name.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }

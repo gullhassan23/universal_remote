@@ -7,15 +7,11 @@ import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
 import 'tv_service_interface.dart';
 import 'android_tv/android_tv_service.dart';
-import 'samsung/samsung_tv_service.dart';
-import 'sony/sony_tv_service.dart';
 
 const _prefsLastDeviceKey = 'last_tv';
 
-/// Implements ITvService by delegating to Samsung and Sony services by device brand.
+/// Android-TV-only implementation kept for API compatibility with the rest of the app.
 class UnifiedTvService implements ITvService {
-  final SamsungTvService _samsung = SamsungTvService();
-  final SonyTvService _sony = SonyTvService();
   final AndroidTvService _androidTv = AndroidTvService();
 
   final _connectionStateController =
@@ -30,11 +26,6 @@ class UnifiedTvService implements ITvService {
 
   ITvService _serviceFor(TvBrand brand) {
     switch (brand) {
-      case TvBrand.sony:
-        return _sony;
-      case TvBrand.samsung:
-      case TvBrand.lg:
-        return _samsung;
       case TvBrand.androidTv:
         return _androidTv;
     }
@@ -52,28 +43,7 @@ class UnifiedTvService implements ITvService {
 
   @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
-    // If a specific brand is requested, only use the corresponding service.
-    if (filterBrand != null) {
-      final service = _serviceFor(filterBrand);
-      return service.discoverDevices(filterBrand: filterBrand);
-    }
-
-    // Otherwise, discover across all known services and merge results.
-    final results = await Future.wait([
-      _samsung.discoverDevices(),
-      _sony.discoverDevices(),
-      _androidTv.discoverDevices(),
-    ]);
-    final merged = <TvDevice>[];
-    final seenIps = <String>{};
-    for (final list in results) {
-      for (final device in list) {
-        if (seenIps.add(device.ip)) {
-          merged.add(device);
-        }
-      }
-    }
-    return merged;
+    return _androidTv.discoverDevices(filterBrand: filterBrand);
   }
 
   @override
@@ -116,9 +86,6 @@ class UnifiedTvService implements ITvService {
   Future<TvDevice?> getLastDevice() async {
     final prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString(_prefsLastDeviceKey);
-    if (jsonString == null) {
-      jsonString = prefs.getString('last_samsung_tv');
-    }
     if (jsonString == null) return null;
     try {
       final map = jsonDecode(jsonString) as Map<String, dynamic>;

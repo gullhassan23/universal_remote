@@ -45,11 +45,8 @@ class DeviceListScreen extends GetView<DeviceDiscoveryController> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final device = controller.devices[index];
-              final brandLabel = device.brand == TvBrand.sony
-                  ? 'Sony'
-                  : device.brand == TvBrand.samsung
-                      ? 'Samsung'
-                      : device.brand.name;
+              final brandLabel =
+                  device.brand == TvBrand.androidTv ? 'Android TV' : device.brand.name;
               return ListTile(
                 leading: const Icon(Icons.tv),
                 title: Text(device.name),
