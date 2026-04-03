@@ -1,7 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:smartapp/utils/userId.dart';
+
+/// Matches [AndroidManifest] `com.google.firebase.messaging.default_notification_channel_id`.
+const String _androidFcmChannelId = 'smartapp_fcm';
+
+final FlutterLocalNotificationsPlugin _localNotifications =
+    FlutterLocalNotificationsPlugin();
 
 /// Background handler (must be a top-level function).
 @pragma('vm:entry-point')
@@ -9,8 +16,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM][BG] messageId=${message.messageId} data=${message.data}');
 }
 
-/// Retries getToken() so APNS can become ready on iOS (e.g. after permission).
-Future<String?> _getFcmTokenWithRetry(
+/// Retries FCM `getToken()` so APNs can become ready on iOS.
+///
+/// A direct `getToken()` during IAP or shortly after launch often throws
+/// `firebase_messaging/apns-token-not-set` — use this instead.
+Future<String?> getFcmTokenWithRetry(
     {int maxAttempts = 5, Duration delay = const Duration(seconds: 2)}) async {
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -27,12 +37,13 @@ Future<String?> _getFcmTokenWithRetry(
 Future<void> updateFcmTokenInFirestore() async {
   try {
     final userId = await getOrCreateUserId();
-    final token = await _getFcmTokenWithRetry();
+    final token = await getFcmTokenWithRetry();
     if (token == null || token.isEmpty) {
       debugPrint(
           '[FCM] No token available after retries (e.g. APNS not set or permission denied)');
       return;
     }
+    debugPrint('[FCM] FCM token (app start): $token');
     await FirebaseFirestore.instance.collection('Users').doc(userId).set(
       {'fcmToken': token},
       SetOptions(merge: true),
@@ -43,12 +54,70 @@ Future<void> updateFcmTokenInFirestore() async {
   }
 }
 
+Future<void> _ensureAndroidNotificationChannel() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+  const channel = AndroidNotificationChannel(
+    _androidFcmChannelId,
+    'Push notifications',
+    description: 'Firebase Cloud Messaging',
+    importance: Importance.high,
+  );
+
+  final androidPlugin = _localNotifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+  await androidPlugin?.createNotificationChannel(channel);
+}
+
+Future<void> _initializeLocalNotifications() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+
+  await _localNotifications.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
+    ),
+  );
+  await _ensureAndroidNotificationChannel();
+}
+
+Future<void> _showForegroundAndroidNotification(RemoteMessage message) async {
+  final notification = message.notification;
+  if (notification == null) return;
+
+  final id = Object.hash(message.messageId, message.sentTime?.millisecondsSinceEpoch);
+
+  await _localNotifications.show(
+    id,
+    notification.title,
+    notification.body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        _androidFcmChannelId,
+        'Push notifications',
+        channelDescription: 'Firebase Cloud Messaging',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      ),
+    ),
+  );
+}
+
 Future<void> initializeFcmAndUploadToken() async {
   try {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
     // Ensure FCM auto-init is enabled.
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
 
     // iOS: allow notification display while app is in foreground.
+    // APNs: also upload an APNs Auth Key in Firebase Console → Project settings → Cloud Messaging.
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(
       alert: true,
@@ -56,15 +125,25 @@ Future<void> initializeFcmAndUploadToken() async {
       sound: true,
     );
 
-    // Register background handler early.
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await _initializeLocalNotifications();
 
-    // Log all incoming messages (foreground).
-    FirebaseMessaging.onMessage.listen((message) {
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      debugPrint(
+        '[FCM][INITIAL] messageId=${initialMessage.messageId} '
+        'data=${initialMessage.data}',
+      );
+    }
+
+    // Log all incoming messages (foreground). Android: show tray notification (FCM does not by default).
+    FirebaseMessaging.onMessage.listen((message) async {
       debugPrint(
         '[FCM][FG] messageId=${message.messageId} '
         'title=${message.notification?.title} body=${message.notification?.body} data=${message.data}',
       );
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        await _showForegroundAndroidNotification(message);
+      }
     });
 
     // App opened from notification tap.

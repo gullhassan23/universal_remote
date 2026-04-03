@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
@@ -13,6 +12,7 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
 import 'package:smartapp/models/subscription_verification_models.dart';
+import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/userId.dart';
 
 typedef PremiumActivationHook = Future<void> Function(String productId);
@@ -227,7 +227,7 @@ class SubscriptionIAPService extends GetxService {
     }
 
     final String userId = await getOrCreateUserId();
-    final String? fcmToken = await FirebaseMessaging.instance.getToken();
+    final String? fcmToken = await getFcmTokenWithRetry();
     final String platform = _platformLabel();
     final SubscriptionVerificationPayload payload = SubscriptionVerificationPayload(
       receiptData: purchase.verificationData.serverVerificationData,
@@ -325,7 +325,7 @@ class SubscriptionIAPService extends GetxService {
   }) async {
     try {
       final String userId = await getOrCreateUserId();
-      final String? fcmToken = await FirebaseMessaging.instance.getToken();
+      final String? fcmToken = await getFcmTokenWithRetry();
       final String platform = _platformLabel();
       final Map<String, dynamic> payload = <String, dynamic>{
         'isPremium': true,

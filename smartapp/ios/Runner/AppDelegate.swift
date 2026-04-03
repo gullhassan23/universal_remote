@@ -50,6 +50,11 @@ import UIKit
       }
     }
 
+    // Start APNs registration early so FCM can obtain a token (avoids apns-token-not-set races).
+    // Ensure Firebase Console → Project settings → Cloud Messaging has an APNs Auth Key;
+    // Debug builds use sandbox (RunnerDebug.entitlements), Release/TestFlight use production.
+    application.registerForRemoteNotifications()
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

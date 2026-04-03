@@ -5,10 +5,15 @@
     <!-- For Android TV discovery over local network (mDNS/NSD, Wi-Fi multicast). -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Android 13+ (API 33): required to post notifications and for runtime permission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="smartapp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="smartapp_fcm" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
