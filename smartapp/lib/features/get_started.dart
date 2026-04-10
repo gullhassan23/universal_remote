@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/utils/constant.dart';
 
-import 'home/home_screen.dart';
+import 'onboarding/onboarding_screen.dart';
 
 /// Bundled background art (Waves_Design).
 
@@ -149,8 +149,14 @@ class GetStarted extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             shape: const StadiumBorder(),
                           ),
-                          onPressed: () {
-                            Get.off(() => const HomeScreen());
+                          onPressed: () async {
+                            final completed =
+                                await isInstructionOnboardingCompleted();
+                            if (completed) {
+                              Get.offAllNamed('/home');
+                            } else {
+                              Get.offAllNamed('/instructions');
+                            }
                           },
                           child: const Text(
                             'GET STARTED',
