@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -215,6 +214,8 @@ class _InstructionStepPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isConnectStep = heroAsset.endsWith('instruction_connect.png');
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -230,44 +231,34 @@ class _InstructionStepPage extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: 46,
                     fontWeight: FontWeight.w800,
-                    height: 1.25,
+                    height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Image.asset(
-                      "assets/images/onboarding/Mobile.png",
-                    ),
-                    // Image.asset(
-                    //   "assets/images/onboarding/Wifi.png",
-                    // ),
-                    // Image.asset(
-                    //   "assets/images/onboarding/LCD.png",
-                    // ),
-                  ],
-                ),
-                // Image.asset(
-                //   heroAsset,
-                //   fit: BoxFit.contain,
-                //   filterQuality: FilterQuality.high,
-                //   height: math.min(constraints.maxHeight * 0.38, 260),
-                // ),
+                const SizedBox(height: 12),
+                if (isConnectStep)
+                  const _NetworkStackIllustration()
+                else
+                  Image.asset(
+                    heroAsset,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    height: 260,
+                  ),
                 if (extra != null) ...[
                   const SizedBox(height: 20),
                   extra!,
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 Text(
                   body,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.92),
-                    fontSize: 16,
+                    fontSize: 21,
                     fontWeight: FontWeight.w400,
-                    height: 1.45,
+                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -276,6 +267,80 @@ class _InstructionStepPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _NetworkStackIllustration extends StatelessWidget {
+  const _NetworkStackIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 320,
+      height: 280,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          _SoftCircle(size: 210, alpha: 0.22),
+          Positioned(
+            left: 10,
+            top: 48,
+            child: _SoftCircle(size: 88, alpha: 0.20),
+          ),
+          Positioned(
+            right: 8,
+            top: 46,
+            child: _SoftCircle(size: 104, alpha: 0.20),
+          ),
+          Positioned(
+            left: 28,
+            top: 68,
+            child: Image.asset(
+              'assets/images/onboarding/Mobile.png',
+              width: 44,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+          Positioned(
+            right: 18,
+            top: 64,
+            child: Image.asset(
+              'assets/images/onboarding/LCD.png',
+              width: 100,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+          Positioned(
+            bottom: 18,
+            child: Image.asset(
+              'assets/images/onboarding/Wifi.png',
+              width: 132,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftCircle extends StatelessWidget {
+  const _SoftCircle({required this.size, required this.alpha});
+
+  final double size;
+  final double alpha;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: alpha),
+      ),
     );
   }
 }

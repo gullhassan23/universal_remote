@@ -11,6 +11,7 @@ object MessageParser {
     private const val FIELD_REMOTE_CONFIGURE = 1
     private const val FIELD_REMOTE_SET_ACTIVE = 2
     private const val FIELD_REMOTE_PING_REQUEST = 8
+    private const val FIELD_REMOTE_IME_BATCH_EDIT = 21
 
     enum class PairingStep {
         REQUEST_ACK,
@@ -79,6 +80,27 @@ object MessageParser {
         }
     }
 
+    fun parseRemoteImeBatchEditCounters(data: ByteArray): Pair<Int, Int>? {
+        return try {
+            val input = ByteArrayInputStream(data)
+            while (input.available() > 0) {
+                val tag = readVarint(input)
+                val fieldNumber = tag shr 3
+                val wireType = tag and 0x07
+                if (fieldNumber == FIELD_REMOTE_IME_BATCH_EDIT && wireType == 2) {
+                    val length = readVarint(input)
+                    val nested = ByteArray(length)
+                    input.read(nested)
+                    return parseImeBatchEditCountersPayload(nested)
+                }
+                skipField(input, wireType)
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private data class ParsedPairingMessage(val status: Int, val messageField: Int?)
 
     private fun parsePairingMessage(data: ByteArray): ParsedPairingMessage? {
@@ -123,6 +145,23 @@ object MessageParser {
             skipField(input, wireType)
         }
         return null
+    }
+
+    private fun parseImeBatchEditCountersPayload(data: ByteArray): Pair<Int, Int>? {
+        val input = ByteArrayInputStream(data)
+        var imeCounter = 0
+        var fieldCounter = 0
+        while (input.available() > 0) {
+            val tag = readVarint(input)
+            val fieldNumber = tag shr 3
+            val wireType = tag and 0x07
+            when {
+                fieldNumber == 1 && wireType == 0 -> imeCounter = readVarint(input)
+                fieldNumber == 2 && wireType == 0 -> fieldCounter = readVarint(input)
+                else -> skipField(input, wireType)
+            }
+        }
+        return imeCounter to fieldCounter
     }
 
     private fun readVarint(input: ByteArrayInputStream): Int {

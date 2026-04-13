@@ -6,6 +6,9 @@ import java.io.ByteArrayOutputStream
 object ProtobufMessage {
     private const val STATUS_OK = 200
     private const val PAIRING_PROTOCOL_VERSION = 2
+    private const val KEY_DIRECTION_START = 1
+    private const val KEY_DIRECTION_END = 2
+    private const val KEY_DIRECTION_SHORT = 3
 
     fun createPairingRequest(): ByteArray {
         return createPairingMessage(fieldNumber = 10) {
@@ -57,13 +60,25 @@ object ProtobufMessage {
     }
 
     fun createKeycodeMessage(keycode: Int): ByteArray {
+        return createKeycodeMessage(keycode = keycode, direction = KEY_DIRECTION_SHORT)
+    }
+
+    fun createKeycodeDownMessage(keycode: Int): ByteArray {
+        return createKeycodeMessage(keycode = keycode, direction = KEY_DIRECTION_START)
+    }
+
+    fun createKeycodeUpMessage(keycode: Int): ByteArray {
+        return createKeycodeMessage(keycode = keycode, direction = KEY_DIRECTION_END)
+    }
+
+    private fun createKeycodeMessage(keycode: Int, direction: Int): ByteArray {
         val keyInject = ByteArrayOutputStream().apply {
             // RemoteKeyInject.key_code
             writeVarintTo(this, 1 shl 3 or 0)
             writeVarintTo(this, keycode)
-            // RemoteKeyInject.direction = SHORT (3)
+            // RemoteKeyInject.direction
             writeVarintTo(this, 2 shl 3 or 0)
-            writeVarintTo(this, 3)
+            writeVarintTo(this, direction)
         }.toByteArray()
         return createRemoteMessage(fieldNumber = 10, payload = keyInject)
     }
@@ -100,6 +115,37 @@ object ProtobufMessage {
             writeVarintTo(this, value)
         }.toByteArray()
         return createRemoteMessage(fieldNumber = 9, payload = payload)
+    }
+
+    fun createRemoteImeBatchEditMessage(
+        text: String,
+        imeCounter: Int,
+        fieldCounter: Int,
+    ): ByteArray {
+        val cursor = if (text.isEmpty()) 0 else text.length - 1
+        val imeObject = ByteArrayOutputStream().apply {
+            writeVarintTo(this, 1 shl 3 or 0) // start
+            writeVarintTo(this, cursor)
+            writeVarintTo(this, 2 shl 3 or 0) // end
+            writeVarintTo(this, cursor)
+            writeLengthDelimited(3, text.toByteArray()) // value
+        }.toByteArray()
+
+        val editInfo = ByteArrayOutputStream().apply {
+            writeVarintTo(this, 1 shl 3 or 0) // insert
+            writeVarintTo(this, 1)
+            writeLengthDelimited(2, imeObject) // text_field_status
+        }.toByteArray()
+
+        val payload = ByteArrayOutputStream().apply {
+            writeVarintTo(this, 1 shl 3 or 0) // ime_counter
+            writeVarintTo(this, imeCounter)
+            writeVarintTo(this, 2 shl 3 or 0) // field_counter
+            writeVarintTo(this, fieldCounter)
+            writeLengthDelimited(3, editInfo) // edit_info
+        }.toByteArray()
+
+        return createRemoteMessage(fieldNumber = 21, payload = payload)
     }
 
     private fun createPairingMessage(

@@ -314,6 +314,25 @@ class AndroidTvService implements ITvService {
     }
     if (!Platform.isAndroid) return false;
 
+    final normalizedTypedChar = mapTypedCharToRemoteKey(key);
+    if (normalizedTypedChar != null) {
+      final charCode = normalizedTypedChar.codeUnitAt(0);
+      final isAlphabet = (charCode >= 0x41 && charCode <= 0x5A) ||
+          (charCode >= 0x61 && charCode <= 0x7A);
+      if (isAlphabet) {
+        try {
+          final sentText =
+              await AndroidTvRemotePlatform.instance.sendText(normalizedTypedChar);
+          if (sentText) return true;
+        } catch (e) {
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('AndroidTvService.sendKey sendText fallback: $e');
+          }
+        }
+      }
+    }
+
     final code = mapRemoteKeyToAndroidKeyCode(key);
     if (code == null) {
       if (kDebugMode) {

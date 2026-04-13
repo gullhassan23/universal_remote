@@ -77,16 +77,28 @@ class RemoteController extends GetxController {
 
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {
-      final ok = await _connectionController.sendKey(key);
+      var ok = await _connectionController.sendKey(key);
+      if (!ok) {
+        // Brief retry avoids reopening picker for transient key-send misses.
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        ok = await _connectionController.sendKey(key);
+      }
       if (ok) {
         return;
       }
 
-      await _connectionController.disconnect();
+      final device = _connectionController.currentDevice.value;
+      if (device != null) {
+        final reconnected = await _connectionController.connectTo(device);
+        if (reconnected) {
+          final resent = await _connectionController.sendKey(key);
+          if (resent) return;
+        }
+      }
     }
 
     _enqueuePendingKey(key);
-    showDevicePicker.value = true;
+    _openPickerIfNeeded();
   }
 
   Future<void> onDeviceSelected(TvDevice device) async {
@@ -105,6 +117,11 @@ class RemoteController extends GetxController {
     _pickerSheetVisible = false;
     showDevicePicker.value = false;
     _pendingKeys.clear();
+  }
+
+  void _openPickerIfNeeded() {
+    if (_pickerSheetVisible || showDevicePicker.value) return;
+    showDevicePicker.value = true;
   }
 
   void _showDevicePickerSheet() {
@@ -137,9 +154,8 @@ class RemoteController extends GetxController {
       final key = _pendingKeys.removeFirst();
       final sent = await _connectionController.sendKey(key);
       if (!sent) {
-        await _connectionController.disconnect();
         _enqueuePendingKey(key);
-        showDevicePicker.value = true;
+        _openPickerIfNeeded();
         return;
       }
     }

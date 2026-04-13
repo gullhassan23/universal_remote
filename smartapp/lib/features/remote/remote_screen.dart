@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../controllers/tv_connection_controller.dart';
+import '../../services/android_tv/android_tv_keycodes.dart';
 import '../../services/tv_service_interface.dart';
 import 'remote_controller.dart';
 
@@ -97,7 +99,7 @@ class RemoteScreen extends GetView<RemoteController> {
                     // buildSideButtons(),
                     SizedBox(
                       height: 202,
-                      child: buildMainButtons(),
+                      child: buildMainButtons(context),
                     ),
                     const SizedBox(height: 12),
                     // SmoothPageIndicator(
@@ -182,7 +184,7 @@ class RemoteScreen extends GetView<RemoteController> {
   }
 
   /// SIDE BUTTONS (Volume / Power / Channel)
-  Widget buildMainButtons() {
+  Widget buildMainButtons(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Row(
@@ -323,7 +325,35 @@ class RemoteScreen extends GetView<RemoteController> {
                     containercolor: Colors.white,
                     text: false,
                     icon: Icons.keyboard,
-                    onTap: _sendKeyTap('KEY_KEYBOARD'),
+                    onTap: () {
+                      unawaited(
+                        controller.handleButtonTap(
+                          buttonKey: 'KEY_KEYBOARD',
+                          onTap: () async {
+                            if (!context.mounted) return;
+                            await showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: const Color(0xFF2A2A2A),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                              ),
+                              builder: (ctx) => Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                                ),
+                                child: _TvKeyboardSheet(
+                                  controller: controller,
+                                ),
+                              ),
+                            );
+                          },
+                          action: 'open_keyboard',
+                        ),
+                      );
+                    },
                     border: true,
                     color: Colors.white),
               ),
@@ -697,6 +727,187 @@ class RemoteScreen extends GetView<RemoteController> {
               border: true,
               color: Colors.white),
         ],
+      ),
+    );
+  }
+}
+
+/// Phone soft keyboard: each character is sent to the TV as Android key events.
+class _TvKeyboardSheet extends StatefulWidget {
+  const _TvKeyboardSheet({required this.controller});
+
+  final RemoteController controller;
+
+  @override
+  State<_TvKeyboardSheet> createState() => _TvKeyboardSheetState();
+}
+
+class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
+  final TextEditingController _text = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  String _prev = '';
+  Future<void> _sendQueue = Future<void>.value();
+  int _skipAddedCharsFromHardware = 0;
+  int _skipDeletesFromHardware = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _text.addListener(_onTextChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
+    });
+  }
+
+  void _onTextChanged() {
+    final v = _text.text;
+    if (v.length > _prev.length) {
+      final added = v.substring(_prev.length);
+      final runes = added.runes.toList();
+      var skip = _skipAddedCharsFromHardware;
+      var startIndex = 0;
+      if (skip > 0) {
+        if (skip > runes.length) skip = runes.length;
+        _skipAddedCharsFromHardware -= skip;
+        startIndex = skip;
+      }
+      for (var i = startIndex; i < runes.length; i++) {
+        final r = runes[i];
+        final ch = String.fromCharCode(r);
+        final key = mapTypedCharToRemoteKey(ch);
+        if (key == null) continue;
+        _enqueueTypedKey(key);
+      }
+    } else if (v.length < _prev.length) {
+      var deletes = _prev.length - v.length;
+      if (_skipDeletesFromHardware > 0) {
+        final skipped = _skipDeletesFromHardware > deletes
+            ? deletes
+            : _skipDeletesFromHardware;
+        _skipDeletesFromHardware -= skipped;
+        deletes -= skipped;
+      }
+      for (var i = 0; i < deletes; i++) {
+        _enqueueTypedKey('KEY_BACKSPACE');
+      }
+    }
+    _prev = v;
+  }
+
+  KeyEventResult _onKeyboardEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent || !_focusNode.hasFocus) {
+      return KeyEventResult.ignored;
+    }
+
+    final logical = event.logicalKey;
+    if (logical == LogicalKeyboardKey.backspace) {
+      _skipDeletesFromHardware++;
+      _enqueueTypedKey('KEY_BACKSPACE');
+      return KeyEventResult.handled;
+    }
+    if (logical == LogicalKeyboardKey.enter ||
+        logical == LogicalKeyboardKey.numpadEnter) {
+      _skipAddedCharsFromHardware++;
+      _enqueueTypedKey('\n');
+      return KeyEventResult.handled;
+    }
+
+    final label = logical.keyLabel;
+    if (label.length != 1) {
+      return KeyEventResult.ignored;
+    }
+
+    final key = mapTypedCharToRemoteKey(label);
+    if (key == null) {
+      return KeyEventResult.ignored;
+    }
+
+    _skipAddedCharsFromHardware++;
+    _enqueueTypedKey(key);
+    return KeyEventResult.handled;
+  }
+
+  void _enqueueTypedKey(String key) {
+    _sendQueue = _sendQueue.then((_) => _sendTypedKey(key));
+  }
+
+  Future<void> _sendTypedKey(String key) async {
+    // Do not trigger reconnect bottom sheet while typing; just send directly.
+    var ok = await widget.controller.connectionController.sendKey(key);
+    if (ok) return;
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    ok = await widget.controller.connectionController.sendKey(key);
+    if (!ok) {
+      widget.controller.logButtonEvent(
+        buttonKey: key,
+        event: 'typing_send_failed',
+        action: 'keyboard_input',
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _text.removeListener(_onTextChanged);
+    _text.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Type on TV',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Focus(
+              onKeyEvent: _onKeyboardEvent,
+              child: TextField(
+                controller: _text,
+                focusNode: _focusNode,
+                autofocus: true,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.none,
+                autocorrect: false,
+                enableSuggestions: false,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText:
+                      'Focus a search box on your TV, then type here',
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  filled: true,
+                  fillColor: const Color(0xFF3A3A3A),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'package:smartapp/utils/constant.dart';
@@ -22,8 +23,13 @@ class HomeScreen extends GetView<HomeController> {
       extendBodyBehindAppBar: true,
       backgroundColor: kGradientBottom,
       appBar: AppBar(
-        leading:
-            Icon(Icons.settings, color: Colors.white.withValues(alpha: 0.85)),
+        leading: IconButton(
+          icon:
+              Icon(Icons.settings, color: Colors.white.withValues(alpha: 0.85)),
+          onPressed: () {
+            Get.to(() => InstructionOnboardingScreen());
+          },
+        ),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,

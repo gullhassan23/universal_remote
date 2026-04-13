@@ -40,6 +40,8 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private var remoteController: RemoteController? = null
     private var remoteReaderJob: Job? = null
     private val remoteReady = AtomicBoolean(false)
+    private val imeCounter = java.util.concurrent.atomic.AtomicInteger(0)
+    private val imeFieldCounter = java.util.concurrent.atomic.AtomicInteger(0)
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun registerWith(flutterEngine: FlutterEngine) {
@@ -60,6 +62,12 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 }
                 "sendKeyCode" -> scope.launch {
                     sendKeyCode(
+                        call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
+                        result,
+                    )
+                }
+                "sendText" -> scope.launch {
+                    sendText(
                         call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
                         result,
                     )
@@ -321,6 +329,33 @@ class AndroidTvRemotePlugin(private val context: Context) {
         mainHandler.post { result.success(ok) }
     }
 
+    private fun sendText(arguments: Map<*, *>, result: MethodChannel.Result) {
+        val text = arguments["text"] as? String
+        if (text.isNullOrEmpty()) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+        if (!remoteReady.get()) {
+            waitForRemoteReady()
+        }
+        var ok =
+            remoteController?.sendText(
+                text = text,
+                imeCounter = imeCounter.get(),
+                fieldCounter = imeFieldCounter.get(),
+            ) == true
+        if (!ok && remoteReady.get()) {
+            Thread.sleep(40)
+            ok =
+                remoteController?.sendText(
+                    text = text,
+                    imeCounter = imeCounter.get(),
+                    fieldCounter = imeFieldCounter.get(),
+                ) == true
+        }
+        mainHandler.post { result.success(ok) }
+    }
+
     private fun disconnectSession(result: MethodChannel.Result) {
         try {
             disconnectTlsOnly()
@@ -334,6 +369,8 @@ class AndroidTvRemotePlugin(private val context: Context) {
         remoteReaderJob?.cancel()
         remoteReaderJob = null
         remoteReady.set(false)
+        imeCounter.set(0)
+        imeFieldCounter.set(0)
         remoteController?.destroy()
         remoteController = null
         tlsRemote?.disconnect()
@@ -379,7 +416,13 @@ class AndroidTvRemotePlugin(private val context: Context) {
                             remote.sendData(ProtobufMessage.createRemotePingResponseMessage(ping))
                         }
                     }
-                    MessageParser.RemoteMessageType.OTHER -> Unit
+                    MessageParser.RemoteMessageType.OTHER -> {
+                        val counters = MessageParser.parseRemoteImeBatchEditCounters(msg)
+                        if (counters != null) {
+                            imeCounter.set(counters.first)
+                            imeFieldCounter.set(counters.second)
+                        }
+                    }
                 }
             }
         }

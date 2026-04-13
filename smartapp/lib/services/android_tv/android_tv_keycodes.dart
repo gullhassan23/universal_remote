@@ -1,5 +1,88 @@
+/// Normalizes typed characters to keys Android TV can reliably inject.
+String _normalizeTypedChar(String char) {
+  if (char.isEmpty) return char;
+
+  switch (char) {
+    case '\r':
+      return '\n';
+    case '\t':
+      return ' ';
+    // Smart/full-width variants commonly produced by phone keyboards.
+    case '–':
+    case '—':
+    case '−':
+      return '-';
+    case '．':
+    case '。':
+      return '.';
+    case '，':
+    case '、':
+    case '،':
+      return ',';
+    case '＠':
+      return '@';
+  }
+
+  final code = char.runes.first;
+  // Full-width 0-9
+  if (code >= 0xFF10 && code <= 0xFF19) {
+    return String.fromCharCode(0x30 + (code - 0xFF10));
+  }
+  // Full-width A-Z
+  if (code >= 0xFF21 && code <= 0xFF3A) {
+    return String.fromCharCode(0x41 + (code - 0xFF21));
+  }
+  // Full-width a-z
+  if (code >= 0xFF41 && code <= 0xFF5A) {
+    return String.fromCharCode(0x61 + (code - 0xFF41));
+  }
+
+  return char;
+}
+
+/// Returns the character that should be sent through [sendKey], or null.
+String? mapTypedCharToRemoteKey(String char) {
+  if (char.length != 1) return null;
+  final normalized = _normalizeTypedChar(char);
+  return mapCharToAndroidKeyCode(normalized) == null ? null : normalized;
+}
+
+/// Maps a single typed character to an Android KeyEvent keycode (for text input).
+int? mapCharToAndroidKeyCode(String char) {
+  if (char.length != 1) return null;
+  final normalized = _normalizeTypedChar(char);
+  final code = normalized.codeUnitAt(0);
+  // 0–9
+  if (code >= 0x30 && code <= 0x39) return 7 + (code - 0x30);
+  // a–z
+  if (code >= 0x61 && code <= 0x7a) return 29 + (code - 0x61);
+  // A–Z (same keycodes as lowercase; TV/search UIs usually accept this)
+  if (code >= 0x41 && code <= 0x5a) return 29 + (code - 0x41);
+  switch (normalized) {
+    case ' ':
+      return 62; // KEYCODE_SPACE
+    case '\n':
+      return 66; // KEYCODE_ENTER (text field)
+    case '.':
+      return 56;
+    case ',':
+      return 55;
+    case '-':
+      return 69;
+    case '@':
+      return 77;
+    case '/':
+      return 76; // KEYCODE_SLASH
+    default:
+      return null;
+  }
+}
+
 /// Maps [RemoteController.send] key names to Android KeyEvent keycodes.
 int? mapRemoteKeyToAndroidKeyCode(String key) {
+  if (key.length == 1) {
+    return mapCharToAndroidKeyCode(key);
+  }
   switch (key) {
     case 'KEY_VOLUP':
       return 24;
@@ -11,6 +94,8 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
       return 26;
     case 'KEY_KEYBOARD':
       return 84;
+    case 'KEY_BACKSPACE':
+      return 67; // KEYCODE_DEL
     case 'KEY_RETURN':
       return 4;
     case 'KEY_CHUP':

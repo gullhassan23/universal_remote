@@ -68,6 +68,15 @@ class AndroidTvRemotePlatform {
     return ok == true;
   }
 
+  Future<bool> sendText(String text) async {
+    ensureInitialized();
+    final ok = await _channel.invokeMethod<bool>(
+      'sendText',
+      <String, dynamic>{'text': text},
+    );
+    return ok == true;
+  }
+
   Future<bool> acquireMulticastLock() async {
     ensureInitialized();
     try {
