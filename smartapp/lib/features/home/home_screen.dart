@@ -71,7 +71,7 @@ class HomeScreen extends GetView<HomeController> {
         fit: StackFit.expand,
         children: [
           Image.asset(
-            kGetStartedBackgroundAsset,
+            ImageRes.kGetStartedBackgroundAsset,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,

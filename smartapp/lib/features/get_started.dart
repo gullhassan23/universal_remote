@@ -24,7 +24,7 @@ class GetStarted extends StatelessWidget {
         children: [
           // Texture / shapes from asset (opaque areas stay visible).
           Image.asset(
-            kGetStartedBackgroundAsset,
+            ImageRes.kGetStartedBackgroundAsset,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,

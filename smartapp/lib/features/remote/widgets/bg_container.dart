@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
+import 'package:smartapp/utils/constant.dart';
 
 class bg_container extends StatelessWidget {
   final Widget child;
@@ -7,14 +8,20 @@ class bg_container extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage("assets/icons/bg.png"),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          ImageRes.kGetStartedBackgroundAsset,
           fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) {
+            return const ColoredBox(color: Color(0xFF0B56D0));
+          },
         ),
-      ),
-      child: child,
+        child,
+      ],
     );
   }
 }
