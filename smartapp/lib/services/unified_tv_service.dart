@@ -16,12 +16,18 @@ class UnifiedTvService implements ITvService {
 
   final _connectionStateController =
       StreamController<TvConnectionState>.broadcast();
+  final _castSessionController =
+      StreamController<CastSessionUpdate>.broadcast();
 
   ITvService? _activeService;
   StreamSubscription<TvConnectionState>? _stateSubscription;
+  StreamSubscription<CastSessionUpdate>? _castSubscription;
 
   UnifiedTvService() {
     _connectionStateController.add(TvConnectionState.disconnected);
+    _castSessionController.add(
+      const CastSessionUpdate(state: CastSessionState.idle),
+    );
   }
 
   ITvService _serviceFor(TvBrand brand) {
@@ -42,6 +48,9 @@ class UnifiedTvService implements ITvService {
       _connectionStateController.stream;
 
   @override
+  Stream<CastSessionUpdate> get castSessionStream => _castSessionController.stream;
+
+  @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
     return _androidTv.discoverDevices(filterBrand: filterBrand);
   }
@@ -49,12 +58,19 @@ class UnifiedTvService implements ITvService {
   @override
   Future<bool> connect(TvDevice device) async {
     await _stateSubscription?.cancel();
+    await _castSubscription?.cancel();
     _stateSubscription = null;
+    _castSubscription = null;
     _activeService = _serviceFor(device.brand);
 
     _stateSubscription = _activeService!.connectionStateStream.listen(
       _forwardConnectionState,
     );
+    _castSubscription = _activeService!.castSessionStream.listen((update) {
+      if (!_castSessionController.isClosed) {
+        _castSessionController.add(update);
+      }
+    });
 
     final success = await _activeService!.connect(device);
     if (success) {
@@ -67,8 +83,15 @@ class UnifiedTvService implements ITvService {
   Future<void> disconnect() async {
     await _activeService?.disconnect();
     await _stateSubscription?.cancel();
+    await _castSubscription?.cancel();
     _stateSubscription = null;
+    _castSubscription = null;
     _activeService = null;
+    if (!_castSessionController.isClosed) {
+      _castSessionController.add(
+        const CastSessionUpdate(state: CastSessionState.stopped),
+      );
+    }
   }
 
   @override
@@ -76,6 +99,25 @@ class UnifiedTvService implements ITvService {
     final service = _activeService;
     if (service == null) return false;
     return service.sendKey(key);
+  }
+
+  @override
+  Future<bool> launchApp(String packageName) async {
+    final service = _activeService;
+    if (service == null) return false;
+    return service.launchApp(packageName);
+  }
+
+  @override
+  Future<bool> castMedia(CastMediaItem item) async {
+    final service = _activeService;
+    if (service == null) return false;
+    return service.castMedia(item);
+  }
+
+  @override
+  Future<void> stopCasting() async {
+    await _activeService?.stopCasting();
   }
 
   Future<void> _storeLastDevice(TvDevice device) async {

@@ -4,9 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../models/tv_brand.dart';
-import '../../../models/tv_device.dart';
-import '../../device_discovery/device_discovery_controller.dart';
+import '../models/tv_brand.dart';
+import '../models/tv_device.dart';
+import '../features/device_discovery/device_discovery_controller.dart';
 
 class RemoteDevicePickerSheet extends StatefulWidget {
   const RemoteDevicePickerSheet({

@@ -13,9 +13,11 @@ import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'app.dart';
 import 'services/android_tv/android_tv_remote_platform.dart';
-import 'features/home/home_controller.dart';
+import 'controllers/apps_controller.dart';
+import 'controllers/home_controller.dart';
+import 'controllers/media_cast_controller.dart';
 import 'features/device_discovery/device_discovery_controller.dart';
-import 'features/remote/remote_controller.dart';
+import 'controllers/remote_controller.dart';
 import 'services/tv_service_interface.dart';
 import 'services/unified_tv_service.dart';
 import 'controllers/tv_connection_controller.dart';
@@ -65,10 +67,19 @@ void _registerDependencies() {
     permanent: true,
   );
   Get.put(
+    MediaCastController(connectionController: tvConnectionController),
+    permanent: true,
+  );
+  Get.put(
     RemoteController(
       connectionController: tvConnectionController,
       discoveryController: discoveryController,
+      mediaCastController: Get.find<MediaCastController>(),
     ),
+    permanent: true,
+  );
+  Get.put(
+    AppsController(connectionController: tvConnectionController),
     permanent: true,
   );
 

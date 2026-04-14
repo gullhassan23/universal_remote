@@ -1,5 +1,6 @@
 package com.mg.smart.tv.remote.control.androidtv
 
+import android.content.Intent
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Handler
@@ -68,6 +69,18 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 }
                 "sendText" -> scope.launch {
                     sendText(
+                        call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
+                        result,
+                    )
+                }
+                "launchApp" -> scope.launch {
+                    launchApp(
+                        call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
+                        result,
+                    )
+                }
+                "openUrlOnTv" -> scope.launch {
+                    openUrlOnTv(
                         call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
                         result,
                     )
@@ -354,6 +367,120 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 ) == true
         }
         mainHandler.post { result.success(ok) }
+    }
+
+    private fun launchApp(arguments: Map<*, *>, result: MethodChannel.Result) {
+        val packageName = arguments["packageName"] as? String
+        if (packageName.isNullOrBlank()) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+        try {
+            // Prefer launching on the connected TV session. The app package may not
+            // exist on the phone running this Flutter app.
+            if (remoteReady.get() && remoteController != null) {
+                val query = resolveAppSearchQuery(packageName)
+                val openedBySearch = runCatching {
+                    // Reset to home before opening global search.
+                    remoteController?.sendKeyCode(3) == true &&
+                        run {
+                            Thread.sleep(140)
+                            remoteController?.sendKeyCode(84) == true
+                        } &&
+                        run {
+                            Thread.sleep(220)
+                            remoteController?.sendText(
+                                text = query,
+                                imeCounter = imeCounter.get(),
+                                fieldCounter = imeFieldCounter.get(),
+                            ) == true
+                        } &&
+                        run {
+                            Thread.sleep(140)
+                            remoteController?.sendKeyCode(23) == true
+                        }
+                }.getOrDefault(false)
+                if (openedBySearch) {
+                    mainHandler.post { result.success(true) }
+                    return
+                }
+            }
+
+            // Fallback for local development/debug scenarios.
+            val launchIntent =
+                context.packageManager.getLeanbackLaunchIntentForPackage(packageName)
+                    ?: context.packageManager.getLaunchIntentForPackage(packageName)
+            if (launchIntent == null) {
+                Logger.e("launchApp: no launch intent for package=$packageName")
+                mainHandler.post { result.success(false) }
+                return
+            }
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(launchIntent)
+            mainHandler.post { result.success(true) }
+        } catch (e: Exception) {
+            Logger.e("launchApp: ${e.message}", e)
+            mainHandler.post { result.success(false) }
+        }
+    }
+
+    private fun openUrlOnTv(arguments: Map<*, *>, result: MethodChannel.Result) {
+        val url = arguments["url"] as? String
+        if (url.isNullOrBlank() || remoteController == null) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+        if (!remoteReady.get()) {
+            waitForRemoteReady()
+        }
+
+        val opened = runCatching {
+            var success = false
+            repeat(3) { attempt ->
+                if (attempt > 0) {
+                    Thread.sleep(140)
+                }
+                success = openUrlByRemoteSequence(url)
+                if (success) {
+                    return@repeat
+                }
+            }
+            success
+        }.getOrDefault(false)
+        mainHandler.post { result.success(opened) }
+    }
+
+    private fun openUrlByRemoteSequence(url: String): Boolean {
+        val remote = remoteController ?: return false
+        val homeOk = remote.sendKeyCode(3)
+        if (!homeOk) return false
+        Thread.sleep(180)
+
+        val searchOk = remote.sendKeyCode(84)
+        if (!searchOk) return false
+        Thread.sleep(220)
+
+        val textOk =
+            remote.sendText(
+                text = url,
+                imeCounter = imeCounter.get(),
+                fieldCounter = imeFieldCounter.get(),
+            )
+        if (!textOk) return false
+        Thread.sleep(160)
+
+        return remote.sendKeyCode(23)
+    }
+
+    private fun resolveAppSearchQuery(packageName: String): String {
+        return when (packageName.trim()) {
+            "com.netflix.ninja" -> "Netflix"
+            "com.google.android.youtube.tv" -> "YouTube"
+            "com.amazon.amazonvideo.livingroom" -> "Prime Video"
+            "com.disney.disneyplus" -> "Disney Plus"
+            "com.hulu.livingroomplus" -> "Hulu"
+            else -> packageName.substringAfterLast('.').replace('_', ' ').replace('-', ' ')
+        }
     }
 
     private fun disconnectSession(result: MethodChannel.Result) {

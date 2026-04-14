@@ -14,12 +14,17 @@ class TvConnectionController extends GetxController {
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
   final Rx<TvConnectionState> connectionState =
       TvConnectionState.disconnected.obs;
+  final Rx<CastSessionUpdate> castSession =
+      const CastSessionUpdate(state: CastSessionState.idle).obs;
 
   @override
   void onInit() {
     super.onInit();
     _tvService.connectionStateStream.listen((state) {
       connectionState.value = state;
+    });
+    _tvService.castSessionStream.listen((update) {
+      castSession.value = update;
     });
     _tryRestoreLastConnectedDevice();
   }
@@ -56,6 +61,32 @@ class TvConnectionController extends GetxController {
 
   Future<bool> sendKey(String key) {
     return _tvService.sendKey(key);
+  }
+
+  Future<bool> launchApp(String packageName) {
+    if (connectionState.value != TvConnectionState.connected) {
+      return Future<bool>.value(false);
+    }
+    return _tvService.launchApp(packageName);
+  }
+
+  Future<bool> castMedia(CastMediaItem item) {
+    if (connectionState.value != TvConnectionState.connected) {
+      return Future<bool>.value(false);
+    }
+    return _tvService.castMedia(item);
+  }
+
+  Future<void> stopCasting() {
+    return _tvService.stopCasting();
+  }
+
+  String? getLastServiceError() {
+    final service = _tvService;
+    if (service is UnifiedTvService) {
+      return service.getLastErrorMessage();
+    }
+    return null;
   }
 }
 

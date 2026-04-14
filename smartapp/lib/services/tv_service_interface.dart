@@ -8,6 +8,45 @@ enum TvConnectionState {
   error,
 }
 
+enum CastMediaType {
+  image,
+  video,
+  audio,
+}
+
+enum CastSessionState {
+  idle,
+  preparing,
+  launching,
+  displaying,
+  failed,
+  stopped,
+}
+
+class CastSessionUpdate {
+  const CastSessionUpdate({
+    required this.state,
+    this.message,
+  });
+
+  final CastSessionState state;
+  final String? message;
+}
+
+class CastMediaItem {
+  CastMediaItem({
+    required this.type,
+    required this.filePath,
+    required this.mimeType,
+    this.title,
+  });
+
+  final CastMediaType type;
+  final String filePath;
+  final String mimeType;
+  final String? title;
+}
+
 abstract class ITvService {
   /// Discover TVs available on the network.
   ///
@@ -22,6 +61,13 @@ abstract class ITvService {
 
   Future<bool> sendKey(String key);
 
+  Future<bool> launchApp(String packageName);
+
+  Future<bool> castMedia(CastMediaItem item);
+
+  Future<void> stopCasting();
+
+  Stream<CastSessionUpdate> get castSessionStream;
+
   Stream<TvConnectionState> get connectionStateStream;
 }
-

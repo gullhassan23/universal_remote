@@ -77,6 +77,24 @@ class AndroidTvRemotePlatform {
     return ok == true;
   }
 
+  Future<bool> launchApp(String packageName) async {
+    ensureInitialized();
+    final ok = await _channel.invokeMethod<bool>(
+      'launchApp',
+      <String, dynamic>{'packageName': packageName},
+    );
+    return ok == true;
+  }
+
+  Future<bool> openUrlOnTv(String url) async {
+    ensureInitialized();
+    final ok = await _channel.invokeMethod<bool>(
+      'openUrlOnTv',
+      <String, dynamic>{'url': url},
+    );
+    return ok == true;
+  }
+
   Future<bool> acquireMulticastLock() async {
     ensureInitialized();
     try {

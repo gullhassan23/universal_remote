@@ -4,23 +4,28 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../controllers/tv_connection_controller.dart';
-import '../../models/tv_device.dart';
-import '../../services/tv_service_interface.dart';
-import '../device_discovery/device_discovery_controller.dart';
-import 'widgets/remote_device_picker_sheet.dart';
+import 'tv_connection_controller.dart';
+import 'media_cast_controller.dart';
+import '../models/tv_device.dart';
+import '../services/tv_service_interface.dart';
+import '../features/device_discovery/device_discovery_controller.dart';
+import '../widgets/remote_device_picker_sheet.dart';
 
 class RemoteController extends GetxController {
   RemoteController({
     TvConnectionController? connectionController,
     DeviceDiscoveryController? discoveryController,
+    MediaCastController? mediaCastController,
   }) : _connectionController =
            connectionController ?? Get.find<TvConnectionController>(),
        _discoveryController =
-           discoveryController ?? Get.find<DeviceDiscoveryController>();
+           discoveryController ?? Get.find<DeviceDiscoveryController>(),
+       _mediaCastController =
+           mediaCastController ?? Get.find<MediaCastController>();
 
   final TvConnectionController _connectionController;
   final DeviceDiscoveryController _discoveryController;
+  final MediaCastController _mediaCastController;
 
   var selectedTab = 0.obs;
   final RxBool showDevicePicker = false.obs;
@@ -29,6 +34,7 @@ class RemoteController extends GetxController {
   bool _pickerSheetVisible = false;
 
   TvConnectionController get connectionController => _connectionController;
+  MediaCastController get mediaCastController => _mediaCastController;
 
   void logButtonEvent({
     required String buttonKey,
@@ -99,6 +105,15 @@ class RemoteController extends GetxController {
 
     _enqueuePendingKey(key);
     _openPickerIfNeeded();
+  }
+
+  Future<void> startMediaCasting() async {
+    logButtonEvent(
+      buttonKey: 'MEDIA_CAST',
+      event: 'action_triggered',
+      action: 'start_media_cast',
+    );
+    await _mediaCastController.pickAndCastImage();
   }
 
   Future<void> onDeviceSelected(TvDevice device) async {

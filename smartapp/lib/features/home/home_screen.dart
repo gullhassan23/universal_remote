@@ -6,7 +6,7 @@ import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'package:smartapp/utils/constant.dart';
 
-import 'home_controller.dart';
+import '../../controllers/home_controller.dart';
 
 class HomeScreen extends GetView<HomeController> {
   const HomeScreen({super.key});

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/tv_brand.dart';
 import '../../models/tv_device.dart';
+import '../media/local_media_server.dart';
 import 'android_tv_keycodes.dart';
 import 'android_tv_remote_platform.dart';
 import '../tv_service_interface.dart';
@@ -20,9 +21,16 @@ class AndroidTvService implements ITvService {
     '_androidtvremote._tcp.local',
     '_androidtvremote2._tcp.local',
   ];
+  static const _browserPackages = <String>[
+    'com.android.chrome',
+    'com.android.browser',
+    'com.google.android.apps.tv.browser',
+  ];
 
   final _connectionStateController =
       StreamController<TvConnectionState>.broadcast();
+  final _castSessionController = StreamController<CastSessionUpdate>.broadcast();
+  final LocalMediaServer _mediaServer = LocalMediaServer();
 
   TvConnectionState _state = TvConnectionState.disconnected;
   TvDevice? _currentDevice;
@@ -40,10 +48,17 @@ class AndroidTvService implements ITvService {
   @override
   Stream<TvConnectionState> get connectionStateStream =>
       _connectionStateController.stream;
+  @override
+  Stream<CastSessionUpdate> get castSessionStream => _castSessionController.stream;
 
   void _syncState(TvConnectionState s) {
     _state = s;
     _connectionStateController.add(s);
+  }
+
+  void _emitCastUpdate(CastSessionState state, {String? message}) {
+    if (_castSessionController.isClosed) return;
+    _castSessionController.add(CastSessionUpdate(state: state, message: message));
   }
 
   @override
@@ -300,6 +315,7 @@ class AndroidTvService implements ITvService {
 
   @override
   Future<void> disconnect() async {
+    await stopCasting();
     if (Platform.isAndroid) {
       await AndroidTvRemotePlatform.instance.disconnectNative();
     }
@@ -351,5 +367,162 @@ class AndroidTvService implements ITvService {
       _syncState(TvConnectionState.error);
       return false;
     }
+  }
+
+  @override
+  Future<bool> launchApp(String packageName) async {
+    if (_currentDevice == null || _state != TvConnectionState.connected) {
+      return false;
+    }
+    if (!Platform.isAndroid) return false;
+    if (packageName.trim().isEmpty) return false;
+
+    try {
+      return await AndroidTvRemotePlatform.instance.launchApp(packageName);
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService.launchApp: $e');
+      }
+      _syncState(TvConnectionState.error);
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> castMedia(CastMediaItem item) async {
+    if (_currentDevice == null || _state != TvConnectionState.connected) {
+      _emitCastUpdate(
+        CastSessionState.failed,
+        message: 'Connect to a TV before casting.',
+      );
+      return false;
+    }
+    if (!Platform.isAndroid) return false;
+    if (item.type != CastMediaType.image) {
+      _lastError = 'Only image casting is supported in this version.';
+      _emitCastUpdate(CastSessionState.failed, message: _lastError);
+      return false;
+    }
+
+    try {
+      _emitCastUpdate(
+        CastSessionState.preparing,
+        message: 'Preparing image stream for TV...',
+      );
+      final isReady = await _ensureConnectionReadyForCast();
+      if (!isReady) {
+        _lastError = 'Connection to TV was lost. Reconnect and try again.';
+        _emitCastUpdate(CastSessionState.failed, message: _lastError);
+        return false;
+      }
+
+      final servedSession = await _mediaServer.serveFile(
+        filePath: item.filePath,
+        mimeType: item.mimeType,
+        preferredRemoteIp: _currentDevice?.ip,
+      );
+      if (servedSession == null) {
+        _lastError = 'Unable to start local media server.';
+        _emitCastUpdate(CastSessionState.failed, message: _lastError);
+        return false;
+      }
+
+      final deviceIp = _currentDevice?.ip;
+      if (deviceIp != null &&
+          !_isLikelySameSubnet(hostA: servedSession.viewerUri.host, hostB: deviceIp)) {
+        _lastError =
+            'Phone and TV appear to be on different networks. Connect both to the same Wi-Fi.';
+        _emitCastUpdate(CastSessionState.failed, message: _lastError);
+        return false;
+      }
+
+      _emitCastUpdate(
+        CastSessionState.launching,
+        message: 'Launching media viewer on TV...',
+      );
+      final opened = await _openMediaUrlOnTv(servedSession.viewerUri.toString());
+      if (!opened) {
+        _lastError = 'Unable to open browser on TV for media casting.';
+        _emitCastUpdate(CastSessionState.failed, message: _lastError);
+        return false;
+      }
+      _emitCastUpdate(
+        CastSessionState.displaying,
+        message: 'Image displayed on TV.',
+      );
+      return true;
+    } catch (e) {
+      _lastError = 'Cast media failed: $e';
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService.castMedia: $e');
+      }
+      _emitCastUpdate(CastSessionState.failed, message: _lastError);
+      return false;
+    }
+  }
+
+  Future<bool> _openMediaUrlOnTv(String mediaUrl) async {
+    final openedNatively =
+        await AndroidTvRemotePlatform.instance.openUrlOnTv(mediaUrl);
+    if (openedNatively) {
+      return true;
+    }
+
+    return _openMediaUrlLegacy(mediaUrl);
+  }
+
+  Future<bool> _openMediaUrlLegacy(String mediaUrl) async {
+    var browserLaunched = false;
+    for (final package in _browserPackages) {
+      browserLaunched = await launchApp(package);
+      if (browserLaunched) {
+        break;
+      }
+    }
+    if (!browserLaunched) {
+      return false;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 850));
+    await sendKey('KEY_SEARCH');
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final textSent = await AndroidTvRemotePlatform.instance.sendText(mediaUrl);
+    if (!textSent) {
+      return false;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    return sendKey('KEY_ENTER');
+  }
+
+  @override
+  Future<void> stopCasting() async {
+    await _mediaServer.stop();
+    _emitCastUpdate(
+      CastSessionState.stopped,
+      message: 'Casting stopped.',
+    );
+  }
+
+  Future<bool> _ensureConnectionReadyForCast() async {
+    if (_currentDevice == null) return false;
+    if (_state == TvConnectionState.connected) {
+      final probe = await sendKey('KEY_HOME');
+      if (probe) {
+        return true;
+      }
+    }
+    final target = _currentDevice;
+    if (target == null) return false;
+    return connect(target);
+  }
+
+  bool _isLikelySameSubnet({required String hostA, required String hostB}) {
+    final a = hostA.split('.');
+    final b = hostB.split('.');
+    if (a.length != 4 || b.length != 4) return true;
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
   }
 }

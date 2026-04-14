@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:smartapp/features/remote/widgets/bg_container.dart';
 
 import '../../services/android_tv/android_tv_keycodes.dart';
-import 'remote_controller.dart';
+import '../../utils/constant.dart';
+import '../../controllers/media_cast_controller.dart';
+import '../../controllers/remote_controller.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
   const RemoteScreen({super.key});
@@ -38,24 +39,24 @@ class RemoteScreen extends GetView<RemoteController> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      // backgroundColor: Colors.transparent,
-      body: bg_container(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF00B0B6),
+              Color(0xFF005AFF),
+            ],
+          ),
+        ),
         child: Stack(
           children: [
             Positioned.fill(
               child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xB32AB0C5), // Top: Bright Teal/Cyan
-                        Color(0xB31389E5), // Middle: Pure Sky Blue
-                        Color(0xB30366F3), // Bottom: Deep Vibrant Blue
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
+                child: Image.asset(
+                  ImageRes.kGetStartedBackgroundAsset,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
@@ -106,24 +107,21 @@ class RemoteScreen extends GetView<RemoteController> {
     required IconData icon,
     required VoidCallback onTap,
     Color iconColor = Colors.white,
-    double width = 84,
+    double width = 89,
     double height = 50,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: const Color(0x2A5AA9D9),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
-          ),
-          child: Icon(icon, color: iconColor, size: 30),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(33, 11, 27, 37),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
         ),
+        child: Icon(icon, color: iconColor, size: 30),
       ),
     );
   }
@@ -139,8 +137,8 @@ class RemoteScreen extends GetView<RemoteController> {
             width: 66,
             height: 194,
             decoration: BoxDecoration(
-              color: const Color(0x235AA9D9),
-              borderRadius: BorderRadius.circular(34),
+              color: const Color.fromARGB(33, 11, 27, 37),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
             ),
             child: Column(
@@ -163,64 +161,107 @@ class RemoteScreen extends GetView<RemoteController> {
             ),
           ),
           const SizedBox(width: 16),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _roundedActionButton(
-                icon: Icons.search,
-                onTap: _sendKeyTap('KEY_SEARCH'),
-                width: 88,
-                height: 50,
-              ),
-            ],
+          SizedBox(
+            height: 194,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _roundedActionButton(
+                  icon: Icons.search,
+                  onTap: _sendKeyTap('KEY_SEARCH'),
+                  width: 88,
+                  height: 50,
+                ),
+                const SizedBox(height: 16),
+                Obx(() {
+                  final castStatus = controller.mediaCastController.status.value;
+                  final isBusy = castStatus == MediaCastStatus.picking ||
+                      castStatus == MediaCastStatus.casting;
+                  final progress =
+                      controller.mediaCastController.progressMessage.value;
+                  return Column(
+                    children: [
+                      _roundedActionButton(
+                        icon: isBusy ? Icons.hourglass_top : Icons.cast,
+                        onTap: _loggedTap(
+                          'MEDIA_CAST',
+                          () => controller.startMediaCasting(),
+                          action: 'start_media_cast',
+                        ),
+                        width: 88,
+                        height: 50,
+                      ),
+                      if (progress.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: 120,
+                          child: Text(
+                            progress,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                }),
+              ],
+            ),
           ),
           const SizedBox(width: 16),
-          Column(
-            children: [
-              _roundedActionButton(
-                icon: Icons.power_settings_new,
-                iconColor: const Color(0xFFFF3D3D),
-                onTap: _sendKeyTap('KEY_POWER'),
-              ),
-              const SizedBox(height: 10),
-              _roundedActionButton(
-                icon: Icons.keyboard,
-                onTap: () {
-                  unawaited(
-                    controller.handleButtonTap(
-                      buttonKey: 'KEY_KEYBOARD',
-                      onTap: () async {
-                        if (!context.mounted) return;
-                        await showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: const Color(0xFF2A2A2A),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(16),
+          SizedBox(
+            height: 194,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _roundedActionButton(
+                  icon: Icons.power_settings_new,
+                  iconColor: const Color(0xFFFF3D3D),
+                  onTap: _sendKeyTap('KEY_POWER'),
+                ),
+                _roundedActionButton(
+                  icon: Icons.keyboard,
+                  onTap: () {
+                    unawaited(
+                      controller.handleButtonTap(
+                        buttonKey: 'KEY_KEYBOARD',
+                        onTap: () async {
+                          if (!context.mounted) return;
+                          await showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: const Color(0xFF2A2A2A),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
                             ),
-                          ),
-                          builder: (ctx) => Padding(
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                            builder: (ctx) => Padding(
+                              padding: EdgeInsets.only(
+                                bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                              ),
+                              child: _TvKeyboardSheet(
+                                controller: controller,
+                              ),
                             ),
-                            child: _TvKeyboardSheet(
-                              controller: controller,
-                            ),
-                          ),
-                        );
-                      },
-                      action: 'open_keyboard',
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _roundedActionButton(
-                icon: Icons.exit_to_app,
-                onTap: _sendKeyTap('KEY_RETURN'),
-              ),
-            ],
+                          );
+                        },
+                        action: 'open_keyboard',
+                      ),
+                    );
+                  },
+                ),
+                _roundedActionButton(
+                  icon: Icons.exit_to_app,
+                  onTap: _sendKeyTap('KEY_RETURN'),
+                ),
+              ],
+            ),
           ),
         ],
       ),
