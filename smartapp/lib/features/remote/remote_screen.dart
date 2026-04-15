@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 
 import '../../services/android_tv/android_tv_keycodes.dart';
 import '../../utils/constant.dart';
-import '../../controllers/media_cast_controller.dart';
+
 import '../../controllers/remote_controller.dart';
 import '../cast/cast_session_banner.dart';
 
@@ -78,8 +78,8 @@ class RemoteScreen extends GetView<RemoteController> {
                       ),
                     ),
                     Obx(() {
-                      final label =
-                          controller.connectionController.castConnectionLabel.value;
+                      final label = controller
+                          .connectionController.castConnectionLabel.value;
                       return Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: CastSessionBanner(label: label),
@@ -182,43 +182,43 @@ class RemoteScreen extends GetView<RemoteController> {
                   height: 50,
                 ),
                 const SizedBox(height: 16),
-                Obx(() {
-                  final castStatus = controller.mediaCastController.status.value;
-                  final isBusy = castStatus == MediaCastStatus.picking ||
-                      castStatus == MediaCastStatus.casting;
-                  final progress =
-                      controller.mediaCastController.progressMessage.value;
-                  return Column(
-                    children: [
-                      _roundedActionButton(
-                        icon: isBusy ? Icons.hourglass_top : Icons.cast,
-                        onTap: _loggedTap(
-                          'MEDIA_CAST',
-                          () => controller.startMediaCasting(),
-                          action: 'start_media_cast',
-                        ),
-                        width: 88,
-                        height: 50,
-                      ),
-                      if (progress.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          width: 120,
-                          child: Text(
-                            progress,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                }),
+                // Obx(() {
+                //   final castStatus = controller.mediaCastController.status.value;
+                //   final isBusy = castStatus == MediaCastStatus.picking ||
+                //       castStatus == MediaCastStatus.casting;
+                //   final progress =
+                //       controller.mediaCastController.progressMessage.value;
+                //   return Column(
+                //     children: [
+                //       _roundedActionButton(
+                //         icon: isBusy ? Icons.hourglass_top : Icons.cast,
+                //         onTap: _loggedTap(
+                //           'MEDIA_CAST',
+                //           () => controller.startMediaCasting(),
+                //           action: 'start_media_cast',
+                //         ),
+                //         width: 88,
+                //         height: 50,
+                //       ),
+                //       if (progress.isNotEmpty) ...[
+                //         const SizedBox(height: 6),
+                //         SizedBox(
+                //           width: 120,
+                //           child: Text(
+                //             progress,
+                //             maxLines: 2,
+                //             overflow: TextOverflow.ellipsis,
+                //             textAlign: TextAlign.center,
+                //             style: const TextStyle(
+                //               color: Colors.white70,
+                //               fontSize: 11,
+                //             ),
+                //           ),
+                //         ),
+                //       ],
+                //     ],
+                //   );
+                // }),
               ],
             ),
           ),

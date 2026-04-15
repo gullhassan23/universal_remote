@@ -104,7 +104,7 @@ class CastScreen extends GetView<MediaCastController> {
                         icon: Icons.web_asset_outlined,
                       ),
                       CastTile(
-                        ontap: () => controller.startMediaCastFlow(context),
+                        ontap: controller.pickAndCastMedia,
                         title: 'Media',
                         subtitle: 'Cast photos & video',
                         icon: Icons.photo_library_outlined,

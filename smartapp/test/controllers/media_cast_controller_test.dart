@@ -39,6 +39,10 @@ class _FakeTvService implements ITvService {
 
   @override
   Future<void> stopCasting() async {}
+  
+  @override
+  // TODO: implement castSessionStream
+  Stream<CastSessionUpdate> get castSessionStream => throw UnimplementedError();
 }
 
 void main() {
