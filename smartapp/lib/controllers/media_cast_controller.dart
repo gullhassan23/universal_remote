@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chrome_cast/cast_context.dart';
@@ -12,6 +11,7 @@ import 'package:flutter_chrome_cast/media.dart';
 import 'package:flutter_chrome_cast/models.dart';
 import 'package:flutter_chrome_cast/session.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'tv_connection_controller.dart';
 
@@ -24,20 +24,56 @@ enum MediaCastStatus {
   error,
 }
 
+class CastMediaItem {
+  const CastMediaItem({
+    required this.path,
+    required this.name,
+    required this.mimeType,
+  });
+
+  final String path;
+  final String name;
+  final String mimeType;
+
+  bool get isVideo => mimeType.startsWith('video/');
+}
+
 class MediaCastController extends GetxController {
   MediaCastController({TvConnectionController? connectionController});
+  final ImagePicker _imagePicker = ImagePicker();
   final Rx<MediaCastStatus> status = MediaCastStatus.idle.obs;
   final RxString errorMessage = ''.obs;
   final RxString progressMessage = ''.obs;
+  final RxString connectedDeviceName = ''.obs;
+  final RxBool isConnecting = false.obs;
+  final RxBool connectionLocked = false.obs;
+  final RxList<CastMediaItem> mediaQueue = <CastMediaItem>[].obs;
+  final RxInt currentMediaIndex = 0.obs;
+  final RxInt mediaVersion = 0.obs;
   bool _isCastContextInitialized = false;
   bool _isDiscovering = false;
   HttpServer? _mediaServer;
-  File? _servedMediaFile;
-  String? _servedMimeType;
+  CastMediaItem? _activeMedia;
+  GoogleCastDevice? _selectedDevice;
+  bool _manualDisconnectRequested = false;
 
   @override
   void onInit() {
     super.onInit();
+  }
+
+  bool get hasMedia => mediaQueue.isNotEmpty;
+  bool get hasPersistentSession =>
+      _selectedDevice != null &&
+      GoogleCastSessionManager.instance.connectionState ==
+          GoogleCastConnectState.connected;
+  bool get shouldKeepConnectionAlive =>
+      connectionLocked.value && !_manualDisconnectRequested;
+
+  CastMediaItem? get currentMedia {
+    if (mediaQueue.isEmpty) return null;
+    final index = currentMediaIndex.value.clamp(0, mediaQueue.length - 1);
+    return mediaQueue[index];
   }
 
   Future<void> pickAndCastMedia() async {
@@ -49,117 +85,194 @@ class MediaCastController extends GetxController {
     try {
       errorMessage.value = '';
       await _ensureCastContext();
-      await _stopMediaServer();
+
+      final connected = await ensureConnectedForCasting();
+      if (!connected) return;
 
       status.value = MediaCastStatus.picking;
-      progressMessage.value = 'Pick a photo or video to cast...';
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const <String>[
-          'jpg',
-          'jpeg',
-          'png',
-          'webp',
-          'gif',
-          'mp4',
-          'mov',
-          'm4v',
-          'webm',
-        ],
-        allowMultiple: false,
-        withData: false,
-      );
-      if (result == null || result.files.isEmpty) {
+      progressMessage.value = 'Select media from gallery...';
+      final pickedItems = await _pickMediaFromGallery();
+      if (pickedItems.isEmpty) {
         _resetToIdle();
         return;
       }
 
-      final selected = result.files.first;
-      final path = selected.path;
-      if (path == null || path.isEmpty) {
-        _setError('Unable to read selected media file.');
-        return;
+      final nextQueue = <CastMediaItem>[];
+      for (final selected in pickedItems) {
+        final path = selected.path;
+        final mimeType = _inferMimeType(path);
+        if (!(mimeType.startsWith('image/') || mimeType.startsWith('video/'))) {
+          continue;
+        }
+        nextQueue.add(
+          CastMediaItem(
+            path: path,
+            name: selected.name,
+            mimeType: mimeType,
+          ),
+        );
       }
-
-      final mimeType = _inferMimeType(path);
-      if (!(mimeType.startsWith('image/') || mimeType.startsWith('video/'))) {
+      if (nextQueue.isEmpty) {
         _setError('Please select a supported image or video file.');
         return;
       }
 
-      status.value = MediaCastStatus.selectingTarget;
-      progressMessage.value = 'Searching for cast devices...';
-      _startDiscovery();
+      mediaQueue.assignAll(nextQueue);
+      currentMediaIndex.value = 0;
+      mediaVersion.value++;
 
-      final devices = await GoogleCastDiscoveryManager.instance.devicesStream
-          .firstWhere((List<GoogleCastDevice> list) => list.isNotEmpty)
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => <GoogleCastDevice>[],
-          );
-      if (devices.isEmpty) {
-        _setError('No cast devices found on this Wi-Fi network.');
-        return;
+      await castMediaAt(0);
+      if (connectedDeviceName.value.isNotEmpty) {
+        Get.snackbar(
+          'Casting started',
+          'Connected to ${connectedDeviceName.value}. Swipe to switch media instantly.',
+        );
       }
-
-      final selectedDevice = await _selectDevice(devices);
-      if (selectedDevice == null) {
-        _resetToIdle();
-        return;
-      }
-
-      progressMessage.value =
-          'Connecting to ${selectedDevice.friendlyName}...';
-      final connectionState = await _connectToDeviceWithRetry(selectedDevice);
-      if (connectionState != GoogleCastConnectState.connected) {
-        _setError('Could not connect to ${selectedDevice.friendlyName}.');
-        return;
-      }
-
-      final mediaUri = await _serveMediaFile(
-        filePath: path,
-        mimeType: mimeType,
-      );
-      if (mediaUri == null) {
-        _setError('Failed to prepare media for casting on local network.');
-        return;
-      }
-
-      status.value = MediaCastStatus.casting;
-      progressMessage.value = 'Casting media to ${selectedDevice.friendlyName}...';
-      await GoogleCastRemoteMediaClient.instance.loadMedia(
-        GoogleCastMediaInformationIOS(
-          // Chromecast receivers expect a reachable media URL as the contentId.
-          contentId: mediaUri.toString(),
-          streamType: CastMediaStreamType.buffered,
-          contentUrl: mediaUri,
-          contentType: mimeType,
-          metadata: GoogleCastMovieMediaMetadata(
-            title: selected.name.isEmpty ? 'Media file' : selected.name,
-          ),
-        ),
-        autoPlay: true,
-        playPosition: Duration.zero,
-        playbackRate: 1.0,
-      );
-
-      status.value = MediaCastStatus.success;
-      progressMessage.value = 'Connected to ${selectedDevice.friendlyName}.';
-      Get.snackbar(
-        'Casting started',
-        'Playing on ${selectedDevice.friendlyName}.',
-      );
     } catch (error, stackTrace) {
       debugPrint('Media cast error: $error');
       debugPrint('$stackTrace');
       _setError('Casting failed. Please try again.');
-    } finally {
-      _stopDiscovery();
     }
   }
 
   Future<void> pickAndCastImage() async {
     await pickAndCastMedia();
+  }
+
+  Future<void> castMediaAt(int index) async {
+    if (mediaQueue.isEmpty || index < 0 || index >= mediaQueue.length) return;
+    if (!hasPersistentSession) {
+      final connected = await ensureConnectedForCasting();
+      if (!connected) return;
+    }
+
+    final media = mediaQueue[index];
+    currentMediaIndex.value = index;
+    _activeMedia = media;
+    mediaVersion.value++;
+
+    final mediaUri = await _serveCurrentMedia();
+    if (mediaUri == null) {
+      _setError('Failed to prepare media for casting on local network.');
+      return;
+    }
+
+    status.value = MediaCastStatus.casting;
+    progressMessage.value = connectedDeviceName.value.isEmpty
+        ? 'Casting media...'
+        : 'Casting on ${connectedDeviceName.value} (${index + 1}/${mediaQueue.length})...';
+
+    await GoogleCastRemoteMediaClient.instance.loadMedia(
+      GoogleCastMediaInformationIOS(
+        contentId: mediaUri.toString(),
+        streamType: CastMediaStreamType.buffered,
+        contentUrl: mediaUri,
+        contentType: media.mimeType,
+        metadata: GoogleCastMovieMediaMetadata(title: media.name),
+      ),
+      autoPlay: true,
+      playPosition: Duration.zero,
+      playbackRate: 1.0,
+    );
+
+    status.value = MediaCastStatus.success;
+    progressMessage.value = connectedDeviceName.value.isEmpty
+        ? 'Casting active.'
+        : 'Connected to ${connectedDeviceName.value}. Showing ${index + 1}/${mediaQueue.length}.';
+  }
+
+  Future<void> castNext() async {
+    if (mediaQueue.isEmpty) return;
+    final next = (currentMediaIndex.value + 1).clamp(0, mediaQueue.length - 1);
+    if (next == currentMediaIndex.value) return;
+    await castMediaAt(next);
+  }
+
+  Future<void> castPrevious() async {
+    if (mediaQueue.isEmpty) return;
+    final previous = (currentMediaIndex.value - 1).clamp(0, mediaQueue.length - 1);
+    if (previous == currentMediaIndex.value) return;
+    await castMediaAt(previous);
+  }
+
+  Future<void> disconnectSession() async {
+    _manualDisconnectRequested = true;
+    connectionLocked.value = false;
+    await _ensureSessionDisconnected();
+    _selectedDevice = null;
+    connectedDeviceName.value = '';
+    _resetToIdle();
+  }
+
+  Future<bool> ensureConnectedForCasting() async {
+    if (hasPersistentSession) {
+      connectionLocked.value = true;
+      return true;
+    }
+    return _connectToCastDevice();
+  }
+
+  Future<List<_PickedMediaEntry>> _pickMediaFromGallery() async {
+    final mode = await Get.bottomSheet<_GalleryPickMode>(
+      Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Select photos'),
+                subtitle: const Text('Choose one or more images'),
+                onTap: () => Get.back(result: _GalleryPickMode.images),
+              ),
+              ListTile(
+                leading: const Icon(Icons.video_library_outlined),
+                title: const Text('Select video'),
+                subtitle: const Text('Choose a video from gallery'),
+                onTap: () => Get.back(result: _GalleryPickMode.video),
+              ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('Cancel'),
+                onTap: () => Get.back(result: _GalleryPickMode.cancel),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+
+    if (mode == null || mode == _GalleryPickMode.cancel) {
+      return <_PickedMediaEntry>[];
+    }
+
+    if (mode == _GalleryPickMode.images) {
+      final files = await _imagePicker.pickMultiImage();
+      return files
+          .map(
+            (file) => _PickedMediaEntry(
+              path: file.path,
+              name: file.name.isEmpty ? 'Image' : file.name,
+            ),
+          )
+          .toList();
+    }
+
+    final file = await _imagePicker.pickVideo(source: ImageSource.gallery);
+    if (file == null) {
+      return <_PickedMediaEntry>[];
+    }
+    return <_PickedMediaEntry>[
+      _PickedMediaEntry(
+        path: file.path,
+        name: file.name.isEmpty ? 'Video' : file.name,
+      ),
+    ];
   }
 
   Future<void> _ensureCastContext() async {
@@ -229,29 +342,25 @@ class MediaCastController extends GetxController {
     return device;
   }
 
-  Future<Uri?> _serveMediaFile({
-    required String filePath,
-    required String mimeType,
-  }) async {
-    await _stopMediaServer();
-    final mediaFile = File(filePath);
+  Future<Uri?> _serveCurrentMedia() async {
+    final media = _activeMedia;
+    if (media == null) return null;
+    final mediaFile = File(media.path);
     if (!await mediaFile.exists()) {
       return null;
     }
 
-    final bindAddress = await _resolvePrivateAddress();
-    if (bindAddress == null) return null;
+    await _ensureMediaServer();
+    final server = _mediaServer;
+    if (server == null) return null;
 
-    _servedMediaFile = mediaFile;
-    _servedMimeType = mimeType;
-    _mediaServer = await HttpServer.bind(bindAddress, 0);
-    unawaited(_mediaServer!.forEach(_handleMediaRequest));
-
+    final cacheBust = DateTime.now().millisecondsSinceEpoch.toString();
     return Uri(
       scheme: 'http',
-      host: bindAddress.address,
-      port: _mediaServer!.port,
+      host: server.address.address,
+      port: server.port,
       path: '/media',
+      queryParameters: <String, String>{'v': cacheBust},
     );
   }
 
@@ -272,6 +381,49 @@ class MediaCastController extends GetxController {
   void _resetToIdle() {
     status.value = MediaCastStatus.idle;
     progressMessage.value = '';
+  }
+
+  Future<bool> _connectToCastDevice() async {
+    if (isConnecting.value) return false;
+    isConnecting.value = true;
+    status.value = MediaCastStatus.selectingTarget;
+    progressMessage.value = 'Searching for cast devices...';
+    _startDiscovery();
+    _manualDisconnectRequested = false;
+
+    try {
+      final devices = await GoogleCastDiscoveryManager.instance.devicesStream
+          .firstWhere((List<GoogleCastDevice> list) => list.isNotEmpty)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => <GoogleCastDevice>[],
+          );
+      if (devices.isEmpty) {
+        _setError('No cast devices found on this Wi-Fi network.');
+        return false;
+      }
+
+      final selectedDevice = await _selectDevice(devices);
+      if (selectedDevice == null) {
+        _resetToIdle();
+        return false;
+      }
+
+      progressMessage.value = 'Connecting to ${selectedDevice.friendlyName}...';
+      final connectionState = await _connectToDeviceWithRetry(selectedDevice);
+      if (connectionState != GoogleCastConnectState.connected) {
+        _setError('Could not connect to ${selectedDevice.friendlyName}.');
+        return false;
+      }
+
+      _selectedDevice = selectedDevice;
+      connectedDeviceName.value = selectedDevice.friendlyName;
+      connectionLocked.value = true;
+      return true;
+    } finally {
+      _stopDiscovery();
+      isConnecting.value = false;
+    }
   }
 
   void _startDiscovery() {
@@ -297,13 +449,16 @@ class MediaCastController extends GetxController {
   Future<GoogleCastConnectState> _connectToDeviceWithRetry(
     GoogleCastDevice selectedDevice,
   ) async {
+    if (_canReuseConnectedSession(selectedDevice)) {
+      return GoogleCastConnectState.connected;
+    }
     // Some devices (especially Mi TV Stick) take longer to expose a
     // fully connected cast session.
     const maxAttempts = 2;
     var lastState = GoogleCastSessionManager.instance.connectionState;
 
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-      await _ensureSessionDisconnected();
+      await _disconnectForReconnectIfNeeded(selectedDevice);
       await Future<void>.delayed(const Duration(milliseconds: 350));
       await GoogleCastSessionManager.instance.startSessionWithDevice(
         selectedDevice,
@@ -320,6 +475,36 @@ class MediaCastController extends GetxController {
     return lastState;
   }
 
+  bool _canReuseConnectedSession(GoogleCastDevice device) {
+    final isConnected =
+        GoogleCastSessionManager.instance.connectionState ==
+            GoogleCastConnectState.connected;
+    if (!isConnected) return false;
+    final selected = _selectedDevice;
+    if (selected == null) return false;
+    return selected.friendlyName == device.friendlyName;
+  }
+
+  Future<void> _disconnectForReconnectIfNeeded(GoogleCastDevice target) async {
+    final isConnected =
+        GoogleCastSessionManager.instance.connectionState ==
+            GoogleCastConnectState.connected;
+    if (!isConnected) return;
+    final selected = _selectedDevice;
+    if (selected == null) {
+      await _ensureSessionDisconnected();
+      return;
+    }
+    final sameDevice = selected.friendlyName == target.friendlyName;
+    if (!sameDevice) {
+      await _ensureSessionDisconnected();
+      return;
+    }
+    if (_manualDisconnectRequested || !shouldKeepConnectionAlive) {
+      await _ensureSessionDisconnected();
+    }
+  }
+
   Future<GoogleCastConnectState> _waitForConnectedSession() async {
     final endAt = DateTime.now().add(const Duration(seconds: 20));
     var state = GoogleCastSessionManager.instance.connectionState;
@@ -332,8 +517,10 @@ class MediaCastController extends GetxController {
   }
 
   Future<void> _handleMediaRequest(HttpRequest request) async {
-    final mediaFile = _servedMediaFile;
-    final mimeType = _servedMimeType;
+    final media = _activeMedia;
+    final mediaPath = media?.path;
+    final mimeType = media?.mimeType;
+    final mediaFile = mediaPath == null ? null : File(mediaPath);
     if (mediaFile == null || mimeType == null || request.uri.path != '/media') {
       request.response.statusCode = HttpStatus.notFound;
       await request.response.close();
@@ -381,13 +568,19 @@ class MediaCastController extends GetxController {
   }
 
   Future<void> _stopMediaServer() async {
-    _servedMediaFile = null;
-    _servedMimeType = null;
     final server = _mediaServer;
     _mediaServer = null;
     if (server != null) {
       await server.close(force: true);
     }
+  }
+
+  Future<void> _ensureMediaServer() async {
+    if (_mediaServer != null) return;
+    final bindAddress = await _resolvePrivateAddress();
+    if (bindAddress == null) return;
+    _mediaServer = await HttpServer.bind(bindAddress, 0);
+    unawaited(_mediaServer!.forEach(_handleMediaRequest));
   }
 
   Future<InternetAddress?> _resolvePrivateAddress() async {
@@ -441,4 +634,16 @@ class MediaCastController extends GetxController {
     if (lower.endsWith('.webm')) return 'video/webm';
     return 'image/jpeg';
   }
+}
+
+enum _GalleryPickMode { images, video, cancel }
+
+class _PickedMediaEntry {
+  const _PickedMediaEntry({
+    required this.path,
+    required this.name,
+  });
+
+  final String path;
+  final String name;
 }
