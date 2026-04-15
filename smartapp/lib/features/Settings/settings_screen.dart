@@ -15,141 +15,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _PremiumCard(),
-                const SizedBox(height: 26),
-                const _SectionTitle(title: 'REMOTE'),
-                const SizedBox(height: 12),
-                _SettingsTile(
-                  icon: Icons.devices_outlined,
-                  title: 'Switch device',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.settings_remote_outlined,
-                  title: 'Remote style',
-                  onTap: () {},
-                ),
-                _SwitchSettingsTile(
-                  icon: Icons.vibration_outlined,
-                  title: 'Haptic feedback',
-                  subtitle: 'Enables haptics on remote',
-                  value: _isHapticEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _isHapticEnabled = value;
-                    });
-                  },
-                ),
-                _SettingsTile(
-                  icon: Icons.timer_outlined,
-                  title: 'Sleep timer',
-                  subtitle: 'Turns off your TV automatically',
-                  onTap: () {},
-                ),
-                const SizedBox(height: 24),
-                const _SectionTitle(title: 'GENERAL'),
-                const SizedBox(height: 12),
-                _SettingsTile(
-                  icon: Icons.help_outline_rounded,
-                  title: 'FAQ',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.restore_rounded,
-                  title: 'Restore purchases',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.shield_outlined,
-                  title: 'Privacy policy',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.menu_book_outlined,
-                  title: 'How to use app',
-                  onTap: () {
-                    Get.to(() => const InstructionOnboardingScreen());
-                  },
-                ),
-              ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF00B0B6),
+              Color(0xFF005AFF),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 26),
+                  const _SectionTitle(title: 'REMOTE'),
+                  const SizedBox(height: 12),
+                  _SettingsTile(
+                    icon: Icons.devices_outlined,
+                    title: 'Switch device',
+                    onTap: () {},
+                  ),
+                  _SettingsTile(
+                    icon: Icons.settings_remote_outlined,
+                    title: 'Remote style',
+                    onTap: () {},
+                  ),
+                  _SwitchSettingsTile(
+                    icon: Icons.vibration_outlined,
+                    title: 'Haptic feedback',
+                    subtitle: 'Enables haptics on remote',
+                    value: _isHapticEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _isHapticEnabled = value;
+                      });
+                    },
+                  ),
+                  _SettingsTile(
+                    icon: Icons.timer_outlined,
+                    title: 'Sleep timer',
+                    subtitle: 'Turns off your TV automatically',
+                    onTap: () {},
+                  ),
+                  const SizedBox(height: 24),
+                  const _SectionTitle(title: 'GENERAL'),
+                  const SizedBox(height: 12),
+                  _SettingsTile(
+                    icon: Icons.help_outline_rounded,
+                    title: 'FAQ',
+                    onTap: () {},
+                  ),
+                  _SettingsTile(
+                    icon: Icons.restore_rounded,
+                    title: 'Restore purchases',
+                    onTap: () {},
+                  ),
+                  _SettingsTile(
+                    icon: Icons.shield_outlined,
+                    title: 'Privacy policy',
+                    onTap: () {},
+                  ),
+                  _SettingsTile(
+                    icon: Icons.menu_book_outlined,
+                    title: 'How to use app',
+                    onTap: () {
+                      Get.to(() => const InstructionOnboardingScreen());
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PremiumCard extends StatelessWidget {
-  const _PremiumCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFBE35FF), Color(0xFF5B1BD1)],
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'UNLOCK PREMIUM\nFEATURES',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    height: 1.05,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 11),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    color: const Color(0xFFFFCC00),
-                  ),
-                  child: const Text(
-                    'Get Now',
-                    style: TextStyle(
-                      color: Color(0xFF1B1B1B),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 22,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            height: 118,
-            width: 74,
-            decoration: BoxDecoration(
-              color: const Color(0xAA101433),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-            ),
-            child: const Icon(Icons.settings_remote_rounded, color: Colors.white70, size: 36),
-          ),
-        ],
       ),
     );
   }
@@ -166,7 +109,7 @@ class _SectionTitle extends StatelessWidget {
       title,
       style: TextStyle(
         color: Colors.white.withValues(alpha: 0.64),
-        fontSize: 30,
+        fontSize: 20,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -209,7 +152,7 @@ class _SettingsTile extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 34,
+                      fontSize: 20,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -218,7 +161,7 @@ class _SettingsTile extends StatelessWidget {
                       subtitle!,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.58),
-                        fontSize: 22,
+                        fontSize: 16,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -273,7 +216,7 @@ class _SwitchSettingsTile extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 34,
+                    fontSize: 20,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -282,7 +225,7 @@ class _SwitchSettingsTile extends StatelessWidget {
                     subtitle!,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.58),
-                      fontSize: 22,
+                      fontSize: 16,
                       fontWeight: FontWeight.w400,
                     ),
                   ),

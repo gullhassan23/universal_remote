@@ -34,7 +34,7 @@ class CastScreen extends GetView<MediaCastController> {
                         'Cast',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 46,
+                          fontSize: 26,
                           fontWeight: FontWeight.w800,
                           height: 1,
                         ),

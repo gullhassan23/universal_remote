@@ -68,15 +68,50 @@ class RemoteScreen extends GetView<RemoteController> {
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
-                    const Text(
-                      'Connect a device',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                    Obx(() {
+                      final isConnected =
+                          controller.connectionController.currentDevice.value !=
+                              null;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Connect a device',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          if (isConnected)
+                            TextButton.icon(
+                              onPressed: _loggedTap(
+                                'DISCONNECT_TV',
+                                () {
+                                  unawaited(
+                                    controller.connectionController.disconnect(),
+                                  );
+                                },
+                                action: 'disconnect_tv',
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.red.withOpacity(0.28),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              icon: const Icon(Icons.link_off, size: 16),
+                              label: const Text('Disconnect'),
+                            ),
+                        ],
+                      );
+                    }),
                     Obx(() {
                       final label = controller
                           .connectionController.castConnectionLabel.value;
