@@ -39,6 +39,13 @@ class AndroidTvService implements ITvService {
 
   String? get lastError => _lastError;
 
+  void _log(String message) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('AndroidTvService: $message');
+    }
+  }
+
   AndroidTvService() {
     if (!kIsWeb && Platform.isAndroid) {
       AndroidTvRemotePlatform.instance.ensureInitialized();
@@ -64,8 +71,11 @@ class AndroidTvService implements ITvService {
   @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
     if (filterBrand != null && filterBrand != TvBrand.androidTv) {
+      _lastError = 'Brand ${filterBrand.name} is not supported yet.';
+      _log('discoverDevices skipped: ${_lastError!}');
       return [];
     }
+    _log('discoverDevices start filter=${filterBrand?.name ?? 'all'}');
     return _discoverMdns();
   }
 
@@ -132,6 +142,7 @@ class AndroidTvService implements ITvService {
                 brand: TvBrand.androidTv,
               ),
             );
+            _log('discovered name=${devices.last.name} ip=$ip port=${srv.port}');
           } catch (_) {
             continue;
           }
@@ -149,6 +160,7 @@ class AndroidTvService implements ITvService {
       }
     }
 
+    _log('discoverDevices done count=${devices.length}');
     return devices;
   }
 
@@ -244,7 +256,13 @@ class AndroidTvService implements ITvService {
 
   @override
   Future<bool> connect(TvDevice device) async {
-    if (device.brand != TvBrand.androidTv) return false;
+    if (device.brand != TvBrand.androidTv) {
+      _lastError =
+          'TV brand ${device.brand.name} is not supported for app launch yet.';
+      _log('connect rejected: ${_lastError!}');
+      _syncState(TvConnectionState.error);
+      return false;
+    }
     _lastError = null;
 
     if (!Platform.isAndroid) {
@@ -256,6 +274,7 @@ class AndroidTvService implements ITvService {
     await disconnect();
     _syncState(TvConnectionState.connecting);
     _currentDevice = device;
+    _log('connect start name=${device.name} ip=${device.ip} discoveredPort=${device.port}');
 
     try {
       final pkcs12 = await _ensurePkcs12Path();
@@ -276,6 +295,9 @@ class AndroidTvService implements ITvService {
       ].toSet().toList();
 
       for (final attempt in attempts) {
+        _log(
+          'connect attempt ip=${device.ip} pairingPort=${attempt.$1} remotePort=${attempt.$2}',
+        );
         final ok = await AndroidTvRemotePlatform.instance.connectAndPair(
           host: device.ip,
           pkcs12Path: pkcs12,
@@ -285,6 +307,7 @@ class AndroidTvService implements ITvService {
         if (ok) {
           _lastError = null;
           _syncState(TvConnectionState.connected);
+          _log('connect success ip=${device.ip}');
           return true;
         }
         _lastError =
@@ -300,6 +323,7 @@ class AndroidTvService implements ITvService {
 
       _currentDevice = null;
       _syncState(TvConnectionState.error);
+      _log('connect failed ip=${device.ip} reason=${_lastError ?? 'unknown'}');
       return false;
     } catch (e) {
       _lastError = 'Connection exception: $e';
@@ -375,11 +399,27 @@ class AndroidTvService implements ITvService {
       return false;
     }
     if (!Platform.isAndroid) return false;
-    if (packageName.trim().isEmpty) return false;
+    final normalizedPackageName = packageName.trim();
+    if (normalizedPackageName.isEmpty) return false;
 
     try {
-      return await AndroidTvRemotePlatform.instance.launchApp(packageName);
+      final appLink = 'market://launch?id=$normalizedPackageName';
+      _log(
+        'launchApp send packageName=$normalizedPackageName appLink=$appLink device=${_currentDevice?.ip}',
+      );
+      final launched = await AndroidTvRemotePlatform.instance.launchApp(
+        normalizedPackageName,
+      );
+      if (!launched) {
+        _lastError =
+            'Launch command failed for package $normalizedPackageName. Ensure TV is on home screen and app is installed.';
+        _log('launchApp failure packageName=$normalizedPackageName');
+      } else {
+        _lastError = null;
+      }
+      return launched;
     } catch (e) {
+      _lastError = 'Launch exception for package $normalizedPackageName: $e';
       if (kDebugMode) {
         // ignore: avoid_print
         print('AndroidTvService.launchApp: $e');
@@ -400,7 +440,8 @@ class AndroidTvService implements ITvService {
     }
     if (!Platform.isAndroid) return false;
     if (item.type != CastMediaType.image) {
-      _lastError = 'Only image casting is supported in this version.';
+      _lastError =
+          'Only image casting is enabled right now. Video casting schema is prepared for a follow-up release.';
       _emitCastUpdate(CastSessionState.failed, message: _lastError);
       return false;
     }
@@ -420,6 +461,8 @@ class AndroidTvService implements ITvService {
       final servedSession = await _mediaServer.serveFile(
         filePath: item.filePath,
         mimeType: item.mimeType,
+        sessionId:
+            item.sessionId ?? 'cast-${DateTime.now().millisecondsSinceEpoch}',
         preferredRemoteIp: _currentDevice?.ip,
       );
       if (servedSession == null) {

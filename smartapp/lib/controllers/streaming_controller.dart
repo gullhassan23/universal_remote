@@ -4,10 +4,10 @@ import 'package:get/get.dart';
 import 'tv_connection_controller.dart';
 import '../models/streaming_app_item.dart';
 
-class AppsController extends GetxController {
-  AppsController({TvConnectionController? connectionController})
-    : _connectionController =
-          connectionController ?? Get.find<TvConnectionController>();
+class StreamingController extends GetxController {
+  StreamingController({TvConnectionController? connectionController})
+      : _connectionController =
+            connectionController ?? Get.find<TvConnectionController>();
 
   final TvConnectionController _connectionController;
   final RxString launchingAppId = ''.obs;
@@ -19,6 +19,13 @@ class AppsController extends GetxController {
       packageName: 'com.netflix.ninja',
       icon: Icons.movie_filter_rounded,
       accentColor: Color(0xFFE50914),
+    ),
+    StreamingAppItem(
+      id: 'youtube',
+      name: 'YouTube',
+      packageName: 'com.google.android.youtube.tv',
+      icon: Icons.ondemand_video_rounded,
+      accentColor: Color(0xFFFF0000),
     ),
   ];
 

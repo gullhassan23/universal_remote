@@ -22,6 +22,7 @@ class UnifiedTvService implements ITvService {
   ITvService? _activeService;
   StreamSubscription<TvConnectionState>? _stateSubscription;
   StreamSubscription<CastSessionUpdate>? _castSubscription;
+  String? _lastError;
 
   UnifiedTvService() {
     _connectionStateController.add(TvConnectionState.disconnected);
@@ -34,6 +35,9 @@ class UnifiedTvService implements ITvService {
     switch (brand) {
       case TvBrand.androidTv:
         return _androidTv;
+      case TvBrand.samsung:
+      case TvBrand.lg:
+        throw UnsupportedError('TV brand ${brand.name} is not supported yet.');
     }
   }
 
@@ -61,7 +65,13 @@ class UnifiedTvService implements ITvService {
     await _castSubscription?.cancel();
     _stateSubscription = null;
     _castSubscription = null;
-    _activeService = _serviceFor(device.brand);
+    try {
+      _activeService = _serviceFor(device.brand);
+    } on UnsupportedError catch (e) {
+      _lastError = e.message;
+      _forwardConnectionState(TvConnectionState.error);
+      return false;
+    }
 
     _stateSubscription = _activeService!.connectionStateStream.listen(
       _forwardConnectionState,
@@ -73,6 +83,7 @@ class UnifiedTvService implements ITvService {
     });
 
     final success = await _activeService!.connect(device);
+    _lastError = success ? null : getLastErrorMessage();
     if (success) {
       await _storeLastDevice(device);
     }
@@ -138,6 +149,9 @@ class UnifiedTvService implements ITvService {
   }
 
   String? getLastErrorMessage() {
+    if (_lastError != null && _lastError!.isNotEmpty) {
+      return _lastError;
+    }
     final service = _activeService;
     if (service is AndroidTvService) {
       return service.lastError;

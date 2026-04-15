@@ -13,7 +13,7 @@ import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'app.dart';
 import 'services/android_tv/android_tv_remote_platform.dart';
-import 'controllers/apps_controller.dart';
+import 'controllers/streaming_controller.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/media_cast_controller.dart';
 import 'features/device_discovery/device_discovery_controller.dart';
@@ -79,7 +79,7 @@ void _registerDependencies() {
     permanent: true,
   );
   Get.put(
-    AppsController(connectionController: tvConnectionController),
+    StreamingController(connectionController: tvConnectionController),
     permanent: true,
   );
 

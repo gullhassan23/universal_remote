@@ -2,12 +2,22 @@ import 'dart:io';
 
 class CastServeSession {
   const CastServeSession({
+    required this.sessionId,
+    required this.token,
+    required this.expiresAt,
     required this.mediaUri,
     required this.viewerUri,
+    required this.preloadUri,
+    required this.startUri,
   });
 
+  final String sessionId;
+  final String token;
+  final DateTime expiresAt;
   final Uri mediaUri;
   final Uri viewerUri;
+  final Uri preloadUri;
+  final Uri startUri;
 }
 
 class LocalMediaServer {
@@ -15,12 +25,18 @@ class LocalMediaServer {
   bool _isListening = false;
   String? _servedPath;
   String? _servedToken;
+  String? _servedSessionId;
+  DateTime? _servedExpiry;
+  bool _isMediaPreloaded = false;
+  bool _isMediaStarted = false;
   String _servedMimeType = 'application/octet-stream';
 
   Future<CastServeSession?> serveFile({
     required String filePath,
     required String mimeType,
+    required String sessionId,
     String? preferredRemoteIp,
+    Duration tokenTtl = const Duration(minutes: 5),
   }) async {
     final file = File(filePath);
     if (!await file.exists()) {
@@ -34,6 +50,10 @@ class LocalMediaServer {
 
     _servedPath = file.path;
     _servedToken = DateTime.now().microsecondsSinceEpoch.toString();
+    _servedSessionId = sessionId;
+    _servedExpiry = DateTime.now().add(tokenTtl);
+    _isMediaPreloaded = false;
+    _isMediaStarted = false;
     _servedMimeType = mimeType;
     _server ??= await HttpServer.bind(InternetAddress.anyIPv4, 0);
     if (!_isListening) {
@@ -46,7 +66,13 @@ class LocalMediaServer {
         }
 
         final token = request.uri.queryParameters['token'];
-        if (token == null || token != _servedToken) {
+        final sessionId = request.uri.queryParameters['sessionId'];
+        if (token == null ||
+            token != _servedToken ||
+            sessionId == null ||
+            sessionId != _servedSessionId ||
+            _servedExpiry == null ||
+            DateTime.now().isAfter(_servedExpiry!)) {
           request.response.statusCode = HttpStatus.forbidden;
           await request.response.close();
           return;
@@ -63,12 +89,37 @@ class LocalMediaServer {
 
         if (path == '/viewer') {
           request.response.headers.contentType = ContentType.html;
-          request.response.write(_buildViewerHtml(token));
+          request.response.write(
+            _buildViewerHtml(token: token, sessionId: sessionId),
+          );
+          await request.response.close();
+          return;
+        }
+
+        if (path == '/preload') {
+          _isMediaPreloaded = true;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write('{"status":"ok","phase":"preloaded"}');
+          await request.response.close();
+          return;
+        }
+
+        if (path == '/start') {
+          _isMediaStarted = true;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write('{"status":"ok","phase":"started"}');
           await request.response.close();
           return;
         }
 
         if (path == '/media') {
+          if (!_isMediaPreloaded || !_isMediaStarted) {
+            request.response.statusCode = HttpStatus.conflict;
+            request.response.headers.contentType = ContentType.json;
+            request.response.write('{"status":"error","reason":"not_ready"}');
+            await request.response.close();
+            return;
+          }
           final servedFile = File(_servedPath!);
           if (!await servedFile.exists()) {
             request.response.statusCode = HttpStatus.notFound;
@@ -92,16 +143,38 @@ class LocalMediaServer {
       host: bindAddress.address,
       port: _server!.port,
       path: '/media',
-      queryParameters: {'token': _servedToken},
+      queryParameters: {'token': _servedToken, 'sessionId': sessionId},
     );
     final viewerUri = Uri(
       scheme: 'http',
       host: bindAddress.address,
       port: _server!.port,
       path: '/viewer',
-      queryParameters: {'token': _servedToken},
+      queryParameters: {'token': _servedToken, 'sessionId': sessionId},
     );
-    return CastServeSession(mediaUri: mediaUri, viewerUri: viewerUri);
+    final preloadUri = Uri(
+      scheme: 'http',
+      host: bindAddress.address,
+      port: _server!.port,
+      path: '/preload',
+      queryParameters: {'token': _servedToken, 'sessionId': sessionId},
+    );
+    final startUri = Uri(
+      scheme: 'http',
+      host: bindAddress.address,
+      port: _server!.port,
+      path: '/start',
+      queryParameters: {'token': _servedToken, 'sessionId': sessionId},
+    );
+    return CastServeSession(
+      sessionId: sessionId,
+      token: _servedToken!,
+      expiresAt: _servedExpiry!,
+      mediaUri: mediaUri,
+      viewerUri: viewerUri,
+      preloadUri: preloadUri,
+      startUri: startUri,
+    );
   }
 
   Future<void> stop() async {
@@ -110,6 +183,10 @@ class LocalMediaServer {
     _isListening = false;
     _servedPath = null;
     _servedToken = null;
+    _servedSessionId = null;
+    _servedExpiry = null;
+    _isMediaPreloaded = false;
+    _isMediaStarted = false;
     _servedMimeType = 'application/octet-stream';
     if (server != null) {
       await server.close(force: true);
@@ -159,7 +236,10 @@ class LocalMediaServer {
     return '${parts[0]}.${parts[1]}.${parts[2]}';
   }
 
-  String _buildViewerHtml(String token) {
+  String _buildViewerHtml({
+    required String token,
+    required String sessionId,
+  }) {
     return '''
 <!doctype html>
 <html>
@@ -185,8 +265,22 @@ class LocalMediaServer {
   </style>
 </head>
 <body>
-  <img id="cast-image" src="/media?token=$token" alt="Cast image">
+  <img id="cast-image" alt="Cast image">
   <script>
+    const token = "$token";
+    const sessionId = "$sessionId";
+    const preloadUrl = `/preload?token=\${token}&sessionId=\${sessionId}`;
+    const startUrl = `/start?token=\${token}&sessionId=\${sessionId}`;
+    const mediaUrl = `/media?token=\${token}&sessionId=\${sessionId}`;
+    const imageNode = document.getElementById('cast-image');
+    fetch(preloadUrl, { cache: 'no-store' })
+      .then(() => fetch(startUrl, { cache: 'no-store' }))
+      .then(() => {
+        imageNode.src = mediaUrl;
+      })
+      .catch(() => {
+        imageNode.alt = "Unable to start cast session";
+      });
     const root = document.documentElement;
     if (root.requestFullscreen) {
       root.requestFullscreen().catch(() => {});

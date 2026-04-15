@@ -1,6 +1,5 @@
 package com.mg.smart.tv.remote.control.androidtv
 
-import android.content.Intent
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Handler
@@ -30,6 +29,17 @@ import java.security.interfaces.RSAPublicKey
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AndroidTvRemotePlugin(private val context: Context) {
+    private companion object {
+        const val KEYCODE_HOME = 3
+        const val KEYCODE_ENTER = 23
+        const val KEYCODE_DPAD_DOWN = 20
+        const val KEYCODE_SEARCH = 84
+        const val KEYCODE_ASSIST = 219
+        const val CHANNEL = "com.example.smartapp/android_tv_remote"
+
+        /** Move focus off the top "favourites" row before Enter on some launchers (e.g. Xiaomi). */
+        const val LAUNCH_APP_FOCUS_NUDGE_STEPS = 3
+    }
 
     private lateinit var methodChannel: MethodChannel
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -294,7 +304,14 @@ class AndroidTvRemotePlugin(private val context: Context) {
 
         remoteController = RemoteController(tlsRemote!!)
         startRemoteReaderLoop()
-        waitForRemoteReady()
+        val ready = waitForRemoteReady()
+        if (!ready) {
+            Logger.e("connectAndPair: remote_not_ready_timeout host=$host port=$remotePort")
+            disconnectTlsOnly()
+            mainHandler.post { result.success(false) }
+            return
+        }
+        Logger.d("connectAndPair: remote channel ready host=$host port=$remotePort")
         mainHandler.post { result.success(true) }
     }
 
@@ -370,58 +387,124 @@ class AndroidTvRemotePlugin(private val context: Context) {
     }
 
     private fun launchApp(arguments: Map<*, *>, result: MethodChannel.Result) {
-        val packageName = arguments["packageName"] as? String
+        val packageName = (arguments["packageName"] as? String)?.trim()
         if (packageName.isNullOrBlank()) {
             mainHandler.post { result.success(false) }
             return
         }
         try {
-            // Prefer launching on the connected TV session. The app package may not
-            // exist on the phone running this Flutter app.
-            if (remoteReady.get() && remoteController != null) {
-                val query = resolveAppSearchQuery(packageName)
-                val openedBySearch = runCatching {
-                    // Reset to home before opening global search.
-                    remoteController?.sendKeyCode(3) == true &&
-                        run {
-                            Thread.sleep(140)
-                            remoteController?.sendKeyCode(84) == true
-                        } &&
-                        run {
-                            Thread.sleep(220)
-                            remoteController?.sendText(
-                                text = query,
-                                imeCounter = imeCounter.get(),
-                                fieldCounter = imeFieldCounter.get(),
-                            ) == true
-                        } &&
-                        run {
-                            Thread.sleep(140)
-                            remoteController?.sendKeyCode(23) == true
-                        }
-                }.getOrDefault(false)
-                if (openedBySearch) {
-                    mainHandler.post { result.success(true) }
-                    return
-                }
+            if (!remoteReady.get()) {
+                waitForRemoteReady()
             }
-
-            // Fallback for local development/debug scenarios.
-            val launchIntent =
-                context.packageManager.getLeanbackLaunchIntentForPackage(packageName)
-                    ?: context.packageManager.getLaunchIntentForPackage(packageName)
-            if (launchIntent == null) {
-                Logger.e("launchApp: no launch intent for package=$packageName")
+            val remote = remoteController
+            if (remote == null || !remoteReady.get()) {
+                Logger.e("launchApp: remote session is not ready package=$packageName")
                 mainHandler.post { result.success(false) }
                 return
             }
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(launchIntent)
-            mainHandler.post { result.success(true) }
+            val appLink = "market://launch?id=$packageName"
+            Logger.d("launchApp: package=$packageName appLink=$appLink command=app_link_launch")
+            val openedByAppLink = remote.sendAppLinkLaunch(appLink)
+            Logger.d("launchApp: package=$packageName openedByAppLink=$openedByAppLink")
+            if (openedByAppLink) {
+                mainHandler.post { result.success(true) }
+                return
+            }
+
+            Logger.d("launchApp: package=$packageName fallback=assist_search_sequence")
+            val queries = resolveAppSearchQueries(packageName)
+            Logger.d("launchApp: package=$packageName queries=$queries")
+            val openedDirectly = launchAppByAssistIntent(remote = remote, query = queries.first())
+            Logger.d("launchApp: package=$packageName openedDirectly=$openedDirectly")
+            if (openedDirectly) {
+                mainHandler.post { result.success(true) }
+                return
+            }
+            val openedBySearch = launchAppBySearch(remote = remote, queries = queries)
+            Logger.d("launchApp: package=$packageName openedBySearch=$openedBySearch")
+            mainHandler.post { result.success(openedBySearch) }
         } catch (e: Exception) {
             Logger.e("launchApp: ${e.message}", e)
             mainHandler.post { result.success(false) }
         }
+    }
+
+    private fun launchAppByAssistIntent(remote: RemoteController, query: String): Boolean {
+        val homeOk = remote.sendKeyCode(KEYCODE_HOME)
+        Logger.d("launchAppByAssistIntent: homeOk=$homeOk query=$query")
+        if (!homeOk) return false
+        Thread.sleep(180)
+
+        val assistOk = remote.sendKeyCode(KEYCODE_ASSIST)
+        Logger.d("launchAppByAssistIntent: assistOk=$assistOk")
+        if (!assistOk) return false
+        Thread.sleep(300)
+
+        val textOk =
+            remote.sendText(
+                text = query,
+                imeCounter = imeCounter.get(),
+                fieldCounter = imeFieldCounter.get(),
+            )
+        Logger.d("launchAppByAssistIntent: textOk=$textOk")
+        if (!textOk) return false
+        Thread.sleep(280)
+        nudgeFocusOffLauncherTopRow(remote)
+
+        val enterOk = remote.sendKeyCode(KEYCODE_ENTER)
+        Logger.d("launchAppByAssistIntent: enterOk=$enterOk")
+        return enterOk
+    }
+
+    /**
+     * Many Android TV launchers keep focus on the top favourites strip after search text is entered;
+     * Enter then opens that app (e.g. Xiaomi TV+) instead of the search hit. Nudge focus downward first.
+     */
+    private fun nudgeFocusOffLauncherTopRow(remote: RemoteController) {
+        repeat(LAUNCH_APP_FOCUS_NUDGE_STEPS) { step ->
+            if (step > 0) {
+                Thread.sleep(100)
+            }
+            remote.sendKeyCode(KEYCODE_DPAD_DOWN)
+        }
+        Thread.sleep(120)
+    }
+
+    private fun launchAppBySearch(remote: RemoteController, queries: List<String>): Boolean {
+        for (query in queries) {
+            repeat(2) { attempt ->
+                if (attempt > 0) {
+                    Thread.sleep(220)
+                }
+                val homeOk = remote.sendKeyCode(KEYCODE_HOME)
+                Logger.d("launchAppBySearch: query=$query attempt=$attempt homeOk=$homeOk")
+                if (!homeOk) return@repeat
+                Thread.sleep(180)
+
+                val searchOk = remote.sendKeyCode(KEYCODE_SEARCH)
+                Logger.d("launchAppBySearch: query=$query attempt=$attempt searchOk=$searchOk")
+                if (!searchOk) return@repeat
+                Thread.sleep(280)
+
+                val textOk =
+                    remote.sendText(
+                        text = query,
+                        imeCounter = imeCounter.get(),
+                        fieldCounter = imeFieldCounter.get(),
+                    )
+                Logger.d("launchAppBySearch: query=$query attempt=$attempt textOk=$textOk")
+                if (!textOk) return@repeat
+                Thread.sleep(280)
+                nudgeFocusOffLauncherTopRow(remote)
+
+                val enterOk = remote.sendKeyCode(KEYCODE_ENTER)
+                Logger.d("launchAppBySearch: query=$query attempt=$attempt enterOk=$enterOk")
+                if (enterOk) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     private fun openUrlOnTv(arguments: Map<*, *>, result: MethodChannel.Result) {
@@ -472,15 +555,19 @@ class AndroidTvRemotePlugin(private val context: Context) {
         return remote.sendKeyCode(23)
     }
 
-    private fun resolveAppSearchQuery(packageName: String): String {
-        return when (packageName.trim()) {
-            "com.netflix.ninja" -> "Netflix"
-            "com.google.android.youtube.tv" -> "YouTube"
-            "com.amazon.amazonvideo.livingroom" -> "Prime Video"
-            "com.disney.disneyplus" -> "Disney Plus"
-            "com.hulu.livingroomplus" -> "Hulu"
-            else -> packageName.substringAfterLast('.').replace('_', ' ').replace('-', ' ')
-        }
+    private fun resolveAppSearchQueries(packageName: String): List<String> {
+        val appName =
+            when (packageName.trim()) {
+                "com.netflix.ninja" -> "Netflix"
+                "com.google.android.youtube.tv" -> "YouTube"
+                "com.amazon.amazonvideo.livingroom" -> "Prime Video"
+                "com.disney.disneyplus" -> "Disney Plus"
+                "com.hulu.livingroomplus" -> "Hulu"
+                else -> packageName.substringAfterLast('.').replace('_', ' ').replace('-', ' ')
+            }.trim()
+        if (appName.isEmpty()) return emptyList()
+        // Prefer plain app name first: "Open …" can confuse assistants; order matters for assist path.
+        return listOf(appName, "Open $appName").distinct()
     }
 
     private fun disconnectSession(result: MethodChannel.Result) {
@@ -518,10 +605,6 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
     }
 
-    companion object {
-        private const val CHANNEL = "com.example.smartapp/android_tv_remote"
-    }
-
     private fun startRemoteReaderLoop() {
         remoteReaderJob?.cancel()
         remoteReady.set(false)
@@ -555,11 +638,12 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
     }
 
-    private fun waitForRemoteReady(timeoutMs: Long = 1800) {
+    private fun waitForRemoteReady(timeoutMs: Long = 1800): Boolean {
         val started = System.currentTimeMillis()
         while (!remoteReady.get() && (System.currentTimeMillis() - started) < timeoutMs) {
             Thread.sleep(30)
         }
+        return remoteReady.get()
     }
 
     private suspend fun awaitPairingStep(

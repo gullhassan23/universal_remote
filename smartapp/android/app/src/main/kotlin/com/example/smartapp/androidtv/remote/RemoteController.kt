@@ -40,6 +40,18 @@ class RemoteController(
         }
     }
 
+    fun sendAppLinkLaunch(appLink: String): Boolean {
+        return try {
+            val message = ProtobufMessage.createRemoteAppLinkLaunchMessage(appLink)
+            val result = tlsManager.sendData(message)
+            Logger.d("App link launch sent: appLink=$appLink result=$result")
+            result
+        } catch (e: Exception) {
+            Logger.e("Send app link launch error: ${e.message}", e)
+            false
+        }
+    }
+
     fun destroy() {
         // TLS lifecycle owned by plugin
     }

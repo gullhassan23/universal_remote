@@ -47,11 +47,18 @@ class TvDevice {
   }
 
   factory TvDevice.fromJson(Map<String, dynamic> json) {
+    final rawPort = json['port'];
+    final parsedPort = switch (rawPort) {
+      int value => value,
+      num value => value.toInt(),
+      String value => int.tryParse(value) ?? 0,
+      _ => 0,
+    };
     return TvDevice(
       id: json['id'] as String,
       name: json['name'] as String,
       ip: json['ip'] as String,
-      port: json['port'] as int,
+      port: parsedPort,
       brand: TvBrand.values.firstWhere(
         (b) => b.name == json['brand'],
         orElse: () => TvBrand.androidTv,

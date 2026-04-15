@@ -36,8 +36,9 @@ class DeviceDiscoveryController extends GetxController {
     devices.clear();
 
     try {
-      final results =
-          await _tvService.discoverDevices(filterBrand: _preferredBrand);
+      final results = await _connectionController.discoverCastTargets(
+        filterBrand: _preferredBrand,
+      );
       if (results.isEmpty) {
         errorMessage.value =
             'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
@@ -52,7 +53,7 @@ class DeviceDiscoveryController extends GetxController {
 
   Future<bool> connectTo(TvDevice device,
       {bool navigateToRemote = true}) async {
-    final success = await _connectionController.connectTo(device);
+    final success = await _connectionController.connectCastTarget(device);
     if (success) {
       Get.snackbar(
         colorText: Colors.white,

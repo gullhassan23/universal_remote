@@ -7,6 +7,7 @@ import '../../services/android_tv/android_tv_keycodes.dart';
 import '../../utils/constant.dart';
 import '../../controllers/media_cast_controller.dart';
 import '../../controllers/remote_controller.dart';
+import '../cast/cast_session_banner.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
   const RemoteScreen({super.key});
@@ -76,6 +77,14 @@ class RemoteScreen extends GetView<RemoteController> {
                         letterSpacing: 0.5,
                       ),
                     ),
+                    Obx(() {
+                      final label =
+                          controller.connectionController.castConnectionLabel.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: CastSessionBanner(label: label),
+                      );
+                    }),
                     const SizedBox(height: 26),
                     _buildMainButtons(context),
                     const SizedBox(height: 20),

@@ -44,7 +44,7 @@ class _BottomNavState extends State<BottomNav> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.settings_remote_outlined, color: Colors.white70),
+            icon: Icon(Icons.gamepad, color: Colors.white70),
             selectedIcon: Icon(Icons.gamepad, color: Colors.white),
             label: 'Remote',
           ),

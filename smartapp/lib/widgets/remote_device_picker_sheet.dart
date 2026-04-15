@@ -92,7 +92,7 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                       const SizedBox(height: 20),
                       const Text(
                         textAlign: TextAlign.center,
-                        'Make sure your TV / Streaming player is turned on and connected to the same Wi-Fi network as your iPhone. If your device is not on the list, please power reset it and try again.',
+                        'Make sure your TV / Streaming player is turned on and connected to the same Wi-Fi network as your phone. If your device is not on the list, please power reset it and try again.',
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 14,

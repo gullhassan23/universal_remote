@@ -32,6 +32,7 @@ class RemoteController extends GetxController {
   final ListQueue<String> _pendingKeys = ListQueue<String>();
   static const int _maxPendingKeys = 20;
   bool _pickerSheetVisible = false;
+  bool _startCastingAfterConnect = false;
 
   TvConnectionController get connectionController => _connectionController;
   MediaCastController get mediaCastController => _mediaCastController;
@@ -113,6 +114,13 @@ class RemoteController extends GetxController {
       event: 'action_triggered',
       action: 'start_media_cast',
     );
+    final isConnected =
+        _connectionController.connectionState.value == TvConnectionState.connected;
+    if (!isConnected) {
+      _startCastingAfterConnect = true;
+      _openPickerIfNeeded();
+      return;
+    }
     await _mediaCastController.pickAndCastImage();
   }
 
@@ -125,6 +133,12 @@ class RemoteController extends GetxController {
     );
     if (success) {
       await _flushPendingKeys();
+      if (_startCastingAfterConnect) {
+        _startCastingAfterConnect = false;
+        await _mediaCastController.pickAndCastImage();
+      }
+    } else {
+      _startCastingAfterConnect = false;
     }
   }
 
@@ -132,6 +146,7 @@ class RemoteController extends GetxController {
     _pickerSheetVisible = false;
     showDevicePicker.value = false;
     _pendingKeys.clear();
+    _startCastingAfterConnect = false;
   }
 
   void _openPickerIfNeeded() {

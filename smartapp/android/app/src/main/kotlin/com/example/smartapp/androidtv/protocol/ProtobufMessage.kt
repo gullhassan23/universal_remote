@@ -117,6 +117,13 @@ object ProtobufMessage {
         return createRemoteMessage(fieldNumber = 9, payload = payload)
     }
 
+    fun createRemoteAppLinkLaunchMessage(appLink: String): ByteArray {
+        val payload = ByteArrayOutputStream().apply {
+            writeLengthDelimited(1, appLink.toByteArray())
+        }.toByteArray()
+        return createRemoteMessage(fieldNumber = 90, payload = payload)
+    }
+
     fun createRemoteImeBatchEditMessage(
         text: String,
         imeCounter: Int,

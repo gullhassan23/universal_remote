@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../controllers/apps_controller.dart';
+import '../../controllers/streaming_controller.dart';
 import '../../models/streaming_app_item.dart';
 import '../../widgets/streaming_app_tile.dart';
 
-class StreamingAppsScreen extends GetView<AppsController> {
+class StreamingAppsScreen extends GetView<StreamingController> {
   const StreamingAppsScreen({super.key});
 
   Future<void> _onAppTap(BuildContext context, StreamingAppItem app) async {
@@ -64,11 +64,11 @@ class StreamingAppsScreen extends GetView<AppsController> {
                     () {
                       final launchingAppId = controller.launchingAppId.value;
                       return ListView.separated(
-                        itemCount: AppsController.apps.length,
+                        itemCount: StreamingController.apps.length,
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-                          final app = AppsController.apps[index];
+                          final app = StreamingController.apps[index];
                           return StreamingAppTile(
                             app: app,
                             isBusy: launchingAppId == app.id,

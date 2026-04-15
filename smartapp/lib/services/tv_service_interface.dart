@@ -39,12 +39,16 @@ class CastMediaItem {
     required this.filePath,
     required this.mimeType,
     this.title,
+    this.sessionId,
+    this.metadata = const <String, String>{},
   });
 
   final CastMediaType type;
   final String filePath;
   final String mimeType;
   final String? title;
+  final String? sessionId;
+  final Map<String, String> metadata;
 }
 
 abstract class ITvService {
