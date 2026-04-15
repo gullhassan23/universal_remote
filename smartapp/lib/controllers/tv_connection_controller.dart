@@ -17,7 +17,7 @@ class TvConnectionController extends GetxController {
 
   final ITvService _tvService;
   final CastSessionManager _castSessionManager;
-  bool _restoringLastDevice = false;
+  bool _restoreAttempted = false;
   bool _reconnectInProgress = false;
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
@@ -50,22 +50,19 @@ class TvConnectionController extends GetxController {
       castSession.value = update;
     });
     _castSessionManager.events.listen(_onCastEvent);
-    _tryRestoreLastConnectedDevice();
     _tryRestoreCastSession();
   }
 
-  Future<void> _tryRestoreLastConnectedDevice() async {
-    if (_restoringLastDevice) return;
-    _restoringLastDevice = true;
-    try {
-      if (_tvService is! UnifiedTvService) return;
-      final lastDevice = await (_tvService as UnifiedTvService).getLastDevice();
-      if (lastDevice == null) return;
-      if (connectionState.value == TvConnectionState.connected) return;
-      await connectTo(lastDevice);
-    } finally {
-      _restoringLastDevice = false;
+  Future<bool> tryRestoreLastConnectedDeviceOnDemand() async {
+    if (_restoreAttempted) {
+      return connectionState.value == TvConnectionState.connected;
     }
+    _restoreAttempted = true;
+    if (_tvService is! UnifiedTvService) return false;
+    if (connectionState.value == TvConnectionState.connected) return true;
+    final lastDevice = await (_tvService as UnifiedTvService).getLastDevice();
+    if (lastDevice == null) return false;
+    return connectTo(lastDevice);
   }
 
   Future<void> _tryRestoreCastSession() async {

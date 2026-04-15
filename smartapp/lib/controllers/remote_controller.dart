@@ -104,6 +104,15 @@ class RemoteController extends GetxController {
       }
     }
 
+    final restored =
+        await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
+    if (restored) {
+      final resentAfterRestore = await _connectionController.sendKey(key);
+      if (resentAfterRestore) {
+        return;
+      }
+    }
+
     _enqueuePendingKey(key);
     _openPickerIfNeeded();
   }
