@@ -30,6 +30,7 @@ class MediaCastController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxString progressMessage = ''.obs;
   bool _isCastContextInitialized = false;
+  bool _isDiscovering = false;
   HttpServer? _mediaServer;
   File? _servedMediaFile;
   String? _servedMimeType;
@@ -48,6 +49,7 @@ class MediaCastController extends GetxController {
     try {
       errorMessage.value = '';
       await _ensureCastContext();
+      await _stopMediaServer();
 
       status.value = MediaCastStatus.picking;
       progressMessage.value = 'Pick a photo or video to cast...';
@@ -87,12 +89,12 @@ class MediaCastController extends GetxController {
 
       status.value = MediaCastStatus.selectingTarget;
       progressMessage.value = 'Searching for cast devices...';
-      GoogleCastDiscoveryManager.instance.startDiscovery();
+      _startDiscovery();
 
       final devices = await GoogleCastDiscoveryManager.instance.devicesStream
           .firstWhere((List<GoogleCastDevice> list) => list.isNotEmpty)
           .timeout(
-            const Duration(seconds: 12),
+            const Duration(seconds: 15),
             onTimeout: () => <GoogleCastDevice>[],
           );
       if (devices.isEmpty) {
@@ -106,12 +108,9 @@ class MediaCastController extends GetxController {
         return;
       }
 
-      progressMessage.value = 'Connecting to ${selectedDevice.friendlyName}...';
-      await GoogleCastSessionManager.instance.startSessionWithDevice(
-        selectedDevice,
-      );
-
-      final connectionState = GoogleCastSessionManager.instance.connectionState;
+      progressMessage.value =
+          'Connecting to ${selectedDevice.friendlyName}...';
+      final connectionState = await _connectToDeviceWithRetry(selectedDevice);
       if (connectionState != GoogleCastConnectState.connected) {
         _setError('Could not connect to ${selectedDevice.friendlyName}.');
         return;
@@ -130,7 +129,8 @@ class MediaCastController extends GetxController {
       progressMessage.value = 'Casting media to ${selectedDevice.friendlyName}...';
       await GoogleCastRemoteMediaClient.instance.loadMedia(
         GoogleCastMediaInformationIOS(
-          contentId: selected.name.isEmpty ? path.split('/').last : selected.name,
+          // Chromecast receivers expect a reachable media URL as the contentId.
+          contentId: mediaUri.toString(),
           streamType: CastMediaStreamType.buffered,
           contentUrl: mediaUri,
           contentType: mimeType,
@@ -144,17 +144,17 @@ class MediaCastController extends GetxController {
       );
 
       status.value = MediaCastStatus.success;
-      progressMessage.value = '';
+      progressMessage.value = 'Connected to ${selectedDevice.friendlyName}.';
       Get.snackbar(
         'Casting started',
         'Playing on ${selectedDevice.friendlyName}.',
       );
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      _resetToIdle();
     } catch (error, stackTrace) {
       debugPrint('Media cast error: $error');
       debugPrint('$stackTrace');
       _setError('Casting failed. Please try again.');
+    } finally {
+      _stopDiscovery();
     }
   }
 
@@ -258,7 +258,7 @@ class MediaCastController extends GetxController {
   @override
   void onClose() {
     unawaited(_stopMediaServer());
-    GoogleCastDiscoveryManager.instance.stopDiscovery();
+    _stopDiscovery();
     super.onClose();
   }
 
@@ -272,6 +272,63 @@ class MediaCastController extends GetxController {
   void _resetToIdle() {
     status.value = MediaCastStatus.idle;
     progressMessage.value = '';
+  }
+
+  void _startDiscovery() {
+    if (_isDiscovering) return;
+    GoogleCastDiscoveryManager.instance.startDiscovery();
+    _isDiscovering = true;
+  }
+
+  void _stopDiscovery() {
+    if (!_isDiscovering) return;
+    GoogleCastDiscoveryManager.instance.stopDiscovery();
+    _isDiscovering = false;
+  }
+
+  Future<void> _ensureSessionDisconnected() async {
+    if (GoogleCastSessionManager.instance.connectionState ==
+        GoogleCastConnectState.connected) {
+      await GoogleCastSessionManager.instance.endSessionAndStopCasting();
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+    }
+  }
+
+  Future<GoogleCastConnectState> _connectToDeviceWithRetry(
+    GoogleCastDevice selectedDevice,
+  ) async {
+    // Some devices (especially Mi TV Stick) take longer to expose a
+    // fully connected cast session.
+    const maxAttempts = 2;
+    var lastState = GoogleCastSessionManager.instance.connectionState;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      await _ensureSessionDisconnected();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await GoogleCastSessionManager.instance.startSessionWithDevice(
+        selectedDevice,
+      );
+
+      progressMessage.value = attempt == 1
+          ? 'Waiting for ${selectedDevice.friendlyName} to accept cast session...'
+          : 'Retrying connection to ${selectedDevice.friendlyName}...';
+      lastState = await _waitForConnectedSession();
+      if (lastState == GoogleCastConnectState.connected) {
+        return lastState;
+      }
+    }
+    return lastState;
+  }
+
+  Future<GoogleCastConnectState> _waitForConnectedSession() async {
+    final endAt = DateTime.now().add(const Duration(seconds: 20));
+    var state = GoogleCastSessionManager.instance.connectionState;
+    while (DateTime.now().isBefore(endAt) &&
+        state != GoogleCastConnectState.connected) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      state = GoogleCastSessionManager.instance.connectionState;
+    }
+    return state;
   }
 
   Future<void> _handleMediaRequest(HttpRequest request) async {
@@ -338,7 +395,13 @@ class MediaCastController extends GetxController {
       type: InternetAddressType.IPv4,
       includeLoopback: false,
     );
-    for (final interface in interfaces) {
+    final sortedInterfaces = List<NetworkInterface>.from(interfaces)
+      ..sort((a, b) {
+        final aScore = _networkInterfacePriority(a.name);
+        final bScore = _networkInterfacePriority(b.name);
+        return bScore.compareTo(aScore);
+      });
+    for (final interface in sortedInterfaces) {
       for (final address in interface.addresses) {
         if (_isPrivate(address)) {
           return address;
@@ -354,6 +417,17 @@ class MediaCastController extends GetxController {
     final a = int.tryParse(parts[0]) ?? -1;
     final b = int.tryParse(parts[1]) ?? -1;
     return a == 10 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168);
+  }
+
+  int _networkInterfacePriority(String interfaceName) {
+    final name = interfaceName.toLowerCase();
+    if (name.contains('wlan') || name.contains('wifi') || name == 'en0') {
+      return 3;
+    }
+    if (name.contains('eth') || name.startsWith('en')) {
+      return 2;
+    }
+    return 1;
   }
 
   String _inferMimeType(String path) {
