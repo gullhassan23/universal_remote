@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smartapp/features/Streamings/streaming_apps_screen.dart';
 import 'package:smartapp/features/Settings/settings_screen.dart';
+import 'package:smartapp/features/cast/cast_screen.dart';
 import 'package:smartapp/features/remote/remote_screen.dart';
 
 class BottomNav extends StatefulWidget {
@@ -16,6 +17,7 @@ class _BottomNavState extends State<BottomNav> {
   static const List<Widget> _tabs = <Widget>[
     RemoteScreen(),
     StreamingAppsScreen(),
+    CastScreen(),
     SettingsScreen(),
   ];
 
@@ -52,6 +54,11 @@ class _BottomNavState extends State<BottomNav> {
             icon: Icon(Icons.ondemand_video_outlined, color: Colors.white70),
             selectedIcon: Icon(Icons.ondemand_video, color: Colors.white),
             label: 'Apps',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.cast, color: Colors.white70),
+            selectedIcon: Icon(Icons.cast, color: Colors.white),
+            label: 'Cast',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined, color: Colors.white70),
