@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:smartapp/utils/haptic_action.dart';
 
 import '../models/streaming_app_item.dart';
 
@@ -17,7 +18,7 @@ class StreamingAppTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: isBusy ? null : onTap,
+      onTap: isBusy ? null : HapticAction.wrap(onTap),
       borderRadius: BorderRadius.circular(18),
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

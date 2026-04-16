@@ -31,7 +31,9 @@ class RemoteScreen extends GetView<RemoteController> {
   VoidCallback _sendKeyTap(String keyCode) {
     return _loggedTap(
       keyCode,
-      () => controller.send(keyCode),
+      () {
+        controller.send(keyCode); // your original logic
+      },
       action: 'send_key',
     );
   }
@@ -90,7 +92,8 @@ class RemoteScreen extends GetView<RemoteController> {
                                 'DISCONNECT_TV',
                                 () {
                                   unawaited(
-                                    controller.connectionController.disconnect(),
+                                    controller.connectionController
+                                        .disconnect(),
                                   );
                                 },
                                 action: 'disconnect_tv',

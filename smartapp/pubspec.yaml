@@ -43,6 +43,7 @@ dependencies:
   image_picker: ^1.1.2
   flutter_chrome_cast: ^1.4.5
   smooth_page_indicator: ^1.1.0
+  vibration: ^3.1.4
 
 dev_dependencies:
   flutter_test:

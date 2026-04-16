@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
+import 'package:smartapp/utils/haptic_action.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,7 +13,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isHapticEnabled = true;
+  // bool _isHapticEnabled = true;
+  final vibrationController = Get.find<VibrationController>();
 
   @override
   Widget build(BuildContext context) {
@@ -47,17 +50,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Remote style',
                     onTap: () {},
                   ),
-                  _SwitchSettingsTile(
-                    icon: Icons.vibration_outlined,
-                    title: 'Haptic feedback',
-                    subtitle: 'Enables haptics on remote',
-                    value: _isHapticEnabled,
-                    onChanged: (value) {
-                      setState(() {
-                        _isHapticEnabled = value;
-                      });
-                    },
-                  ),
+                  // _SwitchSettingsTile(
+                  //   icon: Icons.vibration_outlined,
+                  //   title: 'Haptic feedback',
+                  //   subtitle: 'Enables haptics on remote',
+                  //   value: _isHapticEnabled,
+                  //   onChanged: (value) {
+                  //     setState(() {
+                  //       _isHapticEnabled = value;
+                  //     });
+                  //   },
+                  // ),
+                  Obx(() => _SwitchSettingsTile(
+                        icon: Icons.vibration_outlined,
+                        title: 'Haptic feedback',
+                        subtitle: 'Enables haptics on remote',
+                        value: vibrationController.isHapticEnabled.value,
+                        onChanged: (value) {
+                          vibrationController.toggleHaptic(value);
+                        },
+                      )),
                   _SettingsTile(
                     icon: Icons.timer_outlined,
                     title: 'Sleep timer',
@@ -133,7 +145,7 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: HapticAction.wrap(onTap),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
@@ -235,7 +247,10 @@ class _SwitchSettingsTile extends StatelessWidget {
           ),
           Switch(
             value: value,
-            onChanged: onChanged,
+            onChanged: (next) {
+              HapticAction.vibrate();
+              onChanged(next);
+            },
             activeColor: Colors.white,
             activeTrackColor: const Color(0xFF2FCC6A),
             inactiveThumbColor: Colors.white,

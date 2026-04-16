@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import 'tv_connection_controller.dart';
 import 'media_cast_controller.dart';
+import 'vibratiion_controller.dart';
 import '../models/tv_device.dart';
 import '../services/tv_service_interface.dart';
 import '../features/device_discovery/device_discovery_controller.dart';
@@ -48,6 +49,9 @@ class RemoteController extends GetxController {
     required FutureOr<void> Function() onTap,
     String action = 'tap',
   }) async {
+    if (Get.isRegistered<VibrationController>()) {
+      Get.find<VibrationController>().vibrate();
+    }
     logButtonEvent(buttonKey: buttonKey, event: 'pressed', action: action);
     try {
       await onTap();

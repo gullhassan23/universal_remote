@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/controllers/sleep_timer_controller.dart';
+import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/firebase_options.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
@@ -48,7 +50,7 @@ void _registerDependencies() {
   Get.put<ITvService>(tvService, permanent: true);
   Get.put(PremiumController(), permanent: true);
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
-
+  Get.put(VibrationController(), permanent: true);
   // Controllers
   final tvConnectionController = Get.put(
     TvConnectionController(tvService: tvService),
@@ -80,6 +82,10 @@ void _registerDependencies() {
   );
   Get.put(
     StreamingController(connectionController: tvConnectionController),
+    permanent: true,
+  );
+  Get.put(
+    SleepTimerController(connectionController: tvConnectionController),
     permanent: true,
   );
 
