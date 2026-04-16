@@ -48,6 +48,10 @@
 
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>This app discovers and controls TVs on your local Wi‑Fi network.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone to convert your voice to TV search text.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition to transcribe your voice for TV search.</string>
 
 	<key>NSBonjourServices</key>
 	<array>

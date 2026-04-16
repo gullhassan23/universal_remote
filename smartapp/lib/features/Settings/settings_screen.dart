@@ -31,78 +31,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 26),
-                  const _SectionTitle(title: 'REMOTE'),
-                  const SizedBox(height: 12),
-                  _SettingsTile(
-                    icon: Icons.devices_outlined,
-                    title: 'Switch device',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.settings_remote_outlined,
-                    title: 'Remote style',
-                    onTap: () {},
-                  ),
-                  // _SwitchSettingsTile(
-                  //   icon: Icons.vibration_outlined,
-                  //   title: 'Haptic feedback',
-                  //   subtitle: 'Enables haptics on remote',
-                  //   value: _isHapticEnabled,
-                  //   onChanged: (value) {
-                  //     setState(() {
-                  //       _isHapticEnabled = value;
-                  //     });
-                  //   },
-                  // ),
-                  Obx(() => _SwitchSettingsTile(
-                        icon: Icons.vibration_outlined,
-                        title: 'Haptic feedback',
-                        subtitle: 'Enables haptics on remote',
-                        value: vibrationController.isHapticEnabled.value,
-                        onChanged: (value) {
-                          vibrationController.toggleHaptic(value);
-                        },
-                      )),
-                  _SettingsTile(
-                    icon: Icons.timer_outlined,
-                    title: 'Sleep timer',
-                    subtitle: 'Turns off your TV automatically',
-                    onTap: () => Get.to(() => const SleepTimerUI()),
-                  ),
-                  const SizedBox(height: 24),
-                  const _SectionTitle(title: 'GENERAL'),
-                  const SizedBox(height: 12),
-                  _SettingsTile(
-                    icon: Icons.help_outline_rounded,
-                    title: 'FAQ',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.restore_rounded,
-                    title: 'Restore purchases',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.shield_outlined,
-                    title: 'Privacy policy',
-                    onTap: () {},
-                  ),
-                  _SettingsTile(
-                    icon: Icons.menu_book_outlined,
-                    title: 'How to use app',
-                    onTap: () {
-                      Get.to(() => const InstructionOnboardingScreen());
-                    },
-                  ),
-                ],
-              ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 26),
+                const _SectionTitle(title: 'REMOTE'),
+                const SizedBox(height: 12),
+                _SettingsTile(
+                  icon: Icons.devices_outlined,
+                  title: 'Switch device',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  icon: Icons.settings_remote_outlined,
+                  title: 'Remote style',
+                  onTap: () {},
+                ),
+                // _SwitchSettingsTile(
+                //   icon: Icons.vibration_outlined,
+                //   title: 'Haptic feedback',
+                //   subtitle: 'Enables haptics on remote',
+                //   value: _isHapticEnabled,
+                //   onChanged: (value) {
+                //     setState(() {
+                //       _isHapticEnabled = value;
+                //     });
+                //   },
+                // ),
+                Obx(() => _SwitchSettingsTile(
+                      icon: Icons.vibration_outlined,
+                      title: 'Haptic feedback',
+                      subtitle: 'Enables haptics on remote',
+                      value: vibrationController.isHapticEnabled.value,
+                      onChanged: (value) {
+                        vibrationController.toggleHaptic(value);
+                      },
+                    )),
+                _SettingsTile(
+                  icon: Icons.timer_outlined,
+                  title: 'Sleep timer',
+                  subtitle: 'Turns off your TV automatically',
+                  onTap: () => Get.to(() => const SleepTimerUI()),
+                ),
+                const SizedBox(height: 24),
+                const _SectionTitle(title: 'GENERAL'),
+                const SizedBox(height: 12),
+                _SettingsTile(
+                  icon: Icons.help_outline_rounded,
+                  title: 'FAQ',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  icon: Icons.restore_rounded,
+                  title: 'Restore purchases',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  icon: Icons.shield_outlined,
+                  title: 'Privacy policy',
+                  onTap: () {},
+                ),
+                _SettingsTile(
+                  icon: Icons.menu_book_outlined,
+                  title: 'How to use app',
+                  onTap: () {
+                    Get.to(() => const InstructionOnboardingScreen());
+                  },
+                ),
+              ],
             ),
           ),
         ),

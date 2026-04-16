@@ -13,7 +13,7 @@ class VibrationController extends GetxController {
   }
 
   Future<void> _loadVibrationSupport() async {
-    _supportsVibration = await Vibration.hasVibrator() ?? false;
+    _supportsVibration = await Vibration.hasVibrator();
   }
 
   void toggleHaptic(bool value) {

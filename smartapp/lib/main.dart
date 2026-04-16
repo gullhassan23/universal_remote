@@ -18,6 +18,7 @@ import 'services/android_tv/android_tv_remote_platform.dart';
 import 'controllers/streaming_controller.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/media_cast_controller.dart';
+import 'controllers/voice_controller.dart';
 import 'features/device_discovery/device_discovery_controller.dart';
 import 'controllers/remote_controller.dart';
 import 'services/tv_service_interface.dart';
@@ -78,6 +79,10 @@ void _registerDependencies() {
       discoveryController: discoveryController,
       mediaCastController: Get.find<MediaCastController>(),
     ),
+    permanent: true,
+  );
+  Get.put(
+    VoiceController(connectionController: tvConnectionController),
     permanent: true,
   );
   Get.put(

@@ -7,6 +7,7 @@ import '../../services/android_tv/android_tv_keycodes.dart';
 import '../../utils/constant.dart';
 
 import '../../controllers/remote_controller.dart';
+import '../../controllers/voice_controller.dart';
 import '../cast/cast_session_banner.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
@@ -174,6 +175,7 @@ class RemoteScreen extends GetView<RemoteController> {
   }
 
   Widget _buildMainButtons(BuildContext context) {
+    final voiceController = Get.find<VoiceController>();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Row(
@@ -220,43 +222,30 @@ class RemoteScreen extends GetView<RemoteController> {
                   height: 50,
                 ),
                 const SizedBox(height: 16),
-                // Obx(() {
-                //   final castStatus = controller.mediaCastController.status.value;
-                //   final isBusy = castStatus == MediaCastStatus.picking ||
-                //       castStatus == MediaCastStatus.casting;
-                //   final progress =
-                //       controller.mediaCastController.progressMessage.value;
-                //   return Column(
-                //     children: [
-                //       _roundedActionButton(
-                //         icon: isBusy ? Icons.hourglass_top : Icons.cast,
-                //         onTap: _loggedTap(
-                //           'MEDIA_CAST',
-                //           () => controller.startMediaCasting(),
-                //           action: 'start_media_cast',
-                //         ),
-                //         width: 88,
-                //         height: 50,
-                //       ),
-                //       if (progress.isNotEmpty) ...[
-                //         const SizedBox(height: 6),
-                //         SizedBox(
-                //           width: 120,
-                //           child: Text(
-                //             progress,
-                //             maxLines: 2,
-                //             overflow: TextOverflow.ellipsis,
-                //             textAlign: TextAlign.center,
-                //             style: const TextStyle(
-                //               color: Colors.white70,
-                //               fontSize: 11,
-                //             ),
-                //           ),
-                //         ),
-                //       ],
-                //     ],
-                //   );
-                // }),
+                Obx(() {
+                  final isListening = voiceController.isListening.value;
+                  return _roundedActionButton(
+                    icon: isListening ? Icons.mic : Icons.mic_none,
+                    iconColor: isListening ? const Color(0xFFFFE082) : Colors.white,
+                    onTap: () {
+                      unawaited(
+                        controller.handleButtonTap(
+                          buttonKey: 'KEY_MIC',
+                          action: isListening ? 'stop_voice' : 'start_voice',
+                          onTap: () async {
+                            if (isListening) {
+                              await voiceController.stopListening();
+                            } else {
+                              await voiceController.startListening();
+                            }
+                          },
+                        ),
+                      );
+                    },
+                    width: 88,
+                    height: 50,
+                  );
+                }),
               ],
             ),
           ),

@@ -14,6 +14,7 @@ import '../tv_service_interface.dart';
 
 /// Android TV Remote v2: mDNS discovery, TLS pairing on 6467, keys on 6466 (Android native).
 class AndroidTvService implements ITvService {
+  static const _batchTextPrefix = '__TEXT__:';
   static const _prefsPkcs12 = 'android_tv_pkcs12_path';
   static const _ptrScanWindow = Duration(seconds: 6);
   static const _lookupTimeout = Duration(seconds: 2);
@@ -354,21 +355,19 @@ class AndroidTvService implements ITvService {
     }
     if (!Platform.isAndroid) return false;
 
-    final normalizedTypedChar = mapTypedCharToRemoteKey(key);
-    if (normalizedTypedChar != null) {
-      final charCode = normalizedTypedChar.codeUnitAt(0);
-      final isAlphabet = (charCode >= 0x41 && charCode <= 0x5A) ||
-          (charCode >= 0x61 && charCode <= 0x7A);
-      if (isAlphabet) {
-        try {
-          final sentText =
-              await AndroidTvRemotePlatform.instance.sendText(normalizedTypedChar);
-          if (sentText) return true;
-        } catch (e) {
-          if (kDebugMode) {
-            // ignore: avoid_print
-            print('AndroidTvService.sendKey sendText fallback: $e');
-          }
+    if (key.startsWith(_batchTextPrefix)) {
+      final text = key.substring(_batchTextPrefix.length);
+      if (text.isEmpty) return false;
+      try {
+        var sent = await AndroidTvRemotePlatform.instance.sendText(text);
+        if (sent) return true;
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        sent = await AndroidTvRemotePlatform.instance.sendText(text);
+        return sent;
+      } catch (e) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('AndroidTvService.sendKey batch text failed: $e');
         }
       }
     }
