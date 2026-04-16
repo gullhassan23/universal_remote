@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.timer_outlined,
                     title: 'Sleep timer',
                     subtitle: 'Turns off your TV automatically',
-                    onTap: () {},
+                    onTap: () => Get.to(() => const SleepTimerUI()),
                   ),
                   const SizedBox(height: 24),
                   const _SectionTitle(title: 'GENERAL'),
