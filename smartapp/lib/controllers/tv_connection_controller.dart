@@ -17,7 +17,7 @@ class TvConnectionController extends GetxController {
 
   final ITvService _tvService;
   final CastSessionManager _castSessionManager;
-  bool _restoreAttempted = false;
+  Future<bool>? _restoreFuture;
   bool _reconnectInProgress = false;
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
@@ -51,15 +51,36 @@ class TvConnectionController extends GetxController {
     });
     _castSessionManager.events.listen(_onCastEvent);
     _tryRestoreCastSession();
+    _restoreLastConnectionOnLaunch();
+  }
+
+  Future<void> _restoreLastConnectionOnLaunch() async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (connectionState.value == TvConnectionState.connected) {
+      return;
+    }
+    await tryRestoreLastConnectedDeviceOnDemand();
   }
 
   Future<bool> tryRestoreLastConnectedDeviceOnDemand() async {
-    if (_restoreAttempted) {
-      return connectionState.value == TvConnectionState.connected;
-    }
-    _restoreAttempted = true;
-    if (_tvService is! UnifiedTvService) return false;
     if (connectionState.value == TvConnectionState.connected) return true;
+
+    final existingRestore = _restoreFuture;
+    if (existingRestore != null) {
+      return existingRestore;
+    }
+
+    final restoreFuture = _restoreLastConnectedDevice();
+    _restoreFuture = restoreFuture;
+    final restored = await restoreFuture;
+    if (!restored) {
+      _restoreFuture = null;
+    }
+    return restored;
+  }
+
+  Future<bool> _restoreLastConnectedDevice() async {
+    if (_tvService is! UnifiedTvService) return false;
     final lastDevice = await (_tvService as UnifiedTvService).getLastDevice();
     if (lastDevice == null) return false;
     return connectTo(lastDevice);
@@ -133,13 +154,27 @@ class TvConnectionController extends GetxController {
     connectionState.value = TvConnectionState.disconnected;
     await _tvService.disconnect();
     currentDevice.value = null;
+    _restoreFuture = null;
     castConnectionLabel.value = '';
     activeCastSession.value = null;
     await _castSessionManager.clearSession();
   }
 
-  Future<bool> sendKey(String key) {
-    return _tvService.sendKey(key);
+  Future<bool> sendKey(String key) async {
+    final state = connectionState.value;
+    final deviceName = currentDevice.value?.name ?? 'unknown-device';
+    if (state != TvConnectionState.connected) {
+      _log('sendKey failed key=$key reason=not_connected state=$state');
+      return false;
+    }
+
+    final sent = await _tvService.sendKey(key);
+    if (sent) {
+      _log('sendKey success key=$key device=$deviceName');
+    } else {
+      _log('sendKey failed key=$key device=$deviceName reason=service_rejected');
+    }
+    return sent;
   }
 
   Future<bool> launchApp(String packageName) {

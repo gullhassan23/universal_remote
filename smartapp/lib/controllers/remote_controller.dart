@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -29,8 +28,7 @@ class RemoteController extends GetxController {
 
   var selectedTab = 0.obs;
   final RxBool showDevicePicker = false.obs;
-  final ListQueue<String> _pendingKeys = ListQueue<String>();
-  static const int _maxPendingKeys = 20;
+  String? _pendingKey;
   bool _pickerSheetVisible = false;
 
   TvConnectionController get connectionController => _connectionController;
@@ -90,6 +88,11 @@ class RemoteController extends GetxController {
         ok = await _connectionController.sendKey(key);
       }
       if (ok) {
+        logButtonEvent(
+          buttonKey: key,
+          event: 'send_status',
+          action: 'working',
+        );
         return;
       }
 
@@ -98,7 +101,14 @@ class RemoteController extends GetxController {
         final reconnected = await _connectionController.connectTo(device);
         if (reconnected) {
           final resent = await _connectionController.sendKey(key);
-          if (resent) return;
+          if (resent) {
+            logButtonEvent(
+              buttonKey: key,
+              event: 'send_status',
+              action: 'working_after_reconnect',
+            );
+            return;
+          }
         }
       }
     }
@@ -108,11 +118,21 @@ class RemoteController extends GetxController {
     if (restored) {
       final resentAfterRestore = await _connectionController.sendKey(key);
       if (resentAfterRestore) {
+        logButtonEvent(
+          buttonKey: key,
+          event: 'send_status',
+          action: 'working_after_restore',
+        );
         return;
       }
     }
 
-    _enqueuePendingKey(key);
+    logButtonEvent(
+      buttonKey: key,
+      event: 'send_status',
+      action: 'not_working',
+    );
+    _pendingKey = key;
     _openPickerIfNeeded();
   }
 
@@ -133,14 +153,18 @@ class RemoteController extends GetxController {
       navigateToRemote: false,
     );
     if (success) {
-      await _flushPendingKeys();
+      final pendingKey = _pendingKey;
+      _pendingKey = null;
+      if (pendingKey != null) {
+        await _connectionController.sendKey(pendingKey);
+      }
     }
   }
 
   void dismissDevicePicker() {
     _pickerSheetVisible = false;
     showDevicePicker.value = false;
-    _pendingKeys.clear();
+    _pendingKey = null;
   }
 
   void _openPickerIfNeeded() {
@@ -165,23 +189,5 @@ class RemoteController extends GetxController {
       _pickerSheetVisible = false;
       if (showDevicePicker.value) showDevicePicker.value = false;
     });
-  }
-  void _enqueuePendingKey(String key) {
-    if (_pendingKeys.length >= _maxPendingKeys) {
-      _pendingKeys.removeFirst();
-    }
-    _pendingKeys.addLast(key);
-  }
-
-  Future<void> _flushPendingKeys() async {
-    while (_pendingKeys.isNotEmpty) {
-      final key = _pendingKeys.removeFirst();
-      final sent = await _connectionController.sendKey(key);
-      if (!sent) {
-        _enqueuePendingKey(key);
-        _openPickerIfNeeded();
-        return;
-      }
-    }
   }
 }

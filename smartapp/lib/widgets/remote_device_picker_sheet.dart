@@ -27,7 +27,8 @@ class RemoteDevicePickerSheet extends StatefulWidget {
   }) onHandleTap;
 
   @override
-  State<RemoteDevicePickerSheet> createState() => _RemoteDevicePickerSheetState();
+  State<RemoteDevicePickerSheet> createState() =>
+      _RemoteDevicePickerSheetState();
 }
 
 class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
@@ -80,7 +81,8 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
             Obx(() {
               final isLoading = widget.discoveryController.isLoading.value;
               final devices = widget.discoveryController.devices;
-              final errorMessage = widget.discoveryController.errorMessage.value;
+              final errorMessage =
+                  widget.discoveryController.errorMessage.value;
 
               if (isLoading) {
                 return Padding(
@@ -131,7 +133,8 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                       const SizedBox(height: 200),
                       _RescanButton(
                         buttonKey: 'DISCOVERY_RESCAN_EMPTY',
-                        onTap: () => widget.discoveryController.discoverDevices(),
+                        onTap: () =>
+                            widget.discoveryController.discoverDevices(),
                         onHandleTap: widget.onHandleTap,
                       ),
                     ],
@@ -153,11 +156,12 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                           const Divider(height: 1, color: Colors.white24),
                       itemBuilder: (context, index) {
                         final device = devices[index];
-                        final brandLabel =
-                            device.brand == TvBrand.androidTv ? 'Android TV' : device.brand.name;
+                        final brandLabel = device.brand == TvBrand.androidTv
+                            ? 'Android TV'
+                            : device.brand.name;
                         return ListTile(
-                          leading:
-                              const Icon(Icons.tv, color: Colors.white70, size: 28),
+                          leading: const Icon(Icons.tv,
+                              color: Colors.white70, size: 28),
                           title: Text(
                             device.name,
                             style: const TextStyle(
@@ -167,7 +171,7 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                             ),
                           ),
                           subtitle: Text(
-                            '${device.ip} • $brandLabel',
+                            '$brandLabel',
                             style: const TextStyle(
                               color: Colors.white54,
                               fontSize: 13,
@@ -293,8 +297,8 @@ class _AnimatedDotsLoaderState extends State<_AnimatedDotsLoader>
             final phase = (_controller.value + index / 3) % 1.0;
             final scale = 0.7 + 0.5 * math.sin(phase * 2 * math.pi);
             return Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: _AnimatedDotsLoader._spacing / 2),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: _AnimatedDotsLoader._spacing / 2),
               child: Transform.scale(
                 scale: scale,
                 child: Container(
