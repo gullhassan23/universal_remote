@@ -21,8 +21,9 @@ class StreamingAppTile extends StatelessWidget {
       onTap: isBusy ? null : HapticAction.wrap(onTap),
       borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(color: Colors.white),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 30),
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(18)),
         child: Row(
           children: [
             Container(
@@ -32,19 +33,15 @@ class StreamingAppTile extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                app.icon,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: Image.asset(app.icon, width: 24, height: 24),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 72),
             Expanded(
               child: Text(
                 app.name,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
+                  color: Colors.black,
+                  fontSize: 30,
                   fontWeight: FontWeight.w600,
                 ),
               ),

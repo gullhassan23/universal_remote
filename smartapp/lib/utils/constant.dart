@@ -23,3 +23,8 @@ class CastTileImage {
 class Premium {
   static const String premium = "assets/images/premium/Premium Access.png";
 }
+
+class StreamingAppIcon {
+  static const String netflix = 'assets/images/netflix-icon.png';
+  static const String youtube = 'assets/images/YTLogo.png';
+}

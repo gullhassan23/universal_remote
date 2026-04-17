@@ -12,6 +12,6 @@ class StreamingAppItem {
   final String id;
   final String name;
   final String packageName;
-  final IconData icon;
+  final String icon;
   final Color accentColor;
 }

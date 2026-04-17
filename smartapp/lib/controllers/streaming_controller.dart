@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/utils/constant.dart';
 
 import 'tv_connection_controller.dart';
 import '../models/streaming_app_item.dart';
@@ -17,14 +18,14 @@ class StreamingController extends GetxController {
       id: 'netflix',
       name: 'Netflix',
       packageName: 'com.netflix.ninja',
-      icon: Icons.movie_filter_rounded,
+      icon: StreamingAppIcon.netflix,
       accentColor: Color(0xFFE50914),
     ),
     StreamingAppItem(
       id: 'youtube',
       name: 'YouTube',
       packageName: 'com.google.android.youtube.tv',
-      icon: Icons.ondemand_video_rounded,
+      icon: StreamingAppIcon.youtube,
       accentColor: Color(0xFFFF0000),
     ),
   ];
