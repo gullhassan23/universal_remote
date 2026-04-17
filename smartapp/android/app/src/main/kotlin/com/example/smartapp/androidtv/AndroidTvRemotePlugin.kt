@@ -356,6 +356,10 @@ class AndroidTvRemotePlugin(private val context: Context) {
             Thread.sleep(40)
             ok = remoteController?.sendKeyCode(code) == true
         }
+        Logger.d(
+            "sendKeyCode: code=$code ok=$ok remoteReady=${remoteReady.get()} " +
+                "imeCounter=${imeCounter.get()} fieldCounter=${imeFieldCounter.get()}",
+        )
         mainHandler.post { result.success(ok) }
     }
 
@@ -368,22 +372,43 @@ class AndroidTvRemotePlugin(private val context: Context) {
         if (!remoteReady.get()) {
             waitForRemoteReady()
         }
-        var ok =
-            remoteController?.sendText(
-                text = text,
-                imeCounter = imeCounter.get(),
-                fieldCounter = imeFieldCounter.get(),
-            ) == true
-        if (!ok && remoteReady.get()) {
-            Thread.sleep(40)
-            ok =
-                remoteController?.sendText(
-                    text = text,
-                    imeCounter = imeCounter.get(),
-                    fieldCounter = imeFieldCounter.get(),
-                ) == true
-        }
+        val ok = sendTextWithCounterFallback(text)
         mainHandler.post { result.success(ok) }
+    }
+
+    private fun sendTextWithCounterFallback(text: String): Boolean {
+        val remote = remoteController ?: return false
+        val currentIme = imeCounter.get()
+        val currentField = imeFieldCounter.get()
+        val attempts =
+            listOf(
+                currentIme to currentField,
+                (currentIme + 1) to currentField,
+                currentIme to (currentField + 1),
+                (currentIme + 1) to (currentField + 1),
+            ).distinct()
+
+        for ((attemptIdx, pair) in attempts.withIndex()) {
+            val ime = pair.first
+            val field = pair.second
+            val sent = remote.sendText(text = text, imeCounter = ime, fieldCounter = field)
+            Logger.d(
+                "sendText: attempt=$attemptIdx ime=$ime field=$field " +
+                    "length=${text.length} sent=$sent remoteReady=${remoteReady.get()}",
+            )
+            if (sent) {
+                // Advance local counters to match the next IME write expectation.
+                // Reader loop updates from TV still take precedence when available.
+                imeCounter.set(ime + 1)
+                imeFieldCounter.set(field)
+                return true
+            }
+            if (!remoteReady.get()) {
+                break
+            }
+            Thread.sleep(40)
+        }
+        return false
     }
 
     private fun launchApp(arguments: Map<*, *>, result: MethodChannel.Result) {
@@ -631,6 +656,9 @@ class AndroidTvRemotePlugin(private val context: Context) {
                         if (counters != null) {
                             imeCounter.set(counters.first)
                             imeFieldCounter.set(counters.second)
+                            Logger.d(
+                                "remoteImeCountersUpdated: ime=${counters.first} field=${counters.second}",
+                            )
                         }
                     }
                 }

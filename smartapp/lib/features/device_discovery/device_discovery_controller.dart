@@ -5,6 +5,7 @@ import '../../models/tv_brand.dart';
 import '../../models/tv_device.dart';
 import '../../services/tv_service_interface.dart';
 import '../../services/unified_tv_service.dart';
+import '../../services/android_tv/android_tv_remote_platform.dart';
 import '../../controllers/tv_connection_controller.dart';
 import '../remote/remote_screen.dart';
 
@@ -25,6 +26,7 @@ class DeviceDiscoveryController extends GetxController {
   final RxList<TvDevice> devices = <TvDevice>[].obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  bool _isConnectingLoaderVisible = false;
 
   void setPreferredBrand(TvBrand brand) {
     _preferredBrand = brand;
@@ -53,7 +55,13 @@ class DeviceDiscoveryController extends GetxController {
 
   Future<bool> connectTo(TvDevice device,
       {bool navigateToRemote = true}) async {
+    _showConnectionLoader(device);
+    AndroidTvRemotePlatform.instance.setOnPairingPromptRequested(() {
+      _hideConnectionLoader();
+    });
     final success = await _connectionController.connectCastTarget(device);
+    AndroidTvRemotePlatform.instance.setOnPairingPromptRequested(null);
+    _hideConnectionLoader();
     if (success) {
       Get.snackbar(
         colorText: Colors.white,
@@ -100,5 +108,43 @@ class DeviceDiscoveryController extends GetxController {
       }
       return false;
     }
+  }
+
+  void _showConnectionLoader(TvDevice device) {
+    if (_isConnectingLoaderVisible) return;
+    _isConnectingLoaderVisible = true;
+    Get.dialog<void>(
+      PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(strokeWidth: 2.6),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  device.brand == TvBrand.androidTv
+                      ? 'Connecting to ${device.name}...\nWaiting for pairing code on TV.'
+                      : 'Connecting to ${device.name}...',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  void _hideConnectionLoader() {
+    if (!_isConnectingLoaderVisible) return;
+    if (Get.isDialogOpen ?? false) {
+      Get.back<void>();
+    }
+    _isConnectingLoaderVisible = false;
   }
 }

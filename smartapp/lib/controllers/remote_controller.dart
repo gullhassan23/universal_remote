@@ -83,36 +83,57 @@ class RemoteController extends GetxController {
       action: 'send_key',
     );
 
+    final sent = await sendKeyReliably(key, openPickerOnFailure: true);
+    logButtonEvent(
+      buttonKey: key,
+      event: 'send_status',
+      action: sent ? 'working' : 'not_working',
+    );
+  }
+
+  Future<bool> sendKeyReliably(
+    String key, {
+    bool openPickerOnFailure = false,
+  }) {
+    return _sendReliably(
+      payload: key,
+      openPickerOnFailure: openPickerOnFailure,
+      retryDelay: const Duration(milliseconds: 30),
+    );
+  }
+
+  Future<bool> sendTextReliably(
+    String text, {
+    bool openPickerOnFailure = false,
+  }) {
+    if (text.isEmpty) return Future<bool>.value(false);
+    return _sendReliably(
+      payload: '__TEXT__:$text',
+      openPickerOnFailure: openPickerOnFailure,
+      retryDelay: const Duration(milliseconds: 40),
+    );
+  }
+
+  Future<bool> _sendReliably({
+    required String payload,
+    required bool openPickerOnFailure,
+    required Duration retryDelay,
+  }) async {
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {
-      var ok = await _connectionController.sendKey(key);
+      var ok = await _connectionController.sendKey(payload);
       if (!ok) {
-        // Brief retry avoids reopening picker for transient key-send misses.
-        await Future<void>.delayed(const Duration(milliseconds: 30));
-        ok = await _connectionController.sendKey(key);
+        await Future<void>.delayed(retryDelay);
+        ok = await _connectionController.sendKey(payload);
       }
-      if (ok) {
-        logButtonEvent(
-          buttonKey: key,
-          event: 'send_status',
-          action: 'working',
-        );
-        return;
-      }
+      if (ok) return true;
 
       final device = _connectionController.currentDevice.value;
       if (device != null) {
         final reconnected = await _connectionController.connectTo(device);
         if (reconnected) {
-          final resent = await _connectionController.sendKey(key);
-          if (resent) {
-            logButtonEvent(
-              buttonKey: key,
-              event: 'send_status',
-              action: 'working_after_reconnect',
-            );
-            return;
-          }
+          final resent = await _connectionController.sendKey(payload);
+          if (resent) return true;
         }
       }
     }
@@ -120,24 +141,15 @@ class RemoteController extends GetxController {
     final restored =
         await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
     if (restored) {
-      final resentAfterRestore = await _connectionController.sendKey(key);
-      if (resentAfterRestore) {
-        logButtonEvent(
-          buttonKey: key,
-          event: 'send_status',
-          action: 'working_after_restore',
-        );
-        return;
-      }
+      final resentAfterRestore = await _connectionController.sendKey(payload);
+      if (resentAfterRestore) return true;
     }
 
-    logButtonEvent(
-      buttonKey: key,
-      event: 'send_status',
-      action: 'not_working',
-    );
-    _pendingKey = key;
-    _openPickerIfNeeded();
+    if (openPickerOnFailure) {
+      _pendingKey = payload;
+      _openPickerIfNeeded();
+    }
+    return false;
   }
 
   Future<void> startMediaCasting() async {

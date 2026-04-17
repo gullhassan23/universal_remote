@@ -12,3 +12,14 @@ class ImageRes {
   static const String kGetStartedBackgroundAsset =
       'assets/images/waves_design.png';
 }
+
+class CastTileImage {
+  static const browse = 'assets/images/Browser.png';
+  static const mirror = 'assets/images/Mirror.png';
+  static const media = 'assets/images/Media.png';
+  static const youtube = 'assets/images/Youtube.png';
+}
+
+class Premium {
+  static const String premium = "assets/images/premium/Premium Access.png";
+}

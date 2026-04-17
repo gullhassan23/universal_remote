@@ -92,8 +92,6 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
       return 91;
     case 'KEY_POWER':
       return 26;
-    case 'KEY_KEYBOARD':
-      return 84;
     case 'KEY_BACKSPACE':
       return 67; // KEYCODE_DEL
     case 'KEY_RETURN':

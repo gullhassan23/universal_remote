@@ -20,20 +20,9 @@ class StreamingAppTile extends StatelessWidget {
     return InkWell(
       onTap: isBusy ? null : HapticAction.wrap(onTap),
       borderRadius: BorderRadius.circular(18),
-      child: Ink(
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              app.accentColor.withValues(alpha: 0.28),
-              const Color(0xFF1B2E49).withValues(alpha: 0.88),
-            ],
-          ),
-        ),
+        decoration: BoxDecoration(color: Colors.white),
         child: Row(
           children: [
             Container(

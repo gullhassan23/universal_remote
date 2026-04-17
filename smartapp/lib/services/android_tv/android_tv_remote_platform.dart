@@ -14,12 +14,18 @@ class AndroidTvRemotePlatform {
       MethodChannel('com.example.smartapp/android_tv_remote');
 
   bool _initialized = false;
+  VoidCallback? _onPairingPromptRequested;
+
+  void setOnPairingPromptRequested(VoidCallback? callback) {
+    _onPairingPromptRequested = callback;
+  }
 
   void ensureInitialized() {
     if (_initialized) return;
     _initialized = true;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'requestPin') {
+        _onPairingPromptRequested?.call();
         final ctx = Get.context ?? Get.overlayContext;
         if (ctx == null) return null;
         return showAndroidTvPairingDialog(ctx);

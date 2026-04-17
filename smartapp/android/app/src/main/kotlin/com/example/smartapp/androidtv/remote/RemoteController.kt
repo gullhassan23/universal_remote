@@ -7,11 +7,24 @@ import com.mg.smart.tv.remote.control.androidtv.util.Logger
 class RemoteController(
     private val tlsManager: TLSManager,
 ) {
+    private companion object {
+        // Android KeyEvent.KEYCODE_A .. KEYCODE_Z
+        const val KEYCODE_A = 29
+        const val KEYCODE_Z = 54
+    }
+
     fun sendKeyCode(keycode: Int): Boolean {
         return try {
             // Android TV remote protocol expects a short key inject for regular key taps.
-            val message = ProtobufMessage.createKeycodeMessage(keycode)
-            val result = tlsManager.sendData(message)
+            val result = sendShortPress(keycode)
+            if (!result && keycode in KEYCODE_A..KEYCODE_Z) {
+                // Some TV OEMs ignore letter keys on SHORT; DOWN+UP is more reliable.
+                val downUpResult = sendDownUpPress(keycode)
+                if (downUpResult) {
+                    Logger.d("Keycode sent via DOWN+UP fallback: $keycode")
+                }
+                return downUpResult
+            }
             if (result) {
                 Logger.d("Keycode sent: $keycode")
             }
@@ -24,12 +37,22 @@ class RemoteController(
 
     fun sendText(text: String, imeCounter: Int, fieldCounter: Int): Boolean {
         return try {
-            val message = ProtobufMessage.createRemoteImeBatchEditMessage(
+            var message = ProtobufMessage.createRemoteImeBatchEditMessage(
                 text = text,
                 imeCounter = imeCounter,
                 fieldCounter = fieldCounter,
             )
-            val result = tlsManager.sendData(message)
+            var result = tlsManager.sendData(message)
+            if (!result) {
+                // Compatibility fallback for TVs that only accept legacy cursor index.
+                message = ProtobufMessage.createRemoteImeBatchEditMessage(
+                    text = text,
+                    imeCounter = imeCounter,
+                    fieldCounter = fieldCounter,
+                    useLegacyCursor = true,
+                )
+                result = tlsManager.sendData(message)
+            }
             if (result) {
                 Logger.d("Text sent via IME batch edit: \"$text\"")
             }
@@ -54,5 +77,16 @@ class RemoteController(
 
     fun destroy() {
         // TLS lifecycle owned by plugin
+    }
+
+    private fun sendShortPress(keycode: Int): Boolean {
+        val message = ProtobufMessage.createKeycodeMessage(keycode)
+        return tlsManager.sendData(message)
+    }
+
+    private fun sendDownUpPress(keycode: Int): Boolean {
+        val down = tlsManager.sendData(ProtobufMessage.createKeycodeDownMessage(keycode))
+        if (!down) return false
+        return tlsManager.sendData(ProtobufMessage.createKeycodeUpMessage(keycode))
     }
 }

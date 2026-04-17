@@ -128,8 +128,16 @@ object ProtobufMessage {
         text: String,
         imeCounter: Int,
         fieldCounter: Int,
+        useLegacyCursor: Boolean = false,
     ): ByteArray {
-        val cursor = if (text.isEmpty()) 0 else text.length - 1
+        // Some OEM TVs expect the cursor at insertion end, while others only accept
+        // the legacy last-character index behavior. Keep both modes available.
+        val cursor =
+            if (useLegacyCursor) {
+                if (text.isEmpty()) 0 else text.length - 1
+            } else {
+                text.length
+            }
         val imeObject = ByteArrayOutputStream().apply {
             writeVarintTo(this, 1 shl 3 or 0) // start
             writeVarintTo(this, cursor)

@@ -8,6 +8,7 @@ import '../../utils/constant.dart';
 
 import '../../controllers/remote_controller.dart';
 import '../../controllers/voice_controller.dart';
+import '../../services/tv_service_interface.dart';
 import '../cast/cast_session_banner.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
@@ -32,8 +33,8 @@ class RemoteScreen extends GetView<RemoteController> {
   VoidCallback _sendKeyTap(String keyCode) {
     return _loggedTap(
       keyCode,
-      () {
-        controller.send(keyCode); // your original logic
+      () async {
+        await controller.send(keyCode);
       },
       action: 'send_key',
     );
@@ -73,8 +74,8 @@ class RemoteScreen extends GetView<RemoteController> {
                     const SizedBox(height: 8),
                     Obx(() {
                       final isConnected =
-                          controller.connectionController.currentDevice.value !=
-                              null;
+                          controller.connectionController.connectionState.value ==
+                              TvConnectionState.connected;
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -226,7 +227,8 @@ class RemoteScreen extends GetView<RemoteController> {
                   final isListening = voiceController.isListening.value;
                   return _roundedActionButton(
                     icon: isListening ? Icons.mic : Icons.mic_none,
-                    iconColor: isListening ? const Color(0xFFFFE082) : Colors.white,
+                    iconColor:
+                        isListening ? const Color(0xFFFFE082) : Colors.white,
                     onTap: () {
                       unawaited(
                         controller.handleButtonTap(
@@ -561,7 +563,7 @@ class _TvKeyboardSheet extends StatefulWidget {
 class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   final TextEditingController _text = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  String _prev = '';
+  TextEditingValue _previousValue = const TextEditingValue();
   Future<void> _sendQueue = Future<void>.value();
 
   @override
@@ -576,40 +578,139 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   }
 
   void _onTextChanged() {
-    final v = _text.text;
-    if (v.length > _prev.length) {
-      final added = v.substring(_prev.length);
-      for (final r in added.runes) {
-        final ch = String.fromCharCode(r);
-        if (mapCharToAndroidKeyCode(ch) == null) continue;
-        _enqueueTypedKey(ch);
-      }
-    } else if (v.length < _prev.length) {
-      final deletes = _prev.length - v.length;
-      for (var i = 0; i < deletes; i++) {
-        _enqueueTypedKey('KEY_BACKSPACE');
+    final current = _text.value;
+    final operation = _calculateTextOperation(
+      oldText: _previousValue.text,
+      newText: current.text,
+    );
+    _previousValue = current;
+    if (operation == null) return;
+    _enqueueTextOperation(operation);
+  }
+
+  _TextOperation? _calculateTextOperation({
+    required String oldText,
+    required String newText,
+  }) {
+    if (oldText == newText) return null;
+
+    var prefix = 0;
+    final minLength =
+        oldText.length < newText.length ? oldText.length : newText.length;
+    while (prefix < minLength &&
+        oldText.codeUnitAt(prefix) == newText.codeUnitAt(prefix)) {
+      prefix++;
+    }
+
+    var oldSuffix = oldText.length;
+    var newSuffix = newText.length;
+    while (oldSuffix > prefix &&
+        newSuffix > prefix &&
+        oldText.codeUnitAt(oldSuffix - 1) ==
+            newText.codeUnitAt(newSuffix - 1)) {
+      oldSuffix--;
+      newSuffix--;
+    }
+
+    return _TextOperation(
+      deletedText: oldText.substring(prefix, oldSuffix),
+      insertedText: newText.substring(prefix, newSuffix),
+    );
+  }
+
+  void _enqueueTextOperation(_TextOperation operation) {
+    _sendQueue = _sendQueue.then((_) => _sendTextOperation(operation));
+  }
+
+  Future<void> _sendTextOperation(_TextOperation operation) async {
+    final deletes = operation.deleteRunes;
+    for (var i = 0; i < deletes; i++) {
+      final ok = await widget.controller.sendKeyReliably(
+        'KEY_BACKSPACE',
+        openPickerOnFailure: false,
+      );
+      if (!ok) {
+        _showFailureHint('Connection issue while deleting text.');
+        return;
       }
     }
-    _prev = v;
+
+    final inserted = operation.insertedText;
+    // Always try full-text IME sync first. This is most reliable for alphabet input
+    // on TVs that ignore A-Z key inject events from remote protocol.
+    final fullText = _text.text;
+    if (fullText.isNotEmpty) {
+      final fullSyncSent = await widget.controller.sendTextReliably(
+        fullText,
+        openPickerOnFailure: false,
+      );
+      if (fullSyncSent) return;
+    }
+
+    if (inserted.isEmpty) return;
+
+    // Then try IME delta.
+    final imeSent = await widget.controller.sendTextReliably(
+      inserted,
+      openPickerOnFailure: false,
+    );
+    if (imeSent) return;
+
+    // Final fallback: send inserted chars one by one as key events.
+    await _sendPerKeyFallback(inserted);
   }
 
-  void _enqueueTypedKey(String key) {
-    _sendQueue = _sendQueue.then((_) => _sendTypedKey(key));
-  }
+  Future<bool> _sendPerKeyFallback(String inserted) async {
+    final unsupported = <String>[];
+    var sentAny = false;
+    var allSupportedSent = true;
+    for (final rune in inserted.runes) {
+      final key = mapTypedCharToRemoteKey(String.fromCharCode(rune));
+      if (key == null) {
+        unsupported.add(String.fromCharCode(rune));
+        allSupportedSent = false;
+        continue;
+      }
+      final ok = await widget.controller.sendKeyReliably(
+        key,
+        openPickerOnFailure: false,
+      );
+      if (!ok) {
+        _showFailureHint('Could not send typed text to TV.');
+        widget.controller.logButtonEvent(
+          buttonKey: key,
+          event: 'typing_send_failed',
+          action: 'keyboard_input_fallback',
+        );
+        return false;
+      }
+      sentAny = true;
+    }
 
-  Future<void> _sendTypedKey(String key) async {
-    // Do not trigger reconnect bottom sheet while typing; just send directly.
-    var ok = await widget.controller.connectionController.sendKey(key);
-    if (ok) return;
-    await Future<void>.delayed(const Duration(milliseconds: 25));
-    ok = await widget.controller.connectionController.sendKey(key);
-    if (!ok) {
+    if (unsupported.isNotEmpty) {
+      _showFailureHint(
+        'Some characters are not supported on this TV keyboard.',
+      );
       widget.controller.logButtonEvent(
-        buttonKey: key,
-        event: 'typing_send_failed',
+        buttonKey: unsupported.join(),
+        event: 'typing_unsupported_chars',
         action: 'keyboard_input',
       );
     }
+    return sentAny && allSupportedSent;
+  }
+
+  void _showFailureHint(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   @override
@@ -671,4 +772,16 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
       ),
     );
   }
+}
+
+class _TextOperation {
+  const _TextOperation({
+    required this.deletedText,
+    required this.insertedText,
+  });
+
+  final String deletedText;
+  final String insertedText;
+
+  int get deleteRunes => deletedText.runes.length;
 }
