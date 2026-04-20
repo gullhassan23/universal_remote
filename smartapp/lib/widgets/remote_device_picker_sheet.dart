@@ -32,6 +32,8 @@ class RemoteDevicePickerSheet extends StatefulWidget {
 }
 
 class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
+  String? _connectingDeviceId;
+
   @override
   void initState() {
     super.initState();
@@ -156,6 +158,8 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                           const Divider(height: 1, color: Colors.white24),
                       itemBuilder: (context, index) {
                         final device = devices[index];
+                        final isConnectingThisDevice =
+                            _connectingDeviceId == device.id;
                         final brandLabel = device.brand == TvBrand.androidTv
                             ? 'Android TV'
                             : device.brand.name;
@@ -177,14 +181,34 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                               fontSize: 13,
                             ),
                           ),
+                          trailing: isConnectingThisDevice
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white70,
+                                  ),
+                                )
+                              : null,
                           onTap: () {
+                            if (_connectingDeviceId != null) return;
+                            setState(() {
+                              _connectingDeviceId = device.id;
+                            });
                             unawaited(
                               widget.onHandleTap(
                                 buttonKey: 'DEVICE_${device.name}',
                                 action: 'select_device',
                                 onTap: () async {
-                                  Get.back();
-                                  await widget.onDeviceSelected(device);
+                                  try {
+                                    await widget.onDeviceSelected(device);
+                                  } finally {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _connectingDeviceId = null;
+                                    });
+                                  }
                                 },
                               ),
                             );

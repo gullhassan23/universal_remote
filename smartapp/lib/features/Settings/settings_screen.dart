@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
+import 'package:smartapp/features/premium/premium_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
@@ -85,11 +86,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Image.asset(
-                          Premium.premium,
-                          width: double.infinity,
-                          height: 175,
-                          fit: BoxFit.fill,
+                        child: GestureDetector(
+                          onTap: () => Get.to(() => const PremiumScreen()),
+                          child: Image.asset(
+                            Premium.premium,
+                            width: double.infinity,
+                            height: 175,
+                            fit: BoxFit.fill,
+                          ),
                         ),
                       ),
                       const _SectionTitle(title: 'REMOTE'),
@@ -132,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _SettingsTile(
                         icon: SettingsIcon.restore,
                         title: 'Restore purchases',
-                        onTap: () {},
+                        onTap: () => Get.to(() => const PremiumScreen()),
                       ),
                       _SettingsTile(
                         icon: SettingsIcon.privacy,
@@ -194,7 +198,7 @@ class _SettingsTile extends StatelessWidget {
     return InkWell(
       onTap: HapticAction.wrap(onTap),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -202,7 +206,7 @@ class _SettingsTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Image.asset(icon, width: 27, height: 27),
+            Image.asset(icon, width: 25, height: 25),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

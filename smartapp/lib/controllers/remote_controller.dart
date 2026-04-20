@@ -119,6 +119,14 @@ class RemoteController extends GetxController {
     required bool openPickerOnFailure,
     required Duration retryDelay,
   }) async {
+    if (_connectionController.connectionState.value !=
+            TvConnectionState.connected &&
+        openPickerOnFailure) {
+      _pendingKey = payload;
+      _openPickerIfNeeded();
+      return false;
+    }
+
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {
       var ok = await _connectionController.sendKey(payload);

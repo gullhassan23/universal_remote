@@ -636,28 +636,28 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
     }
 
     final inserted = operation.insertedText;
-    // Always try full-text IME sync first. This is most reliable for alphabet input
-    // on TVs that ignore A-Z key inject events from remote protocol.
-    final fullText = _text.text;
-    if (fullText.isNotEmpty) {
-      final fullSyncSent = await widget.controller.sendTextReliably(
-        fullText,
-        openPickerOnFailure: false,
-      );
-      if (fullSyncSent) return;
-    }
-
     if (inserted.isEmpty) return;
 
-    // Then try IME delta.
+    // Prefer per-key events first because many TVs accept IME payloads but do
+    // not actually commit the text in focused fields.
+    final perKeySent = await _sendPerKeyFallback(inserted);
+    if (perKeySent) return;
+
+    // Fallback to IME delta for characters not available in key mapping.
     final imeSent = await widget.controller.sendTextReliably(
       inserted,
       openPickerOnFailure: false,
     );
     if (imeSent) return;
 
-    // Final fallback: send inserted chars one by one as key events.
-    await _sendPerKeyFallback(inserted);
+    // Last attempt: try syncing full field value for picky TV keyboards.
+    final fullText = _text.text;
+    if (fullText.isNotEmpty) {
+      await widget.controller.sendTextReliably(
+        fullText,
+        openPickerOnFailure: false,
+      );
+    }
   }
 
   Future<bool> _sendPerKeyFallback(String inserted) async {

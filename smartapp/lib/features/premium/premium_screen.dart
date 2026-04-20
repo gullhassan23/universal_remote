@@ -1,0 +1,371 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/models/subscription_product.dart';
+import 'package:smartapp/services/subscription_iap_service.dart';
+import 'package:smartapp/utils/constant.dart';
+
+enum _PremiumPlanType { monthly, weekly, yearly }
+
+class PremiumScreen extends StatefulWidget {
+  const PremiumScreen({super.key});
+
+  @override
+  State<PremiumScreen> createState() => _PremiumScreenState();
+}
+
+class _PremiumScreenState extends State<PremiumScreen> {
+  _PremiumPlanType _selectedPlan = _PremiumPlanType.weekly;
+
+  SubscriptionProduct _resolveSelectedProduct(
+    List<SubscriptionProduct> products,
+  ) {
+    SubscriptionProduct? matchBy(_PremiumPlanType plan) {
+      return products.firstWhereOrNull(
+        (p) => switch (plan) {
+          _PremiumPlanType.weekly =>
+            p.title.toLowerCase().contains('week') ||
+                p.id.toLowerCase().contains('week'),
+          _PremiumPlanType.monthly =>
+            p.title.toLowerCase().contains('month') ||
+                p.id.toLowerCase().contains('month'),
+          _PremiumPlanType.yearly =>
+            p.title.toLowerCase().contains('year') ||
+                p.id.toLowerCase().contains('year'),
+        },
+      );
+    }
+
+    return matchBy(_selectedPlan) ??
+        matchBy(_PremiumPlanType.weekly) ??
+        matchBy(_PremiumPlanType.monthly) ??
+        matchBy(_PremiumPlanType.yearly) ??
+        products.first;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final iapService = Get.find<SubscriptionIAPService>();
+    final premiumController = Get.find<PremiumController>();
+
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF006B7D), Color(0xFF003C90)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Image.asset(
+                  ImageRes.kGetStartedBackgroundAsset2,
+                  fit: BoxFit.cover,
+                  opacity: const AlwaysStoppedAnimation(0.28),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                      child: Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Image.asset(
+                              Premium.premium,
+                              width: double.infinity,
+                              height: 120,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          const Text(
+                            'Control your TV\nfrom your phone',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 34, // FIXED
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          const _FeatureItem(
+                            icon: Icons.control_camera,
+                            text: 'Full Remote Control',
+                          ),
+                          const SizedBox(height: 14),
+                          const _FeatureItem(
+                            icon: Icons.touch_app_outlined,
+                            text: 'Responsive Touchpad',
+                          ),
+                          const SizedBox(height: 14),
+                          const _FeatureItem(
+                            icon: Icons.gamepad_outlined,
+                            text: 'Hot Keys for Channels',
+                          ),
+                          const SizedBox(height: 14),
+                          const _FeatureItem(
+                            icon: Icons.block,
+                            text: 'No Ads',
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _PlanCard(
+                                  badge: 'POPULAR',
+                                  title: 'Monthly',
+                                  subtitle: 'Rs 725/week',
+                                  priceLine: 'Rs 2,900.00',
+                                  durationLine: 'per month',
+                                  highlighted:
+                                      _selectedPlan == _PremiumPlanType.monthly,
+                                  onTap: () {
+                                    setState(
+                                      () => _selectedPlan =
+                                          _PremiumPlanType.monthly,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _PlanCard(
+                                  badge: '3 DAYS\nFREE TRIAL',
+                                  title: 'Weekly',
+                                  subtitle: 'Rs 1,900.00/\nweek',
+                                  priceLine: 'Rs 1,900.00',
+                                  durationLine: 'per week',
+                                  highlighted:
+                                      _selectedPlan == _PremiumPlanType.weekly,
+                                  onTap: () {
+                                    setState(
+                                      () =>
+                                          _selectedPlan = _PremiumPlanType.weekly,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _PlanCard(
+                                  badge: 'BEST DEAL',
+                                  title: 'Yearly',
+                                  subtitle: 'Rs 151.92/week',
+                                  priceLine: 'Rs 7,900.00',
+                                  durationLine: 'per year',
+                                  highlighted:
+                                      _selectedPlan == _PremiumPlanType.yearly,
+                                  onTap: () {
+                                    setState(
+                                      () =>
+                                          _selectedPlan = _PremiumPlanType.yearly,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 6, 20, 10 + bottomInset),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: const Color(0xFF4CB4FF),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final products = iapService.products;
+                          if (products.isEmpty) {
+                            Get.snackbar(
+                              'Premium',
+                              'No plans available right now.',
+                              snackPosition: SnackPosition.BOTTOM,
+                            );
+                            return;
+                          }
+                          final product = _resolveSelectedProduct(products);
+                          await iapService.buy(product.productDetails);
+                          if (premiumController.isPremium.value) {
+                            Get.back<void>();
+                          }
+                        },
+                        child: const Text(
+                          'Start my free trail',
+                          style: TextStyle(
+                            fontSize: 20, // FIXED
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  const _FeatureItem({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40), // center alignment
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.9), size: 22), // smaller
+          const SizedBox(width: 14),
+          Text(
+            text,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.95),
+              fontWeight: FontWeight.w500,
+              fontSize: 18, // FIXED
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.badge,
+    required this.title,
+    required this.subtitle,
+    required this.priceLine,
+    required this.durationLine,
+    required this.highlighted,
+    required this.onTap,
+  });
+
+  final String badge;
+  final String title;
+  final String subtitle;
+  final String priceLine;
+  final String durationLine;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          height: 185, // reduced
+          decoration: BoxDecoration(
+            color: highlighted ? const Color(0xFF57BFFF) : const Color(0xFF3A3F4A),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: highlighted ? Colors.white : Colors.white24,
+              width: highlighted ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+
+              // Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: highlighted ? const Color(0xFFD6F1FF) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  badge,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: highlighted ? const Color(0xFF1E88E5) : Colors.grey[700],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18, // FIXED
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 11,
+                ),
+              ),
+
+              const Spacer(),
+              const Divider(color: Colors.white24, height: 1),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  children: [
+                    Text(
+                      priceLine,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      durationLine,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
