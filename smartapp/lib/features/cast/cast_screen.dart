@@ -6,6 +6,9 @@ import 'package:get/get.dart';
 import 'package:smartapp/controllers/media_cast_controller.dart';
 import 'package:smartapp/features/cast/cast_session_banner.dart';
 import 'package:smartapp/utils/constant.dart';
+import 'package:smartapp/widgets/premium_aware_banner_ad.dart';
+import 'package:smartapp/widgets/top_banner_ad.dart';
+import 'package:smartapp/widgets/premium_status_banner.dart';
 
 class CastScreen extends StatefulWidget {
   const CastScreen({super.key});
@@ -60,15 +63,12 @@ class _CastScreenState extends State<CastScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Image.asset(
-                        Premium.premium,
-                        width: double.infinity,
-                        height: 175,
-                        fit: BoxFit.fill,
-                      ),
+                    const Center(
+                      child: TopBannerAd(),
                     ),
+                    const SizedBox(height: 12),
+                    const PremiumStatusBanner(),
+                    const SizedBox(height: 8),
                     Obx(
                       () => Row(
                         children: [
@@ -258,6 +258,10 @@ class _CastScreenState extends State<CastScreen> {
                           ],
                         );
                       }),
+                    ),
+                    const SizedBox(height: 12),
+                    const Center(
+                      child: PremiumAwareBannerAd(),
                     ),
                   ],
                 ),

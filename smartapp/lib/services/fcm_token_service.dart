@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:get/get.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/utils/userId.dart';
 
 /// Matches [AndroidManifest] `com.google.firebase.messaging.default_notification_channel_id`.
@@ -45,7 +47,7 @@ Future<void> updateFcmTokenInFirestore() async {
     }
     debugPrint('[FCM] FCM token (app start): $token');
     await FirebaseFirestore.instance.collection('Users').doc(userId).set(
-      {'fcmToken': token},
+      _buildUserMetadataPayload(userId: userId, fcmToken: token),
       SetOptions(merge: true),
     );
     debugPrint('[FCM] Token saved for user $userId');
@@ -169,7 +171,7 @@ Future<void> initializeFcmAndUploadToken() async {
         if (newToken.isEmpty) return;
         final userId = await getOrCreateUserId();
         await FirebaseFirestore.instance.collection('Users').doc(userId).set(
-          {'fcmToken': newToken},
+          _buildUserMetadataPayload(userId: userId, fcmToken: newToken),
           SetOptions(merge: true),
         );
         debugPrint('[FCM] Token refreshed and saved for user $userId');
@@ -180,4 +182,19 @@ Future<void> initializeFcmAndUploadToken() async {
   } catch (e) {
     debugPrint('[FCM] initializeFcmAndUploadToken error: $e');
   }
+}
+
+Map<String, dynamic> _buildUserMetadataPayload({
+  required String userId,
+  required String fcmToken,
+}) {
+  final bool isPremium = Get.isRegistered<PremiumController>()
+      ? Get.find<PremiumController>().isPremium.value
+      : false;
+  return <String, dynamic>{
+    'deviceId': userId,
+    'fcmToken': fcmToken,
+    'isPremium': isPremium,
+    'updatedAt': FieldValue.serverTimestamp(),
+  };
 }

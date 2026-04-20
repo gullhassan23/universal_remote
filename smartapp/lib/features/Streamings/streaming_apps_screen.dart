@@ -7,6 +7,8 @@ import '../../features/device_discovery/device_discovery_controller.dart';
 import '../../controllers/streaming_controller.dart';
 import '../../models/tv_device.dart';
 import '../../models/streaming_app_item.dart';
+import '../../widgets/premium_status_banner.dart';
+import '../../widgets/top_banner_ad.dart';
 import '../../widgets/streaming_app_tile.dart';
 
 class StreamingAppsScreen extends StatefulWidget {
@@ -88,15 +90,12 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Image.asset(
-                        Premium.premium,
-                        width: double.infinity,
-                        height: 175,
-                        fit: BoxFit.fill,
-                      ),
+                    const Center(
+                      child: TopBannerAd(),
                     ),
+                    const SizedBox(height: 12),
+                    const PremiumStatusBanner(),
+                    const SizedBox(height: 8),
                     const Text(
                       'Apps',
                       style: TextStyle(

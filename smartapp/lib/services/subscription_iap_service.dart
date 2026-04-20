@@ -305,13 +305,18 @@ class SubscriptionIAPService extends GetxService {
       _log('PremiumController not registered. Skipping premium unlock.');
       return;
     }
+    final String? fcmToken = await getFcmTokenWithRetry();
     await Get.find<PremiumController>().setPremium(
       enabled: true,
       productId: productId,
+      autoRenew: _extractAutoRenew(verification),
+      expiryDate: _parseExpiryDate(verification.expiryTime),
+      fcmToken: fcmToken,
     );
     await _persistPremiumSubscriptionMetadata(
       productId: productId,
       verification: verification,
+      fcmToken: fcmToken,
     );
 
     if (_premiumActivationHook != null) {
@@ -322,13 +327,19 @@ class SubscriptionIAPService extends GetxService {
   Future<void> _persistPremiumSubscriptionMetadata({
     required String productId,
     required SubscriptionVerificationResult verification,
+    String? fcmToken,
   }) async {
     try {
       final String userId = await getOrCreateUserId();
-      final String? fcmToken = await getFcmTokenWithRetry();
       final String platform = _platformLabel();
+      final DateTime? expiryDate = _parseExpiryDate(verification.expiryTime);
       final Map<String, dynamic> payload = <String, dynamic>{
+        'deviceId': userId,
         'isPremium': true,
+        'autoRenew': _extractAutoRenew(verification),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'expiryDate':
+            expiryDate == null ? null : Timestamp.fromDate(expiryDate.toUtc()),
         'lastSubscribeDate': FieldValue.serverTimestamp(),
         'premiumProductId': productId,
         'iap': <String, dynamic>{
@@ -397,6 +408,24 @@ class SubscriptionIAPService extends GetxService {
 
   String _buildPurchaseKey(PurchaseDetails purchase) {
     return '${purchase.productID}|${purchase.purchaseID ?? ''}|${purchase.transactionDate ?? ''}';
+  }
+
+  bool _extractAutoRenew(SubscriptionVerificationResult verification) {
+    final raw = verification.raw;
+    if (raw == null) return false;
+    final dynamic direct = raw['autoRenew'] ?? raw['auto_renew'];
+    if (direct is bool) return direct;
+
+    final dynamic nested = raw['subscription'] is Map<String, dynamic>
+        ? (raw['subscription'] as Map<String, dynamic>)['autoRenew']
+        : null;
+    if (nested is bool) return nested;
+    return false;
+  }
+
+  DateTime? _parseExpiryDate(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value);
   }
 
   void _log(String message) {

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:smartapp/controllers/ad_controller.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/sleep_timer_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
@@ -27,6 +29,7 @@ import 'controllers/tv_connection_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await MobileAds.instance.initialize();
   try {
     await dotenv.load(fileName: '.env');
   } catch (error) {
@@ -50,6 +53,12 @@ void _registerDependencies() {
   final tvService = UnifiedTvService();
   Get.put<ITvService>(tvService, permanent: true);
   Get.put(PremiumController(), permanent: true);
+  Get.put(
+    AdController(
+      adUnitId: _resolveBannerAdUnitId(),
+    ),
+    permanent: true,
+  );
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
   Get.put(VibrationController(), permanent: true);
   // Controllers
@@ -100,4 +109,14 @@ void _registerDependencies() {
       // Adapty sync hook can be plugged in here when Adapty is integrated.
     },
   );
+}
+
+String _resolveBannerAdUnitId() {
+  if (!kIsWeb && Platform.isAndroid) {
+    return 'ca-app-pub-3940256099942544/6300978111';
+  }
+  if (!kIsWeb && Platform.isIOS) {
+    return 'ca-app-pub-3940256099942544/2934735716';
+  }
+  return '';
 }

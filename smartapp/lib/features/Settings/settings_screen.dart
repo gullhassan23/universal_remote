@@ -10,6 +10,8 @@ import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/haptic_action.dart';
+import 'package:smartapp/widgets/top_banner_ad.dart';
+import 'package:smartapp/widgets/premium_status_banner.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -75,24 +77,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          onTap: () => Get.to(() => const PremiumScreen()),
-                          child: Image.asset(
-                            Premium.premium,
-                            width: double.infinity,
-                            height: 175,
-                            fit: BoxFit.fill,
+              child: Column(
+                children: [
+                  const Center(
+                    child: TopBannerAd(),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const PremiumStatusBanner(),
+                            const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => Get.to(() => const PremiumScreen()),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Manage Premium',
+                            style: TextStyle(
+                              color: Colors.white,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
@@ -143,16 +154,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: 'Privacy policy',
                         onTap: () {},
                       ),
-                      _SettingsTile(
-                        icon: SettingsIcon.term,
-                        title: 'How to use app',
-                        onTap: () {
-                          Get.to(() => const InstructionOnboardingScreen());
-                        },
+                            _SettingsTile(
+                              icon: SettingsIcon.term,
+                              title: 'How to use app',
+                              onTap: () {
+                                Get.to(() => const InstructionOnboardingScreen());
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ],
