@@ -53,12 +53,6 @@ void _registerDependencies() {
   final tvService = UnifiedTvService();
   Get.put<ITvService>(tvService, permanent: true);
   Get.put(PremiumController(), permanent: true);
-  Get.put(
-    AdController(
-      adUnitId: _resolveBannerAdUnitId(),
-    ),
-    permanent: true,
-  );
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
   Get.put(VibrationController(), permanent: true);
   // Controllers
@@ -70,6 +64,13 @@ void _registerDependencies() {
     DeviceDiscoveryController(
       tvService: tvService,
       connectionController: tvConnectionController,
+    ),
+    permanent: true,
+  );
+  Get.put(
+    AdController(
+      adUnitId: _resolveBannerAdUnitId(),
+      interstitialAdUnitId: _resolveInterstitialAdUnitId(),
     ),
     permanent: true,
   );
@@ -117,6 +118,16 @@ String _resolveBannerAdUnitId() {
   }
   if (!kIsWeb && Platform.isIOS) {
     return 'ca-app-pub-3940256099942544/2934735716';
+  }
+  return '';
+}
+
+String _resolveInterstitialAdUnitId() {
+  if (!kIsWeb && Platform.isAndroid) {
+    return 'ca-app-pub-3940256099942544/1033173712';
+  }
+  if (!kIsWeb && Platform.isIOS) {
+    return 'ca-app-pub-3940256099942544/4411468910';
   }
   return '';
 }

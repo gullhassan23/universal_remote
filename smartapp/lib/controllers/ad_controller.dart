@@ -5,48 +5,78 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/controllers/tv_connection_controller.dart';
+import 'package:smartapp/services/tv_service_interface.dart';
 
 class AdController extends GetxController {
   AdController({
     required this.adUnitId,
+    required this.interstitialAdUnitId,
     this.adSize = AdSize.banner,
     this.adRequest = const AdRequest(),
   });
 
   final String adUnitId;
+  final String interstitialAdUnitId;
   final AdSize adSize;
   final AdRequest adRequest;
   static const Duration _retryDelay = Duration(seconds: 30);
+  static const Duration _interstitialInterval = Duration(minutes: 2);
   static const String _logTag = '[ADS]';
 
   final RxBool isAdLoaded = false.obs;
   final RxBool isAdLoading = false.obs;
   final Rxn<BannerAd> bannerAd = Rxn<BannerAd>();
+  final RxBool isInterstitialReady = false.obs;
 
   late final PremiumController _premiumController;
+  late final TvConnectionController _connectionController;
   Worker? _premiumWorker;
+  Worker? _connectionWorker;
   bool _isLoading = false;
+  bool _isInterstitialLoading = false;
+  bool _isInterstitialShowing = false;
   bool _isControllerClosed = false;
+  bool _wasConnected = false;
   Timer? _retryTimer;
+  Timer? _interstitialTimer;
+  InterstitialAd? _interstitialAd;
 
   @override
   void onInit() {
     super.onInit();
     _premiumController = Get.find<PremiumController>();
+    _connectionController = Get.find<TvConnectionController>();
     _premiumWorker = ever<bool>(
       _premiumController.isPremium,
       (_) => syncWithPremiumStatus(),
     );
+    _connectionWorker = ever<TvConnectionState>(
+      _connectionController.connectionState,
+      _handleConnectionStateChanged,
+    );
+    _wasConnected =
+        _connectionController.connectionState.value == TvConnectionState.connected;
     syncWithPremiumStatus();
+    _handleConnectionStateChanged(_connectionController.connectionState.value);
   }
 
   void syncWithPremiumStatus() {
     if (_premiumController.isPremium.value) {
-      _log('Premium user detected; disposing banner and canceling retries.');
+      _log(
+        'Premium user detected; disposing ads and canceling retries.',
+      );
       disposeBannerAd();
+      _stopInterstitialTimer();
+      _disposeInterstitial();
       return;
     }
     unawaited(loadBannerAd());
+    unawaited(loadInterstitialAd());
+    if (_connectionController.connectionState.value ==
+        TvConnectionState.connected) {
+      _startInterstitialTimer();
+    }
   }
 
   Future<void> loadBannerAd() async {
@@ -140,11 +170,145 @@ class AdController extends GetxController {
     _cancelRetry();
   }
 
+  Future<void> loadInterstitialAd() async {
+    if (_isControllerClosed || _premiumController.isPremium.value) {
+      return;
+    }
+    if (interstitialAdUnitId.isEmpty ||
+        _isInterstitialLoading ||
+        _interstitialAd != null) {
+      return;
+    }
+
+    _isInterstitialLoading = true;
+    InterstitialAd.load(
+      adUnitId: interstitialAdUnitId,
+      request: adRequest,
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (InterstitialAd ad) {
+          _isInterstitialLoading = false;
+          if (_isControllerClosed || _premiumController.isPremium.value) {
+            ad.dispose();
+            return;
+          }
+          _interstitialAd?.dispose();
+          _interstitialAd = ad;
+          isInterstitialReady.value = true;
+          _log('Interstitial loaded successfully.');
+        },
+        onAdFailedToLoad: (LoadAdError error) {
+          _isInterstitialLoading = false;
+          isInterstitialReady.value = false;
+          _log(
+            'Interstitial failed to load: code=${error.code}, domain=${error.domain}, message=${error.message}',
+          );
+        },
+      ),
+    );
+  }
+
+  void showConnectionInterstitial({VoidCallback? onCompleted}) {
+    if (_premiumController.isPremium.value || interstitialAdUnitId.isEmpty) {
+      onCompleted?.call();
+      return;
+    }
+    if (_isInterstitialShowing) {
+      return;
+    }
+
+    final ad = _interstitialAd;
+    if (ad == null) {
+      unawaited(loadInterstitialAd());
+      onCompleted?.call();
+      return;
+    }
+
+    _isInterstitialShowing = true;
+    _interstitialAd = null;
+    isInterstitialReady.value = false;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (InterstitialAd shownAd) {
+        shownAd.dispose();
+        _isInterstitialShowing = false;
+        onCompleted?.call();
+        unawaited(loadInterstitialAd());
+      },
+      onAdFailedToShowFullScreenContent: (
+        InterstitialAd shownAd,
+        AdError error,
+      ) {
+        shownAd.dispose();
+        _log('Interstitial failed to show: ${error.message}');
+        _isInterstitialShowing = false;
+        onCompleted?.call();
+        unawaited(loadInterstitialAd());
+      },
+    );
+    ad.show();
+  }
+
+  void _handleConnectionStateChanged(TvConnectionState state) {
+    final bool isConnected = state == TvConnectionState.connected;
+    if (_premiumController.isPremium.value || interstitialAdUnitId.isEmpty) {
+      _wasConnected = isConnected;
+      _stopInterstitialTimer();
+      return;
+    }
+    if (!isConnected) {
+      _stopInterstitialTimer();
+      _wasConnected = false;
+      return;
+    }
+    if (!_wasConnected) {
+      showConnectionInterstitial();
+    }
+    _startInterstitialTimer();
+    _wasConnected = true;
+  }
+
+  void _startInterstitialTimer() {
+    if (_interstitialTimer?.isActive ?? false) {
+      return;
+    }
+    _interstitialTimer = Timer.periodic(_interstitialInterval, (_) {
+      if (_isControllerClosed ||
+          _premiumController.isPremium.value ||
+          _connectionController.connectionState.value !=
+              TvConnectionState.connected) {
+        _stopInterstitialTimer();
+        return;
+      }
+      showConnectionInterstitial();
+    });
+    _log(
+      'Started interstitial timer for every ${_interstitialInterval.inMinutes} minutes.',
+    );
+  }
+
+  void _stopInterstitialTimer() {
+    if (_interstitialTimer?.isActive ?? false) {
+      _log('Stopping interstitial timer.');
+    }
+    _interstitialTimer?.cancel();
+    _interstitialTimer = null;
+  }
+
+  void _disposeInterstitial() {
+    _interstitialAd?.dispose();
+    _interstitialAd = null;
+    _isInterstitialLoading = false;
+    _isInterstitialShowing = false;
+    isInterstitialReady.value = false;
+  }
+
   @override
   void onClose() {
     _isControllerClosed = true;
     _premiumWorker?.dispose();
+    _connectionWorker?.dispose();
     disposeBannerAd();
+    _stopInterstitialTimer();
+    _disposeInterstitial();
     super.onClose();
   }
 

@@ -19,7 +19,6 @@ class DeviceDiscoveryController extends GetxController {
 
   final ITvService _tvService;
   final TvConnectionController _connectionController;
-
   /// The brand the user selected on the home screen, used to filter discovery.
   TvBrand? _preferredBrand;
 
