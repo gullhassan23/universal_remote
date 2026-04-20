@@ -25,6 +25,7 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
           }
 
           return AlertDialog(
+            scrollable: true,
             title: const Text('Android TV pairing'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -43,6 +44,7 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
                     hintText: 'PIN',
                     border: const OutlineInputBorder(),
                     errorText: errorText,
+                    counterText: '',
                   ),
                   onChanged: (_) {
                     if (errorText != null) {
