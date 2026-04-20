@@ -60,7 +60,7 @@ class RemoteScreen extends GetView<RemoteController> {
             Positioned.fill(
               child: IgnorePointer(
                 child: Image.asset(
-                  ImageRes.kGetStartedBackgroundAsset,
+                  ImageRes.kGetStartedBackgroundAsset2,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -73,9 +73,9 @@ class RemoteScreen extends GetView<RemoteController> {
                   children: [
                     const SizedBox(height: 8),
                     Obx(() {
-                      final isConnected =
-                          controller.connectionController.connectionState.value ==
-                              TvConnectionState.connected;
+                      final isConnected = controller
+                              .connectionController.connectionState.value ==
+                          TvConnectionState.connected;
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -112,7 +112,7 @@ class RemoteScreen extends GetView<RemoteController> {
                                 ),
                               ),
                               icon: const Icon(Icons.link_off, size: 16),
-                              label: const Text('Disconnect'),
+                              label: Text('Disconnect'),
                             ),
                         ],
                       );
@@ -168,7 +168,7 @@ class RemoteScreen extends GetView<RemoteController> {
         decoration: BoxDecoration(
           color: const Color.fromARGB(33, 11, 27, 37),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
+          border: Border.all(color: Colors.white, width: 0.3),
         ),
         child: Icon(icon, color: iconColor, size: 30),
       ),
@@ -189,7 +189,7 @@ class RemoteScreen extends GetView<RemoteController> {
             decoration: BoxDecoration(
               color: const Color.fromARGB(33, 11, 27, 37),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
+              border: Border.all(color: Colors.white, width: 0.3),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -311,7 +311,7 @@ class RemoteScreen extends GetView<RemoteController> {
       decoration: BoxDecoration(
         color: const Color(0x224A9AD1),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
+        border: Border.all(color: Colors.white, width: 0.3),
       ),
       child: Obx(
         () => Row(
@@ -360,7 +360,7 @@ class RemoteScreen extends GetView<RemoteController> {
                   text,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 32,
+                    fontSize: 25,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -421,7 +421,7 @@ class RemoteScreen extends GetView<RemoteController> {
         decoration: BoxDecoration(
           color: const Color(0x2A5AA9D9),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
+          border: Border.all(color: const Color(0x8A1A2E4A), width: 0.3),
         ),
         child: Text(
           label,
@@ -460,7 +460,7 @@ class RemoteScreen extends GetView<RemoteController> {
             height: 226,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
+              border: Border.all(color: const Color(0x8A1A2E4A), width: 0.3),
             ),
           ),
           Positioned(
@@ -501,7 +501,7 @@ class RemoteScreen extends GetView<RemoteController> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFF3777B7),
-              border: Border.all(color: const Color(0x8A1A2E4A), width: 1.4),
+              border: Border.all(color: const Color(0x8A1A2E4A), width: 0.3),
             ),
             child: TextButton(
               onPressed: _sendKeyTap('KEY_ENTER'),

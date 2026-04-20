@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/utils/constant.dart';
 
 import '../../controllers/tv_connection_controller.dart';
 import '../../features/device_discovery/device_discovery_controller.dart';
@@ -71,68 +72,82 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
             ],
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Streaming Apps',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                  ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Image.asset(
+                  ImageRes.kGetStartedBackgroundAsset2,
+                  fit: BoxFit.cover,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Launch installed apps directly on your connected Android TV.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Obx(
-                    () {
-                      final isConnected =
-                          _connectionController.currentDevice.value != null;
-                      if (isConnected) {
-                        final launchingAppId =
-                            _streamingController.launchingAppId.value;
-                        return ListView.separated(
-                          itemCount: StreamingController.apps.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final app = StreamingController.apps[index];
-                            return StreamingAppTile(
-                              app: app,
-                              isBusy: launchingAppId == app.id,
-                              onTap: () => _onAppTap(context, app),
-                            );
-                          },
-                        );
-                      }
-
-                      if (!_requestedDiscovery &&
-                          !_discoveryController.isLoading.value &&
-                          _discoveryController.devices.isEmpty) {
-                        _requestedDiscovery = true;
-                        Future<void>.microtask(
-                          _discoveryController.discoverDevices,
-                        );
-                      }
-
-                      return _buildDeviceSelection(context);
-                    },
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Image.asset(
+                        Premium.premium,
+                        width: double.infinity,
+                        height: 175,
+                        fit: BoxFit.fill,
+                      ),
+                    ),
+                    const Text(
+                      'Apps',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        height: 0.95,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: Obx(
+                        () {
+                          final isConnected =
+                              _connectionController.currentDevice.value != null;
+                          if (isConnected) {
+                            final launchingAppId =
+                                _streamingController.launchingAppId.value;
+                            return ListView.separated(
+                              itemCount: StreamingController.apps.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final app = StreamingController.apps[index];
+                                return StreamingAppTile(
+                                  app: app,
+                                  isBusy: launchingAppId == app.id,
+                                  onTap: () => _onAppTap(context, app),
+                                );
+                              },
+                            );
+                          }
+
+                          if (!_requestedDiscovery &&
+                              !_discoveryController.isLoading.value &&
+                              _discoveryController.devices.isEmpty) {
+                            _requestedDiscovery = true;
+                            Future<void>.microtask(
+                              _discoveryController.discoverDevices,
+                            );
+                          }
+
+                          return _buildDeviceSelection(context);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

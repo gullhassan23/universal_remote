@@ -58,4 +58,7 @@ flutter:
     - assets/images/
     - assets/images/premium/
     - assets/images/onboarding/
+    - assets/images/settings/
+    - assets/images/bottomnav/
+
     - .env

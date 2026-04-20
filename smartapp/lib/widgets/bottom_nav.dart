@@ -3,6 +3,7 @@ import 'package:smartapp/features/Streamings/streaming_apps_screen.dart';
 import 'package:smartapp/features/Settings/settings_screen.dart';
 import 'package:smartapp/features/cast/cast_screen.dart';
 import 'package:smartapp/features/remote/remote_screen.dart';
+import 'package:smartapp/utils/constant.dart';
 
 class BottomNav extends StatefulWidget {
   const BottomNav({super.key});
@@ -29,7 +30,7 @@ class _BottomNavState extends State<BottomNav> {
         children: _tabs,
       ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF005AFF),
+        backgroundColor: const Color(0xFF242b34),
         indicatorColor: const Color.fromARGB(33, 11, 27, 37),
         labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
           (states) => TextStyle(
@@ -44,28 +45,39 @@ class _BottomNavState extends State<BottomNav> {
             _selectedIndex = index;
           });
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.gamepad, color: Colors.white70),
-            selectedIcon: Icon(Icons.gamepad, color: Colors.white),
+            icon: _navIcon(NavIcon.remoteIcon),
+            selectedIcon: _navIcon(NavIcon.remoteIcon, isSelected: true),
             label: 'Remote',
           ),
           NavigationDestination(
-            icon: Icon(Icons.ondemand_video_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.ondemand_video, color: Colors.white),
+            icon: _navIcon(NavIcon.appsIcon),
+            selectedIcon: _navIcon(NavIcon.appsIcon, isSelected: true),
             label: 'Apps',
           ),
           NavigationDestination(
-            icon: Icon(Icons.cast, color: Colors.white70),
-            selectedIcon: Icon(Icons.cast, color: Colors.white),
+            icon: _navIcon(NavIcon.castIcon),
+            selectedIcon: _navIcon(NavIcon.castIcon, isSelected: true),
             label: 'Cast',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.settings, color: Colors.white),
+            icon: _navIcon(NavIcon.settingsIcon),
+            selectedIcon: _navIcon(NavIcon.settingsIcon, isSelected: true),
             label: 'Settings',
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _navIcon(String assetPath, {bool isSelected = false}) {
+    return Opacity(
+      opacity: isSelected ? 1 : 0.7,
+      child: Image.asset(
+        assetPath,
+        width: isSelected ? 30 : 25,
+        height: isSelected ? 30 : 25,
       ),
     );
   }

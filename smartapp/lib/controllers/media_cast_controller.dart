@@ -63,6 +63,10 @@ class MediaCastController extends GetxController {
   }
 
   bool get hasMedia => mediaQueue.isNotEmpty;
+  bool get isCastingActive =>
+      hasMedia &&
+      (status.value == MediaCastStatus.casting ||
+          status.value == MediaCastStatus.success);
   bool get hasPersistentSession =>
       _selectedDevice != null &&
       GoogleCastSessionManager.instance.connectionState ==
@@ -202,6 +206,14 @@ class MediaCastController extends GetxController {
     _selectedDevice = null;
     connectedDeviceName.value = '';
     _resetToIdle();
+  }
+
+  Future<void> stopCastingAndReset() async {
+    await disconnectSession();
+    mediaQueue.clear();
+    currentMediaIndex.value = 0;
+    _activeMedia = null;
+    mediaVersion.value++;
   }
 
   Future<bool> ensureConnectedForCasting() async {

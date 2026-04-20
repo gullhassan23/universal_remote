@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
+import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
+import 'package:smartapp/models/tv_device.dart';
+import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/haptic_action.dart';
+import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,6 +21,36 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   // bool _isHapticEnabled = true;
   final vibrationController = Get.find<VibrationController>();
+  final _discoveryController = Get.find<DeviceDiscoveryController>();
+
+  Future<void> _openDeviceDiscoverySheet() async {
+    await Get.bottomSheet<void>(
+      RemoteDevicePickerSheet(
+        discoveryController: _discoveryController,
+        onDeviceSelected: _onDeviceSelected,
+        onDismiss: () {},
+        onHandleTap: ({
+          required String buttonKey,
+          required FutureOr<void> Function() onTap,
+          String action = 'tap',
+        }) async {
+          await onTap();
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2A2A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+    );
+  }
+
+  Future<void> _onDeviceSelected(TvDevice device) async {
+    await _discoveryController.connectTo(
+      device,
+      navigateToRemote: false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,85 +60,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00B0B6),
-              Color(0xFF005AFF),
-            ],
+            colors: [Color(0xFF00B0B6), Color(0xFF005AFF)],
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 26),
-                const _SectionTitle(title: 'REMOTE'),
-                const SizedBox(height: 12),
-                _SettingsTile(
-                  icon: Icons.devices_outlined,
-                  title: 'Switch device',
-                  onTap: () {},
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Image.asset(
+                  ImageRes.kGetStartedBackgroundAsset2,
+                  fit: BoxFit.cover,
                 ),
-                _SettingsTile(
-                  icon: Icons.settings_remote_outlined,
-                  title: 'Remote style',
-                  onTap: () {},
-                ),
-                // _SwitchSettingsTile(
-                //   icon: Icons.vibration_outlined,
-                //   title: 'Haptic feedback',
-                //   subtitle: 'Enables haptics on remote',
-                //   value: _isHapticEnabled,
-                //   onChanged: (value) {
-                //     setState(() {
-                //       _isHapticEnabled = value;
-                //     });
-                //   },
-                // ),
-                Obx(() => _SwitchSettingsTile(
-                      icon: Icons.vibration_outlined,
-                      title: 'Haptic feedback',
-                      subtitle: 'Enables haptics on remote',
-                      value: vibrationController.isHapticEnabled.value,
-                      onChanged: (value) {
-                        vibrationController.toggleHaptic(value);
-                      },
-                    )),
-                _SettingsTile(
-                  icon: Icons.timer_outlined,
-                  title: 'Sleep timer',
-                  subtitle: 'Turns off your TV automatically',
-                  onTap: () => Get.to(() => const SleepTimerUI()),
-                ),
-                const SizedBox(height: 24),
-                const _SectionTitle(title: 'GENERAL'),
-                const SizedBox(height: 12),
-                _SettingsTile(
-                  icon: Icons.help_outline_rounded,
-                  title: 'FAQ',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.restore_rounded,
-                  title: 'Restore purchases',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.shield_outlined,
-                  title: 'Privacy policy',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.menu_book_outlined,
-                  title: 'How to use app',
-                  onTap: () {
-                    Get.to(() => const InstructionOnboardingScreen());
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Image.asset(
+                          Premium.premium,
+                          width: double.infinity,
+                          height: 175,
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                      const _SectionTitle(title: 'REMOTE'),
+                      const SizedBox(height: 10),
+                      _SettingsTile(
+                        icon: SettingsIcon.switchdevice,
+                        title: 'Switch device',
+                        onTap: _openDeviceDiscoverySheet,
+                      ),
+                      _SettingsTile(
+                        icon: SettingsIcon.remotestyle,
+                        title: 'Remote style',
+                        onTap: () {},
+                      ),
+                      Obx(
+                        () => _SwitchSettingsTile(
+                          icon: SettingsIcon.haptic,
+                          title: 'Haptic feedback',
+                          subtitle: 'Enables haptics on remote',
+                          value: vibrationController.isHapticEnabled.value,
+                          onChanged: (value) {
+                            vibrationController.toggleHaptic(value);
+                          },
+                        ),
+                      ),
+                      _SettingsTile(
+                        icon: SettingsIcon.sleep,
+                        title: 'Sleep timer',
+                        subtitle: 'Turns off your TV automatically',
+                        onTap: () => Get.to(() => const SleepTimerUI()),
+                      ),
+                      const SizedBox(height: 20),
+                      const _SectionTitle(title: 'GENERAL'),
+                      const SizedBox(height: 12),
+                      _SettingsTile(
+                        icon: SettingsIcon.faq,
+                        title: 'FAQ',
+                        onTap: () {},
+                      ),
+                      _SettingsTile(
+                        icon: SettingsIcon.restore,
+                        title: 'Restore purchases',
+                        onTap: () {},
+                      ),
+                      _SettingsTile(
+                        icon: SettingsIcon.privacy,
+                        title: 'Privacy policy',
+                        onTap: () {},
+                      ),
+                      _SettingsTile(
+                        icon: SettingsIcon.term,
+                        title: 'How to use app',
+                        onTap: () {
+                          Get.to(() => const InstructionOnboardingScreen());
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -135,7 +184,7 @@ class _SettingsTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final String icon;
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
@@ -145,7 +194,7 @@ class _SettingsTile extends StatelessWidget {
     return InkWell(
       onTap: HapticAction.wrap(onTap),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -153,7 +202,7 @@ class _SettingsTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 27),
+            Image.asset(icon, width: 27, height: 27),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -200,7 +249,7 @@ class _SwitchSettingsTile extends StatelessWidget {
     required this.onChanged,
   });
 
-  final IconData icon;
+  final String icon;
   final String title;
   final String? subtitle;
   final bool value;
@@ -217,7 +266,7 @@ class _SwitchSettingsTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white, size: 27),
+          Image.asset(icon, width: 27, height: 27),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

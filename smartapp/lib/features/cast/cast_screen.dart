@@ -49,7 +49,7 @@ class _CastScreenState extends State<CastScreen> {
             Positioned.fill(
               child: IgnorePointer(
                 child: Image.asset(
-                  ImageRes.kGetStartedBackgroundAsset,
+                  ImageRes.kGetStartedBackgroundAsset2,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -69,13 +69,30 @@ class _CastScreenState extends State<CastScreen> {
                         fit: BoxFit.fill,
                       ),
                     ),
-                    const Text(
-                      'Cast',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        height: 0.95,
+                    Obx(
+                      () => Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Cast',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                height: 0.95,
+                              ),
+                            ),
+                          ),
+                          if (controller.isCastingActive)
+                            IconButton(
+                              onPressed: controller.stopCastingAndReset,
+                              tooltip: 'Stop casting',
+                              icon: const Icon(
+                                Icons.cast_connected,
+                                color: Colors.white,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -343,6 +360,7 @@ class CastTile extends StatelessWidget {
       onTap: ontap,
       child: Container(
         decoration: BoxDecoration(
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           color: Colors.black.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(18),
         ),

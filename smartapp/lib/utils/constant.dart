@@ -11,6 +11,8 @@ class ImageRes {
   static const String onboardingLCD = "assets/images/onboarding/LCD.png";
   static const String kGetStartedBackgroundAsset =
       'assets/images/waves_design.png';
+
+  static const String kGetStartedBackgroundAsset2 = 'assets/images/BGround.png';
 }
 
 class CastTileImage {
@@ -27,4 +29,22 @@ class Premium {
 class StreamingAppIcon {
   static const String netflix = 'assets/images/netflix-icon.png';
   static const String youtube = 'assets/images/YTLogo.png';
+}
+
+class SettingsIcon {
+  static const String faq = 'assets/images/settings/FAQ.png';
+  static const String haptic = 'assets/images/settings/Hapticfeedback.png';
+  static const String privacy = 'assets/images/settings/Privacypolicy.png';
+  static const String remotestyle = 'assets/images/settings/Remotestyle.png';
+  static const String restore = 'assets/images/settings/Restorepurchases.png';
+  static const String sleep = 'assets/images/settings/Sleeptimer.png';
+  static const String switchdevice = 'assets/images/settings/SwitchDevice.png';
+  static const String term = 'assets/images/settings/Termsconditions.png';
+}
+
+class NavIcon {
+  static const String remoteIcon = 'assets/images/bottomnav/Remote.png';
+  static const String appsIcon = 'assets/images/bottomnav/Apps.png';
+  static const String castIcon = 'assets/images/bottomnav/Cast.png';
+  static const String settingsIcon = 'assets/images/bottomnav/Setting.png';
 }
