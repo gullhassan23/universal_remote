@@ -72,6 +72,14 @@ class DeviceDiscoveryController extends GetxController {
       }
       return true;
     } else {
+      final reconnectNotice = _connectionController.consumeReconnectNotice();
+      if (reconnectNotice != null && reconnectNotice.isNotEmpty) {
+        Get.snackbar(
+          colorText: Colors.white,
+          'Connection update',
+          reconnectNotice,
+        );
+      }
       final detailedError = _tvService is UnifiedTvService
           ? (_tvService as UnifiedTvService).getLastErrorMessage()
           : null;

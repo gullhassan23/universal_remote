@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/features/premium/premium_screen.dart';
@@ -10,6 +11,7 @@ import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/haptic_action.dart';
+import 'package:smartapp/services/tv_service_interface.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
@@ -24,14 +26,28 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   // bool _isHapticEnabled = true;
   final vibrationController = Get.find<VibrationController>();
+  final _tvConnectionController = Get.find<TvConnectionController>();
   final _discoveryController = Get.find<DeviceDiscoveryController>();
 
-  Future<void> _openDeviceDiscoverySheet() async {
+  Future<bool> _openDeviceDiscoverySheet() async {
+    final result = Completer<bool>();
     await Get.bottomSheet<void>(
       RemoteDevicePickerSheet(
         discoveryController: _discoveryController,
-        onDeviceSelected: _onDeviceSelected,
-        onDismiss: () {},
+        onDeviceSelected: (TvDevice device) async {
+          final connected = await _onDeviceSelected(device);
+          if (!result.isCompleted) {
+            result.complete(connected);
+          }
+          if (connected && (Get.isBottomSheetOpen ?? false)) {
+            Get.back<void>();
+          }
+        },
+        onDismiss: () {
+          if (!result.isCompleted) {
+            result.complete(false);
+          }
+        },
         onHandleTap: ({
           required String buttonKey,
           required FutureOr<void> Function() onTap,
@@ -46,13 +62,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
     );
+    if (!result.isCompleted) {
+      result.complete(false);
+    }
+    return result.future;
   }
 
-  Future<void> _onDeviceSelected(TvDevice device) async {
-    await _discoveryController.connectTo(
+  Future<bool> _onDeviceSelected(TvDevice device) async {
+    return _discoveryController.connectTo(
       device,
       navigateToRemote: false,
     );
+  }
+
+  Future<void> _openSleepTimerWithConnectionCheck() async {
+    if (_tvConnectionController.connectionState.value ==
+        TvConnectionState.connected) {
+      await Get.to(() => const SleepTimerUI());
+      return;
+    }
+
+    final connected = await _openDeviceDiscoverySheet();
+    if (connected) {
+      await Get.to(() => const SleepTimerUI());
+    }
   }
 
   @override
@@ -112,7 +145,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _SettingsTile(
                         icon: SettingsIcon.switchdevice,
                         title: 'Switch device',
-                        onTap: _openDeviceDiscoverySheet,
+                        onTap: () {
+                          _openDeviceDiscoverySheet();
+                        },
                       ),
                       _SettingsTile(
                         icon: SettingsIcon.remotestyle,
@@ -134,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         icon: SettingsIcon.sleep,
                         title: 'Sleep timer',
                         subtitle: 'Turns off your TV automatically',
-                        onTap: () => Get.to(() => const SleepTimerUI()),
+                        onTap: _openSleepTimerWithConnectionCheck,
                       ),
                       const SizedBox(height: 20),
                       const _SectionTitle(title: 'GENERAL'),

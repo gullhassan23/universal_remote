@@ -119,6 +119,7 @@ class RemoteController extends GetxController {
     required bool openPickerOnFailure,
     required Duration retryDelay,
   }) async {
+    _showReconnectNoticeIfAny();
     if (_connectionController.connectionState.value !=
             TvConnectionState.connected &&
         openPickerOnFailure) {
@@ -154,6 +155,7 @@ class RemoteController extends GetxController {
     }
 
     if (openPickerOnFailure) {
+      _showReconnectNoticeIfAny();
       _pendingKey = payload;
       _openPickerIfNeeded();
     }
@@ -194,6 +196,17 @@ class RemoteController extends GetxController {
   void _openPickerIfNeeded() {
     if (_pickerSheetVisible || showDevicePicker.value) return;
     showDevicePicker.value = true;
+  }
+
+  void _showReconnectNoticeIfAny() {
+    final notice = _connectionController.consumeReconnectNotice();
+    if (notice == null || notice.isEmpty) return;
+    Get.snackbar(
+      'Connection update',
+      notice,
+      colorText: Colors.white,
+      duration: const Duration(seconds: 4),
+    );
   }
 
   void _showDevicePickerSheet() {

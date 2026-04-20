@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/ad_controller.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/sleep_timer_controller.dart';
@@ -17,6 +18,7 @@ import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'app.dart';
 import 'services/android_tv/android_tv_remote_platform.dart';
+import 'services/network_context_service.dart';
 import 'controllers/streaming_controller.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/media_cast_controller.dart';
@@ -51,13 +53,17 @@ Future<void> main() async {
 void _registerDependencies() {
   // Services
   final tvService = UnifiedTvService();
+  final networkContextService = Get.put(NetworkContextService(), permanent: true);
   Get.put<ITvService>(tvService, permanent: true);
   Get.put(PremiumController(), permanent: true);
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
   Get.put(VibrationController(), permanent: true);
   // Controllers
   final tvConnectionController = Get.put(
-    TvConnectionController(tvService: tvService),
+    TvConnectionController(
+      tvService: tvService,
+      networkContextService: networkContextService,
+    ),
     permanent: true,
   ); // ✅ first
   final discoveryController = Get.put(
@@ -69,8 +75,8 @@ void _registerDependencies() {
   );
   Get.put(
     AdController(
-      adUnitId: _resolveBannerAdUnitId(),
-      interstitialAdUnitId: _resolveInterstitialAdUnitId(),
+      adUnitId: AdMobConfig.bannerAdUnitId,
+      interstitialAdUnitId: AdMobConfig.interstitialAdUnitId,
     ),
     permanent: true,
   );
@@ -110,24 +116,4 @@ void _registerDependencies() {
       // Adapty sync hook can be plugged in here when Adapty is integrated.
     },
   );
-}
-
-String _resolveBannerAdUnitId() {
-  if (!kIsWeb && Platform.isAndroid) {
-    return 'ca-app-pub-3940256099942544/6300978111';
-  }
-  if (!kIsWeb && Platform.isIOS) {
-    return 'ca-app-pub-3940256099942544/2934735716';
-  }
-  return '';
-}
-
-String _resolveInterstitialAdUnitId() {
-  if (!kIsWeb && Platform.isAndroid) {
-    return 'ca-app-pub-3940256099942544/1033173712';
-  }
-  if (!kIsWeb && Platform.isIOS) {
-    return 'ca-app-pub-3940256099942544/4411468910';
-  }
-  return '';
 }

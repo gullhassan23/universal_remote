@@ -1,24 +1,32 @@
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../models/tv_brand.dart';
 import '../models/tv_device.dart';
 import '../services/cast/cast_events.dart';
 import '../services/cast/cast_session_manager.dart';
+import '../services/network_context_service.dart';
 import '../services/tv_service_interface.dart';
 import '../services/unified_tv_service.dart';
 
-class TvConnectionController extends GetxController {
+class TvConnectionController extends GetxController with WidgetsBindingObserver {
   TvConnectionController({
     ITvService? tvService,
     CastSessionManager? castSessionManager,
+    NetworkContextService? networkContextService,
   }) : _tvService = tvService ?? Get.find<ITvService>(),
-       _castSessionManager = castSessionManager ?? CastSessionManager();
+       _castSessionManager = castSessionManager ?? CastSessionManager(),
+       _networkContextService =
+           networkContextService ?? Get.find<NetworkContextService>();
 
   final ITvService _tvService;
   final CastSessionManager _castSessionManager;
+  final NetworkContextService _networkContextService;
   Future<bool>? _restoreFuture;
   bool _reconnectInProgress = false;
+  bool _isInForeground = true;
+  String? _pendingReconnectNotice;
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
   final Rx<TvConnectionState> connectionState =
@@ -38,11 +46,13 @@ class TvConnectionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _tvService.connectionStateStream.listen((state) {
       connectionState.value = state;
       if ((state == TvConnectionState.error ||
               state == TvConnectionState.disconnected) &&
-          activeCastSession.value != null) {
+          activeCastSession.value != null &&
+          _isInForeground) {
         _attemptCastReconnect();
       }
     });
@@ -52,6 +62,34 @@ class TvConnectionController extends GetxController {
     _castSessionManager.events.listen(_onCastEvent);
     _tryRestoreCastSession();
     _restoreLastConnectionOnLaunch();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isInForeground = state == AppLifecycleState.resumed;
+    if (state == AppLifecycleState.resumed) {
+      _attemptReconnectOnResume();
+    }
+  }
+
+  Future<void> _attemptReconnectOnResume() async {
+    if (_reconnectInProgress) return;
+    if (connectionState.value == TvConnectionState.connected) return;
+
+    final lastDevice = currentDevice.value ??
+        (activeCastSession.value != null ? activeCastSession.value!.device : null);
+    if (lastDevice == null) {
+      await tryRestoreLastConnectedDeviceOnDemand();
+      return;
+    }
+
+    await _attemptReconnectToDevice(lastDevice);
   }
 
   Future<void> _restoreLastConnectionOnLaunch() async {
@@ -97,18 +135,49 @@ class TvConnectionController extends GetxController {
     if (_reconnectInProgress) return;
     final snapshot = activeCastSession.value;
     if (snapshot == null) return;
+    await _attemptReconnectToDevice(
+      snapshot.device,
+      reconnectingLabel: 'Reconnecting to ${snapshot.device.name}...',
+      disconnectedLabel: 'Cast disconnected from ${snapshot.device.name}',
+      connectedLabel: 'Casting to ${snapshot.device.name}',
+    );
+  }
+
+  Future<void> _attemptReconnectToDevice(
+    TvDevice device, {
+    String? reconnectingLabel,
+    String? connectedLabel,
+    String? disconnectedLabel,
+  }) async {
+    if (_reconnectInProgress) return;
+    if (await _networkContextService.hasWifiChangedSinceLastConnection()) {
+      _pendingReconnectNotice =
+          'Your Wi-Fi changed. Connect to the same Wi-Fi as TV and reconnect.';
+      connectionState.value = TvConnectionState.disconnected;
+      if (disconnectedLabel != null) {
+        castConnectionLabel.value = disconnectedLabel;
+      }
+      return;
+    }
+
     _reconnectInProgress = true;
-    castConnectionLabel.value = 'Reconnecting to ${snapshot.device.name}...';
+    if (reconnectingLabel != null) {
+      castConnectionLabel.value = reconnectingLabel;
+    }
     try {
       for (final wait in const [250, 600, 1200]) {
         await Future<void>.delayed(Duration(milliseconds: wait));
-        final connected = await connectTo(snapshot.device);
+        final connected = await connectTo(device);
         if (connected) {
-          castConnectionLabel.value = 'Casting to ${snapshot.device.name}';
+          if (connectedLabel != null) {
+            castConnectionLabel.value = connectedLabel;
+          }
           return;
         }
       }
-      castConnectionLabel.value = 'Cast disconnected from ${snapshot.device.name}';
+      if (disconnectedLabel != null) {
+        castConnectionLabel.value = disconnectedLabel;
+      }
     } finally {
       _reconnectInProgress = false;
     }
@@ -123,6 +192,8 @@ class TvConnectionController extends GetxController {
       currentDevice.value = null;
     } else {
       _log('connectTo success device=${device.name} ip=${device.ip}');
+      _pendingReconnectNotice = null;
+      await _networkContextService.captureOnSuccessfulConnection();
     }
     return success;
   }
@@ -206,6 +277,12 @@ class TvConnectionController extends GetxController {
       return service.getLastErrorMessage();
     }
     return null;
+  }
+
+  String? consumeReconnectNotice() {
+    final notice = _pendingReconnectNotice;
+    _pendingReconnectNotice = null;
+    return notice;
   }
 
   Future<bool> _castMediaWithSession(CastMediaItem item) async {

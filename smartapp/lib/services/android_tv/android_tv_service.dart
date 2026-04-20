@@ -47,6 +47,17 @@ class AndroidTvService implements ITvService {
     }
   }
 
+  String _previewTextForLog(String text) {
+    final escaped = text
+        .replaceAll('\n', r'\n')
+        .replaceAll('\r', r'\r')
+        .replaceAll('\t', r'\t');
+    if (escaped.length <= 48) {
+      return escaped;
+    }
+    return '${escaped.substring(0, 48)}...';
+  }
+
   AndroidTvService() {
     if (!kIsWeb && Platform.isAndroid) {
       AndroidTvRemotePlatform.instance.ensureInitialized();
@@ -358,11 +369,18 @@ class AndroidTvService implements ITvService {
     if (key.startsWith(_batchTextPrefix)) {
       final text = key.substring(_batchTextPrefix.length);
       if (text.isEmpty) return false;
+      _log(
+        'sendKey text payload length=${text.length} preview="${_previewTextForLog(text)}"',
+      );
       try {
         var sent = await AndroidTvRemotePlatform.instance.sendText(text);
-        if (sent) return true;
+        if (sent) {
+          _log('sendKey text payload accepted on first attempt');
+          return true;
+        }
         await Future<void>.delayed(const Duration(milliseconds: 40));
         sent = await AndroidTvRemotePlatform.instance.sendText(text);
+        _log('sendKey text payload retry result=$sent');
         return sent;
       } catch (e) {
         if (kDebugMode) {
@@ -380,8 +398,11 @@ class AndroidTvService implements ITvService {
       }
       return false;
     }
+    _log('sendKey key event="$key" mappedCode=$code');
     try {
-      return await AndroidTvRemotePlatform.instance.sendKeyCode(code);
+      final sent = await AndroidTvRemotePlatform.instance.sendKeyCode(code);
+      _log('sendKey key event result=$sent key="$key" code=$code');
+      return sent;
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print

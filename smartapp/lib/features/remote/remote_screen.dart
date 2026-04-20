@@ -563,7 +563,10 @@ class _TvKeyboardSheet extends StatefulWidget {
 class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   final TextEditingController _text = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  TextEditingValue _previousValue = const TextEditingValue();
+  static const _typingDebounce = Duration(milliseconds: 140);
+  Timer? _debounceTimer;
+  String _lastSentText = '';
+  String _pendingTargetText = '';
   Future<void> _sendQueue = Future<void>.value();
 
   @override
@@ -578,52 +581,44 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   }
 
   void _onTextChanged() {
-    final current = _text.value;
-    final operation = _calculateTextOperation(
-      oldText: _previousValue.text,
-      newText: current.text,
-    );
-    _previousValue = current;
-    if (operation == null) return;
-    _enqueueTextOperation(operation);
+    _pendingTargetText = _text.text;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_typingDebounce, _enqueueFlush);
   }
 
-  _TextOperation? _calculateTextOperation({
-    required String oldText,
-    required String newText,
-  }) {
-    if (oldText == newText) return null;
+  void _enqueueFlush() {
+    _sendQueue = _sendQueue.then((_) => _flushLatestText());
+  }
 
+  Future<void> _flushLatestText() async {
+    final targetText = _pendingTargetText;
+    if (targetText == _lastSentText) return;
+    debugPrint(
+      '[keyboard] flush targetLength=${targetText.length} '
+      'lastSentLength=${_lastSentText.length}',
+    );
+    final sent = await _reconcileAndSend(targetText);
+    debugPrint(
+      '[keyboard] flush_result targetLength=${targetText.length} sent=$sent',
+    );
+    if (sent) {
+      _lastSentText = targetText;
+    }
+  }
+
+  Future<bool> _reconcileAndSend(String targetText) async {
+    final previousText = _lastSentText;
     var prefix = 0;
     final minLength =
-        oldText.length < newText.length ? oldText.length : newText.length;
+        previousText.length < targetText.length
+            ? previousText.length
+            : targetText.length;
     while (prefix < minLength &&
-        oldText.codeUnitAt(prefix) == newText.codeUnitAt(prefix)) {
+        previousText.codeUnitAt(prefix) == targetText.codeUnitAt(prefix)) {
       prefix++;
     }
 
-    var oldSuffix = oldText.length;
-    var newSuffix = newText.length;
-    while (oldSuffix > prefix &&
-        newSuffix > prefix &&
-        oldText.codeUnitAt(oldSuffix - 1) ==
-            newText.codeUnitAt(newSuffix - 1)) {
-      oldSuffix--;
-      newSuffix--;
-    }
-
-    return _TextOperation(
-      deletedText: oldText.substring(prefix, oldSuffix),
-      insertedText: newText.substring(prefix, newSuffix),
-    );
-  }
-
-  void _enqueueTextOperation(_TextOperation operation) {
-    _sendQueue = _sendQueue.then((_) => _sendTextOperation(operation));
-  }
-
-  Future<void> _sendTextOperation(_TextOperation operation) async {
-    final deletes = operation.deleteRunes;
+    final deletes = previousText.substring(prefix).runes.length;
     for (var i = 0; i < deletes; i++) {
       final ok = await widget.controller.sendKeyReliably(
         'KEY_BACKSPACE',
@@ -631,36 +626,63 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
       );
       if (!ok) {
         _showFailureHint('Connection issue while deleting text.');
-        return;
+        debugPrint('[keyboard] backspace_failed index=$i deletes=$deletes');
+        return false;
       }
     }
 
-    final inserted = operation.insertedText;
-    if (inserted.isEmpty) return;
+    final inserted = targetText.substring(prefix);
+    if (inserted.isEmpty) return true;
 
-    // Prefer per-key events first because many TVs accept IME payloads but do
-    // not actually commit the text in focused fields.
-    final perKeySent = await _sendPerKeyFallback(inserted);
-    if (perKeySent) return;
-
-    // Fallback to IME delta for characters not available in key mapping.
+    // Prefer IME text commit first for real character entry. Key-event dispatch
+    // can report success even when some OEM TV keyboards ignore letter keycodes.
+    widget.controller.logButtonEvent(
+      buttonKey: 'TEXT_DELTA',
+      event: 'typing_send_attempt',
+      action: 'ime_delta',
+    );
     final imeSent = await widget.controller.sendTextReliably(
       inserted,
       openPickerOnFailure: false,
     );
-    if (imeSent) return;
+    if (imeSent) {
+      widget.controller.logButtonEvent(
+        buttonKey: 'TEXT_DELTA',
+        event: 'typing_send_success',
+        action: 'ime_delta',
+      );
+      return true;
+    }
 
-    // Last attempt: try syncing full field value for picky TV keyboards.
-    final fullText = _text.text;
-    if (fullText.isNotEmpty) {
-      await widget.controller.sendTextReliably(
-        fullText,
+    widget.controller.logButtonEvent(
+      buttonKey: 'TEXT_DELTA',
+      event: 'typing_send_failed',
+      action: 'ime_delta',
+    );
+    debugPrint(
+      '[keyboard] ime_delta_failed insertedLength=${inserted.length}',
+    );
+
+    // Fallback to per-key events for TVs/fields where IME commit is rejected.
+    final fallback = await _sendPerKeyFallback(inserted);
+    if (fallback.allSent) return true;
+
+    // Last attempt: only do full sync if fallback could not send anything.
+    if (!fallback.sentAny && targetText.isNotEmpty) {
+      final fullSyncSent = await widget.controller.sendTextReliably(
+        targetText,
         openPickerOnFailure: false,
       );
+      debugPrint(
+        '[keyboard] full_sync_after_fallback '
+        'targetLength=${targetText.length} sent=$fullSyncSent',
+      );
+      return fullSyncSent;
     }
+    return false;
   }
 
-  Future<bool> _sendPerKeyFallback(String inserted) async {
+  Future<_FallbackSendResult> _sendPerKeyFallback(String inserted) async {
     final unsupported = <String>[];
     var sentAny = false;
     var allSupportedSent = true;
@@ -682,8 +704,13 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
           event: 'typing_send_failed',
           action: 'keyboard_input_fallback',
         );
-        return false;
+        return _FallbackSendResult(sentAny: sentAny, allSent: false);
       }
+      widget.controller.logButtonEvent(
+        buttonKey: key,
+        event: 'typing_send_success',
+        action: 'keyboard_key_event',
+      );
       sentAny = true;
     }
 
@@ -697,7 +724,10 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
         action: 'keyboard_input',
       );
     }
-    return sentAny && allSupportedSent;
+    return _FallbackSendResult(
+      sentAny: sentAny,
+      allSent: sentAny && allSupportedSent,
+    );
   }
 
   void _showFailureHint(String message) {
@@ -715,6 +745,7 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _text.removeListener(_onTextChanged);
     _text.dispose();
     _focusNode.dispose();
@@ -774,14 +805,12 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   }
 }
 
-class _TextOperation {
-  const _TextOperation({
-    required this.deletedText,
-    required this.insertedText,
+class _FallbackSendResult {
+  const _FallbackSendResult({
+    required this.sentAny,
+    required this.allSent,
   });
 
-  final String deletedText;
-  final String insertedText;
-
-  int get deleteRunes => deletedText.runes.length;
+  final bool sentAny;
+  final bool allSent;
 }

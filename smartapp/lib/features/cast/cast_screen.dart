@@ -1,12 +1,18 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/media_cast_controller.dart';
+import 'package:smartapp/controllers/tv_connection_controller.dart';
+import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/features/cast/cast_session_banner.dart';
+import 'package:smartapp/models/tv_device.dart';
+import 'package:smartapp/services/tv_service_interface.dart' hide CastMediaItem;
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/widgets/premium_aware_banner_ad.dart';
+import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
 
@@ -19,12 +25,16 @@ class CastScreen extends StatefulWidget {
 
 class _CastScreenState extends State<CastScreen> {
   late final MediaCastController controller;
+  late final TvConnectionController _tvConnectionController;
+  late final DeviceDiscoveryController _discoveryController;
   PageController _pageController = PageController();
 
   @override
   void initState() {
     super.initState();
     controller = Get.find<MediaCastController>();
+    _tvConnectionController = Get.find<TvConnectionController>();
+    _discoveryController = Get.find<DeviceDiscoveryController>();
   }
 
   @override
@@ -147,7 +157,7 @@ class _CastScreenState extends State<CastScreen> {
                                 image: CastTileImage.browse,
                               ),
                               CastTile(
-                                ontap: controller.pickAndCastMedia,
+                                ontap: _handleMediaCastTap,
                                 title: 'Media',
                                 subtitle: 'Cast photos & video',
                                 image: CastTileImage.media,
@@ -249,7 +259,7 @@ class _CastScreenState extends State<CastScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: controller.pickAndCastMedia,
+                                onPressed: _handleMediaCastTap,
                                 icon: const Icon(
                                     Icons.add_photo_alternate_outlined),
                                 label: const Text('Replace Media'),
@@ -280,6 +290,71 @@ class _CastScreenState extends State<CastScreen> {
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOut,
     );
+  }
+
+  Future<void> _handleMediaCastTap() async {
+    if (!await _ensureTvConnectedForMediaCast()) return;
+    await controller.pickAndCastMedia();
+  }
+
+  Future<bool> _ensureTvConnectedForMediaCast() async {
+    if (_tvConnectionController.connectionState.value ==
+        TvConnectionState.connected) {
+      return true;
+    }
+
+    final connected = await _openDeviceDiscoverySheet();
+    if (!connected) {
+      Get.snackbar(
+        'Connect device first',
+        'Please connect to a TV before casting media.',
+        colorText: Colors.white,
+      );
+    }
+    return connected;
+  }
+
+  Future<bool> _openDeviceDiscoverySheet() async {
+    final result = Completer<bool>();
+    await Get.bottomSheet<void>(
+      RemoteDevicePickerSheet(
+        discoveryController: _discoveryController,
+        onDeviceSelected: (TvDevice device) async {
+          final connected = await _discoveryController.connectTo(
+            device,
+            navigateToRemote: false,
+          );
+          if (!result.isCompleted) {
+            result.complete(connected);
+          }
+          if (connected && (Get.isBottomSheetOpen ?? false)) {
+            Get.back<void>();
+          }
+        },
+        onDismiss: () {
+          if (!result.isCompleted) {
+            result.complete(false);
+          }
+        },
+        onHandleTap: ({
+          required String buttonKey,
+          required FutureOr<void> Function() onTap,
+          String action = 'tap',
+        }) async {
+          await onTap();
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2A2A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+    );
+
+    if (!result.isCompleted) {
+      result.complete(false);
+    }
+    return result.future;
   }
 }
 

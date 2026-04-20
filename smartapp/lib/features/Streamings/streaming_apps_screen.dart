@@ -8,6 +8,7 @@ import '../../controllers/streaming_controller.dart';
 import '../../models/tv_device.dart';
 import '../../models/streaming_app_item.dart';
 import '../../widgets/premium_status_banner.dart';
+import '../../widgets/streaming_mrec_ad.dart';
 import '../../widgets/top_banner_ad.dart';
 import '../../widgets/streaming_app_tile.dart';
 
@@ -114,11 +115,22 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                           if (isConnected) {
                             final launchingAppId =
                                 _streamingController.launchingAppId.value;
+                            final hasMrecSlot =
+                                StreamingController.apps.length >= 2;
+                            final totalItemCount =
+                                StreamingController.apps.length +
+                                (hasMrecSlot ? 1 : 0);
                             return ListView.separated(
-                              itemCount: StreamingController.apps.length,
+                              itemCount: totalItemCount,
                               separatorBuilder: (context, index) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
+                                if (hasMrecSlot &&
+                                    index == StreamingController.apps.length) {
+                                  return const Center(
+                                    child: StreamingMrecAd(),
+                                  );
+                                }
                                 final app = StreamingController.apps[index];
                                 return StreamingAppTile(
                                   app: app,
