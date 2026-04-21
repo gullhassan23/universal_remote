@@ -1,4 +1,4 @@
-package com.mg.smart.tv.remote.control.androidtv.protocol
+package com.FutureDialLabs.tv.remote.universal.control.androidtv.protocol
 
 import java.io.ByteArrayInputStream
 

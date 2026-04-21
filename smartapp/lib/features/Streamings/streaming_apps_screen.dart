@@ -65,16 +65,6 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00B0B6),
-              Color(0xFF005AFF),
-            ],
-          ),
-        ),
         child: Stack(
           children: [
             Positioned.fill(
@@ -95,16 +85,21 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                       child: TopBannerAd(),
                     ),
                     const SizedBox(height: 12),
-                    const PremiumStatusBanner(),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Apps',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        height: 0.95,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Apps',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            height: 0.95,
+                          ),
+                        ),
+                        const PremiumStatusBanner(),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     Expanded(
@@ -119,7 +114,7 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                                 StreamingController.apps.length >= 2;
                             final totalItemCount =
                                 StreamingController.apps.length +
-                                (hasMrecSlot ? 1 : 0);
+                                    (hasMrecSlot ? 1 : 0);
                             return ListView.separated(
                               itemCount: totalItemCount,
                               separatorBuilder: (context, index) =>

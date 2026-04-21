@@ -45,16 +45,6 @@ class RemoteScreen extends GetView<RemoteController> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00B0B6),
-              Color(0xFF005AFF),
-            ],
-          ),
-        ),
         child: Stack(
           children: [
             Positioned.fill(
@@ -609,10 +599,9 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   Future<bool> _reconcileAndSend(String targetText) async {
     final previousText = _lastSentText;
     var prefix = 0;
-    final minLength =
-        previousText.length < targetText.length
-            ? previousText.length
-            : targetText.length;
+    final minLength = previousText.length < targetText.length
+        ? previousText.length
+        : targetText.length;
     while (prefix < minLength &&
         previousText.codeUnitAt(prefix) == targetText.codeUnitAt(prefix)) {
       prefix++;

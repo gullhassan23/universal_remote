@@ -1,4 +1,4 @@
-package com.mg.smart.tv.remote.control.androidtv.util
+package com.FutureDialLabs.tv.remote.universal.control.androidtv.util
 
 object Constants {
     const val PORT_PAIRING = 6467

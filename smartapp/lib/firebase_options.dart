@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '109265895311',
     projectId: 'smart-tv-remote-ios',
     storageBucket: 'smart-tv-remote-ios.firebasestorage.app',
-    iosBundleId: 'com.mg.smart.tv.remote.control',
+    iosBundleId: 'com.FutureDialLabs.tv.remote.universal.control',
   );
 }

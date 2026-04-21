@@ -179,6 +179,9 @@ class RemoteController extends GetxController {
       navigateToRemote: false,
     );
     if (success) {
+      if (Get.isBottomSheetOpen ?? false) {
+        Get.back<void>();
+      }
       final pendingKey = _pendingKey;
       _pendingKey = null;
       if (pendingKey != null) {

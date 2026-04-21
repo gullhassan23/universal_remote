@@ -1,6 +1,6 @@
-package com.mg.smart.tv.remote.control
+package com.FutureDialLabs.tv.remote.universal.control
 
-import com.mg.smart.tv.remote.control.androidtv.AndroidTvRemotePlugin
+import com.FutureDialLabs.tv.remote.universal.control.androidtv.AndroidTvRemotePlugin
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 

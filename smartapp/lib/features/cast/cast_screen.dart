@@ -11,8 +11,8 @@ import 'package:smartapp/features/cast/cast_session_banner.dart';
 import 'package:smartapp/models/tv_device.dart';
 import 'package:smartapp/services/tv_service_interface.dart' hide CastMediaItem;
 import 'package:smartapp/utils/constant.dart';
-import 'package:smartapp/widgets/premium_aware_banner_ad.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
+import 'package:smartapp/widgets/streaming_mrec_ad.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
 
@@ -47,16 +47,6 @@ class _CastScreenState extends State<CastScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00B0B6),
-              Color(0xFF005AFF),
-            ],
-          ),
-        ),
         child: Stack(
           children: [
             Positioned.fill(
@@ -77,7 +67,7 @@ class _CastScreenState extends State<CastScreen> {
                       child: TopBannerAd(),
                     ),
                     const SizedBox(height: 12),
-                    const PremiumStatusBanner(),
+                    // const PremiumStatusBanner(),
                     const SizedBox(height: 8),
                     Obx(
                       () => Row(
@@ -93,6 +83,7 @@ class _CastScreenState extends State<CastScreen> {
                               ),
                             ),
                           ),
+                          PremiumStatusBanner(),
                           if (controller.isCastingActive)
                             IconButton(
                               onPressed: controller.stopCastingAndReset,
@@ -271,7 +262,7 @@ class _CastScreenState extends State<CastScreen> {
                     ),
                     const SizedBox(height: 12),
                     const Center(
-                      child: PremiumAwareBannerAd(),
+                      child: StreamingMrecAd(),
                     ),
                   ],
                 ),

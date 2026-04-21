@@ -61,7 +61,8 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     });
     _castSessionManager.events.listen(_onCastEvent);
     _tryRestoreCastSession();
-    _restoreLastConnectionOnLaunch();
+    // No cold-start auto-reconnect: avoids Android TV pairing dialog before the
+    // user uses the remote. Restore runs from key taps, sleep timer, or resume.
   }
 
   @override
@@ -90,14 +91,6 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     }
 
     await _attemptReconnectToDevice(lastDevice);
-  }
-
-  Future<void> _restoreLastConnectionOnLaunch() async {
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    if (connectionState.value == TvConnectionState.connected) {
-      return;
-    }
-    await tryRestoreLastConnectedDeviceOnDemand();
   }
 
   Future<bool> tryRestoreLastConnectedDeviceOnDemand() async {

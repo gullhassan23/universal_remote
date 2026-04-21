@@ -169,7 +169,9 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
     case 'KEY_MUTE':
       return 91;
     case 'KEY_POWER':
-      return 26;
+      // KEYCODE_TV_POWER (116): TV panel toggle like a physical remote.
+      // KEYCODE_POWER (26) often only sleeps the Android layer and may not wake the display.
+      return 116;
     case 'KEY_BACKSPACE':
       return 67; // KEYCODE_DEL
     case 'KEY_RETURN':

@@ -10,7 +10,7 @@
     <!-- Android 13+ (API 33): required to post notifications and for runtime permission. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="smartapp"
+        android:label="Universal Tv Remote Cast"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

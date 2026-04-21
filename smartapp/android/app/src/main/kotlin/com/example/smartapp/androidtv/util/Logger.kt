@@ -1,4 +1,4 @@
-package com.mg.smart.tv.remote.control.androidtv.util
+package com.FutureDialLabs.tv.remote.universal.control.androidtv.util
 
 import android.util.Log
 

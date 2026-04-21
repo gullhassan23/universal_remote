@@ -1,4 +1,4 @@
-package com.mg.smart.tv.remote.control.androidtv.cert
+package com.FutureDialLabs.tv.remote.universal.control.androidtv.cert
 
 import android.content.Context
 import java.io.File

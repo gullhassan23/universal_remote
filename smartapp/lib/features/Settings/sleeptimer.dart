@@ -20,28 +20,7 @@ class SleepTimerUI extends GetView<SleepTimerController> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: HapticAction.wrap(Get.back),
-        ),
-        title: const Text('Sleep timer', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        elevation: 0,
-      ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF00B0B6),
-              Color(0xFF005AFF),
-            ],
-          ),
-        ),
         child: Stack(
           children: [
             Positioned.fill(
@@ -58,7 +37,33 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios,
+                              color: Colors.white, size: 20),
+                          onPressed: HapticAction.wrap(Get.back),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 40,
+                            minHeight: 40,
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Sleep timer',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     const Text(
                       'SLEEP IN:',
                       style: TextStyle(

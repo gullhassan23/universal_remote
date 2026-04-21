@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/features/premium/premium_screen.dart';
+import 'package:smartapp/features/premium/premium_viersion_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
@@ -15,6 +18,7 @@ import 'package:smartapp/services/tv_service_interface.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,10 +28,29 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const String _fallbackPrivacyUrl =
+      'https://sites.google.com/view/inverter-town-llc/privacy-policy';
   // bool _isHapticEnabled = true;
+  final premiumController = Get.find<PremiumController>();
   final vibrationController = Get.find<VibrationController>();
   final _tvConnectionController = Get.find<TvConnectionController>();
   final _discoveryController = Get.find<DeviceDiscoveryController>();
+
+  Future<void> _openPrivacyPolicy() async {
+    final String privacyUrl =
+        dotenv.env['PRIVACY_POLICY_URL']?.trim().isNotEmpty == true
+            ? dotenv.env['PRIVACY_POLICY_URL']!.trim()
+            : _fallbackPrivacyUrl;
+    final uri = Uri.tryParse(privacyUrl);
+    if (uri == null) {
+      Get.snackbar('Error', 'Privacy policy URL is invalid.');
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      Get.snackbar('Error', 'Unable to open privacy policy.');
+    }
+  }
 
   Future<bool> _openDeviceDiscoverySheet() async {
     final result = Completer<bool>();
@@ -92,13 +115,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF00B0B6), Color(0xFF005AFF)],
-          ),
-        ),
         child: Stack(
           children: [
             Positioned.fill(
@@ -125,75 +141,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const PremiumStatusBanner(),
-                            const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => Get.to(() => const PremiumScreen()),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'Manage Premium',
-                            style: TextStyle(
-                              color: Colors.white,
-                              decoration: TextDecoration.underline,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _SectionTitle(title: 'REMOTE'),
+                                GestureDetector(
+                                    onTap: () =>
+                                        Get.to(() => const PremiumScreen()),
+                                    child: const PremiumStatusBanner()),
+                              ],
                             ),
-                          ),
-                        ),
-                      ),
-                      const _SectionTitle(title: 'REMOTE'),
-                      const SizedBox(height: 10),
-                      _SettingsTile(
-                        icon: SettingsIcon.switchdevice,
-                        title: 'Switch device',
-                        onTap: () {
-                          _openDeviceDiscoverySheet();
-                        },
-                      ),
-                      _SettingsTile(
-                        icon: SettingsIcon.remotestyle,
-                        title: 'Remote style',
-                        onTap: () {},
-                      ),
-                      Obx(
-                        () => _SwitchSettingsTile(
-                          icon: SettingsIcon.haptic,
-                          title: 'Haptic feedback',
-                          subtitle: 'Enables haptics on remote',
-                          value: vibrationController.isHapticEnabled.value,
-                          onChanged: (value) {
-                            vibrationController.toggleHaptic(value);
-                          },
-                        ),
-                      ),
-                      _SettingsTile(
-                        icon: SettingsIcon.sleep,
-                        title: 'Sleep timer',
-                        subtitle: 'Turns off your TV automatically',
-                        onTap: _openSleepTimerWithConnectionCheck,
-                      ),
-                      const SizedBox(height: 20),
-                      const _SectionTitle(title: 'GENERAL'),
-                      const SizedBox(height: 12),
-                      _SettingsTile(
-                        icon: SettingsIcon.faq,
-                        title: 'FAQ',
-                        onTap: () {},
-                      ),
-                      _SettingsTile(
-                        icon: SettingsIcon.restore,
-                        title: 'Restore purchases',
-                        onTap: () => Get.to(() => const PremiumScreen()),
-                      ),
-                      _SettingsTile(
-                        icon: SettingsIcon.privacy,
-                        title: 'Privacy policy',
-                        onTap: () {},
-                      ),
+                            const SizedBox(height: 10),
+                            _SettingsTile(
+                              icon: SettingsIcon.switchdevice,
+                              title: 'Switch device',
+                              onTap: () {
+                                _openDeviceDiscoverySheet();
+                              },
+                            ),
+                            _SettingsTile(
+                              icon: SettingsIcon.remotestyle,
+                              title: 'Remote style',
+                              onTap: () {},
+                            ),
+                            Obx(
+                              () => _SwitchSettingsTile(
+                                icon: SettingsIcon.haptic,
+                                title: 'Haptic feedback',
+                                subtitle: 'Enables haptics on remote',
+                                value:
+                                    vibrationController.isHapticEnabled.value,
+                                onChanged: (value) {
+                                  vibrationController.toggleHaptic(value);
+                                },
+                              ),
+                            ),
+                            _SettingsTile(
+                              icon: SettingsIcon.sleep,
+                              title: 'Sleep timer',
+                              subtitle: 'Turns off your TV automatically',
+                              onTap: _openSleepTimerWithConnectionCheck,
+                            ),
+                            const SizedBox(height: 20),
+                            const _SectionTitle(title: 'GENERAL'),
+                            const SizedBox(height: 12),
+                            _SettingsTile(
+                              icon: SettingsIcon.faq,
+                              title: 'FAQ',
+                              onTap: () {},
+                            ),
+                            _SettingsTile(
+                              icon: SettingsIcon.restore,
+                              title: 'Restore purchases',
+                              onTap: () {
+                                if (!premiumController.isPremium.value) {
+                                  Get.to(() => const PremiumScreen());
+                                  return;
+                                }
+                                Get.to(() => const PremiumViersionScreen());
+                              },
+                            ),
+                            _SettingsTile(
+                              icon: SettingsIcon.privacy,
+                              title: 'Privacy policy',
+                              onTap: _openPrivacyPolicy,
+                            ),
                             _SettingsTile(
                               icon: SettingsIcon.term,
                               title: 'How to use app',
                               onTap: () {
-                                Get.to(() => const InstructionOnboardingScreen());
+                                Get.to(
+                                    () => const InstructionOnboardingScreen());
                               },
                             ),
                           ],

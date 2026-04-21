@@ -1,4 +1,4 @@
-package com.mg.smart.tv.remote.control.androidtv.connection
+package com.FutureDialLabs.tv.remote.universal.control.androidtv.connection
 
 import android.util.Log
 import java.io.DataInputStream

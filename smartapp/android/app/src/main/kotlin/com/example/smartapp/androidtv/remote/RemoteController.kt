@@ -1,8 +1,8 @@
-package com.mg.smart.tv.remote.control.androidtv.remote
+package com.FutureDialLabs.tv.remote.universal.control.androidtv.remote
 
-import com.mg.smart.tv.remote.control.androidtv.connection.TLSManager
-import com.mg.smart.tv.remote.control.androidtv.protocol.ProtobufMessage
-import com.mg.smart.tv.remote.control.androidtv.util.Logger
+import com.FutureDialLabs.tv.remote.universal.control.androidtv.connection.TLSManager
+import com.FutureDialLabs.tv.remote.universal.control.androidtv.protocol.ProtobufMessage
+import com.FutureDialLabs.tv.remote.universal.control.androidtv.util.Logger
 
 class RemoteController(
     private val tlsManager: TLSManager,
