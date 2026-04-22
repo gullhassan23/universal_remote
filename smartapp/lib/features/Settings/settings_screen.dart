@@ -237,7 +237,7 @@ class _SectionTitle extends StatelessWidget {
       title,
       style: TextStyle(
         color: Colors.white.withValues(alpha: 0.64),
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -280,7 +280,7 @@ class _SettingsTile extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -298,7 +298,7 @@ class _SettingsTile extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              size: 30,
+              size: 25,
               color: Colors.white.withValues(alpha: 0.72),
             ),
           ],
@@ -344,7 +344,7 @@ class _SwitchSettingsTile extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

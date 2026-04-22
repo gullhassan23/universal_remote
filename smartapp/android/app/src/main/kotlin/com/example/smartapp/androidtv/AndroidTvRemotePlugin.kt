@@ -53,6 +53,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private val remoteReady = AtomicBoolean(false)
     private val imeCounter = java.util.concurrent.atomic.AtomicInteger(0)
     private val imeFieldCounter = java.util.concurrent.atomic.AtomicInteger(0)
+    private val lastImeUpdateAtMs = java.util.concurrent.atomic.AtomicLong(0L)
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun registerWith(flutterEngine: FlutterEngine) {
@@ -79,6 +80,12 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 }
                 "sendText" -> scope.launch {
                     sendText(
+                        call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
+                        result,
+                    )
+                }
+                "sendTextPrepared" -> scope.launch {
+                    sendTextPrepared(
                         call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
                         result,
                     )
@@ -376,6 +383,41 @@ class AndroidTvRemotePlugin(private val context: Context) {
         mainHandler.post { result.success(ok) }
     }
 
+    private suspend fun sendTextPrepared(arguments: Map<*, *>, result: MethodChannel.Result) {
+        val text = arguments["text"] as? String
+        val autoPrepareInputContext = arguments["autoPrepareInputContext"] as? Boolean ?: true
+        if (text.isNullOrBlank()) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+        if (!remoteReady.get()) {
+            waitForRemoteReady()
+        }
+        val remote = remoteController
+        if (remote == null || !remoteReady.get()) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        val directSent = sendTextWithCounterFallback(text)
+        if (directSent) {
+            mainHandler.post { result.success(true) }
+            return
+        }
+        if (!autoPrepareInputContext) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+
+        val prepared = ensureInputContext(remote)
+        if (!prepared) {
+            mainHandler.post { result.success(false) }
+            return
+        }
+        val sentAfterPrepare = sendTextWithCounterFallback(text)
+        mainHandler.post { result.success(sentAfterPrepare) }
+    }
+
     private fun sendTextWithCounterFallback(text: String): Boolean {
         val remote = remoteController ?: return false
         val currentIme = imeCounter.get()
@@ -409,6 +451,66 @@ class AndroidTvRemotePlugin(private val context: Context) {
             Thread.sleep(40)
         }
         return false
+    }
+
+    private suspend fun ensureInputContext(remote: RemoteController): Boolean {
+        if (isImeContextFresh()) {
+            return true
+        }
+
+        // Try search first; if launcher does not expose search focus reliably, fall back to assist.
+        val searchPrepared = triggerInputContext(
+            remote = remote,
+            keyCode = KEYCODE_SEARCH,
+            contextName = "search",
+        )
+        if (searchPrepared) {
+            return true
+        }
+        return triggerInputContext(
+            remote = remote,
+            keyCode = KEYCODE_ASSIST,
+            contextName = "assist",
+        )
+    }
+
+    private suspend fun triggerInputContext(
+        remote: RemoteController,
+        keyCode: Int,
+        contextName: String,
+    ): Boolean {
+        val homeOk = remote.sendKeyCode(KEYCODE_HOME)
+        if (!homeOk) {
+            Logger.e("ensureInputContext: failed to send HOME before $contextName")
+            return false
+        }
+        delay(180)
+        val actionOk = remote.sendKeyCode(keyCode)
+        if (!actionOk) {
+            Logger.e("ensureInputContext: failed to send key=$keyCode context=$contextName")
+            return false
+        }
+        delay(260)
+        val ready = waitForImeContextReady()
+        Logger.d("ensureInputContext: context=$contextName ready=$ready")
+        return ready
+    }
+
+    private suspend fun waitForImeContextReady(timeoutMs: Long = 1800): Boolean {
+        val started = System.currentTimeMillis()
+        while ((System.currentTimeMillis() - started) < timeoutMs) {
+            if (isImeContextFresh()) {
+                return true
+            }
+            delay(70)
+        }
+        return false
+    }
+
+    private fun isImeContextFresh(freshnessMs: Long = 3000): Boolean {
+        val updatedAt = lastImeUpdateAtMs.get()
+        if (updatedAt <= 0L) return false
+        return (System.currentTimeMillis() - updatedAt) <= freshnessMs
     }
 
     private fun launchApp(arguments: Map<*, *>, result: MethodChannel.Result) {
@@ -610,6 +712,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         remoteReady.set(false)
         imeCounter.set(0)
         imeFieldCounter.set(0)
+        lastImeUpdateAtMs.set(0L)
         remoteController?.destroy()
         remoteController = null
         tlsRemote?.disconnect()
@@ -656,6 +759,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
                         if (counters != null) {
                             imeCounter.set(counters.first)
                             imeFieldCounter.set(counters.second)
+                            lastImeUpdateAtMs.set(System.currentTimeMillis())
                             Logger.d(
                                 "remoteImeCountersUpdated: ime=${counters.first} field=${counters.second}",
                             )

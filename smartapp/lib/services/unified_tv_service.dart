@@ -113,6 +113,19 @@ class UnifiedTvService implements ITvService {
   }
 
   @override
+  Future<bool> sendTextPrepared(
+    String text, {
+    bool autoPrepareInputContext = true,
+  }) async {
+    final service = _activeService;
+    if (service == null) return false;
+    return service.sendTextPrepared(
+      text,
+      autoPrepareInputContext: autoPrepareInputContext,
+    );
+  }
+
+  @override
   Future<bool> launchApp(String packageName) async {
     final service = _activeService;
     if (service == null) return false;

@@ -368,27 +368,7 @@ class AndroidTvService implements ITvService {
 
     if (key.startsWith(_batchTextPrefix)) {
       final text = key.substring(_batchTextPrefix.length);
-      if (text.isEmpty) return false;
-      _log(
-        'sendKey route=text_ime payloadFormat="__TEXT__:<text>" '
-        'length=${text.length} preview="${_previewTextForLog(text)}"',
-      );
-      try {
-        var sent = await AndroidTvRemotePlatform.instance.sendText(text);
-        if (sent) {
-          _log('sendKey text payload accepted on first attempt');
-          return true;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 40));
-        sent = await AndroidTvRemotePlatform.instance.sendText(text);
-        _log('sendKey text payload retry result=$sent');
-        return sent;
-      } catch (e) {
-        if (kDebugMode) {
-          // ignore: avoid_print
-          print('AndroidTvService.sendKey batch text failed: $e');
-        }
-      }
+      return sendTextPrepared(text, autoPrepareInputContext: false);
     }
 
     final code = mapRemoteKeyToAndroidKeyCode(key);
@@ -413,6 +393,48 @@ class AndroidTvService implements ITvService {
         print('AndroidTvService.sendKey: $e');
       }
       _syncState(TvConnectionState.error);
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> sendTextPrepared(
+    String text, {
+    bool autoPrepareInputContext = true,
+  }) async {
+    if (_currentDevice == null || _state != TvConnectionState.connected) {
+      return false;
+    }
+    if (!Platform.isAndroid) return false;
+    final normalizedText = text.trim();
+    if (normalizedText.isEmpty) return false;
+
+    _log(
+      'sendTextPrepared textLength=${normalizedText.length} '
+      'autoPrepareInputContext=$autoPrepareInputContext '
+      'preview="${_previewTextForLog(normalizedText)}"',
+    );
+    try {
+      var sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
+        normalizedText,
+        autoPrepareInputContext: autoPrepareInputContext,
+      );
+      if (sent) {
+        _log('sendTextPrepared accepted on first attempt');
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 45));
+      sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
+        normalizedText,
+        autoPrepareInputContext: autoPrepareInputContext,
+      );
+      _log('sendTextPrepared retry result=$sent');
+      return sent;
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService.sendTextPrepared failed: $e');
+      }
       return false;
     }
   }

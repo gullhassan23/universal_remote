@@ -55,7 +55,7 @@ class RemoteScreen extends GetView<RemoteController> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 6),
             child: Column(
               children: [
                 const SizedBox(height: 8),
@@ -64,17 +64,22 @@ class RemoteScreen extends GetView<RemoteController> {
                       controller.connectionController.connectionState.value ==
                           TvConnectionState.connected;
                   return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Connect a device',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
+                      const Expanded(
+                        child: Text(
+                          'Connect a device',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
+                      if (isConnected)
+                        const SizedBox(width: 10),
                       if (isConnected)
                         TextButton.icon(
                           onPressed: _loggedTap(
@@ -161,139 +166,160 @@ class RemoteScreen extends GetView<RemoteController> {
 
   Widget _buildMainButtons(BuildContext context) {
     final voiceController = Get.find<VoiceController>();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 66,
-            height: 194,
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(33, 11, 27, 37),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white, width: 0.3),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white, size: 40),
-                  onPressed: _sendKeyTap('KEY_VOLUP'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.volume_off,
-                      color: Colors.white, size: 30),
-                  onPressed: _sendKeyTap('KEY_MUTE'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.remove, color: Colors.white, size: 40),
-                  onPressed: _sendKeyTap('KEY_VOLDOWN'),
-                ),
-              ],
-            ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 66,
+          height: 194,
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(33, 11, 27, 37),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white, width: 0.3),
           ),
-          const SizedBox(width: 16),
-          SizedBox(
-            height: 194,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _roundedActionButton(
-                  icon: Icons.search,
-                  onTap: _sendKeyTap('KEY_SEARCH'),
-                  width: 88,
-                  height: 50,
-                ),
-                const SizedBox(height: 16),
-                Obx(() {
-                  final isListening = voiceController.isListening.value;
-                  return _roundedActionButton(
-                    icon: isListening ? Icons.mic : Icons.mic_none,
-                    iconColor:
-                        isListening ? const Color(0xFFFFE082) : Colors.white,
-                    onTap: () {
-                      unawaited(
-                        controller.handleButtonTap(
-                          buttonKey: 'KEY_MIC',
-                          action: isListening ? 'stop_voice' : 'start_voice',
-                          onTap: () async {
-                            if (isListening) {
-                              await voiceController.stopListening();
-                            } else {
-                              await voiceController.startListening();
-                            }
-                          },
-                        ),
-                      );
-                    },
-                    width: 88,
-                    height: 50,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.add, color: Colors.white, size: 40),
+                onPressed: _sendKeyTap('KEY_VOLUP'),
+              ),
+              IconButton(
+                icon:
+                    const Icon(Icons.volume_off, color: Colors.white, size: 30),
+                onPressed: _sendKeyTap('KEY_MUTE'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.remove, color: Colors.white, size: 40),
+                onPressed: _sendKeyTap('KEY_VOLDOWN'),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 194,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _roundedActionButton(
+                icon: Icons.search,
+                onTap: _sendKeyTap('KEY_SEARCH'),
+                width: 88,
+                height: 50,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 204,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _roundedActionButton(
+                icon: Icons.power_settings_new,
+                iconColor: const Color(0xFFFF3D3D),
+                onTap: _sendKeyTap('KEY_POWER'),
+              ),
+              SizedBox(height: 19),
+              _roundedActionButton(
+                icon: Icons.keyboard,
+                onTap: () {
+                  unawaited(
+                    controller.handleButtonTap(
+                      buttonKey: 'KEY_KEYBOARD',
+                      onTap: () async {
+                        if (!context.mounted) return;
+                        await showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: const Color(0xFF2A2A2A),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                          ),
+                          builder: (ctx) => Padding(
+                            padding: EdgeInsets.only(
+                              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                            ),
+                            child: _TvKeyboardSheet(
+                              controller: controller,
+                            ),
+                          ),
+                        );
+                      },
+                      action: 'open_keyboard',
+                    ),
                   );
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            height: 194,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _roundedActionButton(
-                  icon: Icons.power_settings_new,
-                  iconColor: const Color(0xFFFF3D3D),
-                  onTap: _sendKeyTap('KEY_POWER'),
-                ),
-                _roundedActionButton(
-                  icon: Icons.keyboard,
+                },
+              ),
+              // _roundedActionButton(
+              //   icon: Icons.exit_to_app,
+              //   onTap: _sendKeyTap('KEY_RETURN'),
+              // ),
+              SizedBox(height: 19),
+              Obx(() {
+                final isListening = voiceController.isListening.value;
+                return _roundedActionButton(
+                  icon: isListening ? Icons.mic : Icons.mic_none,
+                  iconColor:
+                      isListening ? const Color(0xFFFFE082) : Colors.white,
                   onTap: () {
                     unawaited(
                       controller.handleButtonTap(
-                        buttonKey: 'KEY_KEYBOARD',
+                        buttonKey: 'KEY_MIC',
+                        action: isListening ? 'stop_voice' : 'start_voice',
                         onTap: () async {
-                          if (!context.mounted) return;
-                          await showModalBottomSheet<void>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: const Color(0xFF2A2A2A),
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(16),
-                              ),
-                            ),
-                            builder: (ctx) => Padding(
-                              padding: EdgeInsets.only(
-                                bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-                              ),
-                              child: _TvKeyboardSheet(
-                                controller: controller,
-                              ),
-                            ),
-                          );
+                          if (isListening) {
+                            await voiceController.stopListening();
+                          } else {
+                            await voiceController.startListening();
+                          }
                         },
-                        action: 'open_keyboard',
                       ),
                     );
                   },
-                ),
-                _roundedActionButton(
-                  icon: Icons.exit_to_app,
-                  onTap: _sendKeyTap('KEY_RETURN'),
-                ),
-              ],
-            ),
+                  width: 88,
+                  height: 48,
+                );
+              }),
+              const SizedBox(height: 1),
+              Obx(() {
+                final state = voiceController.sessionState.value;
+                final status = voiceController.statusText.value;
+                if (state == VoiceSessionState.idle || status.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                final color = switch (state) {
+                  VoiceSessionState.error => const Color(0xFFFFAB91),
+                  VoiceSessionState.sent => const Color(0xFFA5D6A7),
+                  _ => const Color(0xFFE3F2FD),
+                };
+                return SizedBox(
+                  width: 140,
+                  child: Text(
+                    status,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildModeToggle() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0x224A9AD1),
+        color: const Color.fromARGB(33, 32, 52, 66),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: Colors.white, width: 0.3),
       ),
@@ -358,7 +384,9 @@ class RemoteScreen extends GetView<RemoteController> {
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
-      ['GUIDE', '0', 'TOOLS'],
+      [
+        '0',
+      ],
     ];
 
     return SingleChildScrollView(
@@ -492,7 +520,7 @@ class RemoteScreen extends GetView<RemoteController> {
               child: const Text(
                 'OK',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 20,
                   color: Colors.white,
                   fontWeight: FontWeight.w500,
                 ),
@@ -505,31 +533,22 @@ class RemoteScreen extends GetView<RemoteController> {
   }
 
   Widget _buildBottomButtons(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 26),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _roundedActionButton(
-            icon: Icons.arrow_back,
-            onTap: _sendKeyTap('KEY_RETURN'),
-            width: 84,
-            height: 50,
-          ),
-          _roundedActionButton(
-            icon: Icons.home,
-            onTap: _sendKeyTap('KEY_HOME'),
-            width: 84,
-            height: 50,
-          ),
-          _roundedActionButton(
-            icon: Icons.menu,
-            onTap: _sendKeyTap('KEY_MENU'),
-            width: 84,
-            height: 50,
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _roundedActionButton(
+          icon: Icons.arrow_back,
+          onTap: _sendKeyTap('KEY_RETURN'),
+          width: 84,
+          height: 50,
+        ),
+        _roundedActionButton(
+          icon: Icons.home,
+          onTap: _sendKeyTap('KEY_HOME'),
+          width: 84,
+          height: 50,
+        ),
+      ],
     );
   }
 }
@@ -624,9 +643,11 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
       event: 'typing_send_attempt',
       action: 'ime_delta',
     );
-    final imeSent = await widget.controller.sendTextReliably(
+    final imeSent = await widget.controller.sendPreparedTextReliably(
       inserted,
       openPickerOnFailure: false,
+      autoPrepareInputContext: true,
+      source: 'mobile_keyboard',
     );
     if (imeSent) {
       widget.controller.logButtonEvent(
@@ -652,9 +673,11 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
 
     // Last attempt: only do full sync if fallback could not send anything.
     if (!fallback.sentAny && targetText.isNotEmpty) {
-      final fullSyncSent = await widget.controller.sendTextReliably(
+      final fullSyncSent = await widget.controller.sendPreparedTextReliably(
         targetText,
         openPickerOnFailure: false,
+        autoPrepareInputContext: true,
+        source: 'mobile_keyboard',
       );
       debugPrint(
         '[keyboard] full_sync_after_fallback '
@@ -772,7 +795,7 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
               enableSuggestions: false,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Focus a search box on your TV, then type here',
+                hintText: 'Type here and app will auto-prepare TV input',
                 hintStyle: TextStyle(color: Colors.grey[500]),
                 filled: true,
                 fillColor: const Color(0xFF3A3A3A),

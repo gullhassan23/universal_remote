@@ -7,6 +7,7 @@ import 'tv_connection_controller.dart';
 import 'media_cast_controller.dart';
 import 'vibratiion_controller.dart';
 import '../models/tv_device.dart';
+import '../services/companion/companion_tv_service.dart';
 import '../services/tv_service_interface.dart';
 import '../features/device_discovery/device_discovery_controller.dart';
 import '../widgets/remote_device_picker_sheet.dart';
@@ -16,16 +17,19 @@ class RemoteController extends GetxController {
     TvConnectionController? connectionController,
     DeviceDiscoveryController? discoveryController,
     MediaCastController? mediaCastController,
+    CompanionTvService? companionTvService,
   }) : _connectionController =
            connectionController ?? Get.find<TvConnectionController>(),
        _discoveryController =
            discoveryController ?? Get.find<DeviceDiscoveryController>(),
        _mediaCastController =
-           mediaCastController ?? Get.find<MediaCastController>();
+           mediaCastController ?? Get.find<MediaCastController>(),
+       _companionTvService = companionTvService ?? CompanionTvService();
 
   final TvConnectionController _connectionController;
   final DeviceDiscoveryController _discoveryController;
   final MediaCastController _mediaCastController;
+  final CompanionTvService _companionTvService;
 
   var selectedTab = 0.obs;
   final RxBool showDevicePicker = false.obs;
@@ -125,6 +129,80 @@ class RemoteController extends GetxController {
       openPickerOnFailure: openPickerOnFailure,
       retryDelay: const Duration(milliseconds: 40),
     );
+  }
+
+  Future<bool> sendPreparedTextReliably(
+    String text, {
+    bool openPickerOnFailure = false,
+    bool autoPrepareInputContext = true,
+    String source = 'mobile_voice',
+  }) async {
+    final normalized = text.trim();
+    if (normalized.isEmpty) return false;
+    if (_companionTvService.isFeatureEnabled) {
+      final reachable = await _companionTvService.isReachable();
+      if (reachable) {
+        final sentViaCompanion = await _companionTvService.sendVoiceText(
+          text: normalized,
+          source: source,
+        );
+        if (sentViaCompanion) {
+          return true;
+        }
+      }
+    }
+    _showReconnectNoticeIfAny();
+    if (_connectionController.connectionState.value !=
+            TvConnectionState.connected &&
+        openPickerOnFailure) {
+      _pendingKey = '__TEXT__:$normalized';
+      _openPickerIfNeeded();
+      return false;
+    }
+
+    if (_connectionController.connectionState.value == TvConnectionState.connected) {
+      var ok = await _connectionController.sendTextPrepared(
+        normalized,
+        autoPrepareInputContext: autoPrepareInputContext,
+      );
+      if (!ok) {
+        await Future<void>.delayed(const Duration(milliseconds: 45));
+        ok = await _connectionController.sendTextPrepared(
+          normalized,
+          autoPrepareInputContext: autoPrepareInputContext,
+        );
+      }
+      if (ok) return true;
+
+      final device = _connectionController.currentDevice.value;
+      if (device != null) {
+        final reconnected = await _connectionController.connectTo(device);
+        if (reconnected) {
+          final resent = await _connectionController.sendTextPrepared(
+            normalized,
+            autoPrepareInputContext: autoPrepareInputContext,
+          );
+          if (resent) return true;
+        }
+      }
+    }
+
+    final restored =
+        await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
+    if (restored) {
+      final resentAfterRestore = await _connectionController.sendTextPrepared(
+        normalized,
+        autoPrepareInputContext: autoPrepareInputContext,
+      );
+      if (resentAfterRestore) return true;
+    }
+
+    if (openPickerOnFailure) {
+      _showReconnectNoticeIfAny();
+      _pendingKey = '__TEXT__:$normalized';
+      _openPickerIfNeeded();
+    }
+    return false;
   }
 
   Future<bool> _sendReliably({

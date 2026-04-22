@@ -105,6 +105,26 @@ class AndroidTvRemotePlatform {
     return ok == true;
   }
 
+  Future<bool> sendTextPrepared(
+    String text, {
+    bool autoPrepareInputContext = true,
+  }) async {
+    ensureInitialized();
+    _log(
+      'sendTextPrepared call args={textLength:${text.length},'
+      'textPreview:"${_previewText(text)}",autoPrepareInputContext:$autoPrepareInputContext}',
+    );
+    final ok = await _channel.invokeMethod<bool>(
+      'sendTextPrepared',
+      <String, dynamic>{
+        'text': text,
+        'autoPrepareInputContext': autoPrepareInputContext,
+      },
+    );
+    _log('sendTextPrepared result=${ok == true} rawResult=$ok');
+    return ok == true;
+  }
+
   Future<bool> launchApp(String packageName) async {
     ensureInitialized();
     final ok = await _channel.invokeMethod<bool>(

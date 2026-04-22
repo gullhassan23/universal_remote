@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "messages": {
+    "voiceInputRequest": {
+      "type": "object",
+      "required": [
+        "requestId",
+        "sessionId",
+        "timestampMs",
+        "authToken",
+        "text"
+      ],
+      "properties": {
+        "requestId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "timestampMs": { "type": "integer" },
+        "authToken": { "type": "string" },
+        "text": { "type": "string" },
+        "source": { "type": "string", "enum": ["mobile_voice", "mobile_keyboard"] }
+      }
+    },
+    "voiceInputResponse": {
+      "type": "object",
+      "required": ["requestId", "ok"],
+      "properties": {
+        "requestId": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "errorCode": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

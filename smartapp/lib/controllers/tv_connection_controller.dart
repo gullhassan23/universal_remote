@@ -241,6 +241,32 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     return sent;
   }
 
+  Future<bool> sendTextPrepared(
+    String text, {
+    bool autoPrepareInputContext = true,
+  }) async {
+    final state = connectionState.value;
+    final deviceName = currentDevice.value?.name ?? 'unknown-device';
+    if (state != TvConnectionState.connected) {
+      _log('sendTextPrepared failed reason=not_connected state=$state');
+      return false;
+    }
+    final sent = await _tvService.sendTextPrepared(
+      text,
+      autoPrepareInputContext: autoPrepareInputContext,
+    );
+    if (sent) {
+      _log(
+        'sendTextPrepared success length=${text.length} device=$deviceName autoPrepare=$autoPrepareInputContext',
+      );
+    } else {
+      _log(
+        'sendTextPrepared failed length=${text.length} device=$deviceName autoPrepare=$autoPrepareInputContext',
+      );
+    }
+    return sent;
+  }
+
   Future<bool> launchApp(String packageName) {
     if (connectionState.value != TvConnectionState.connected) {
       _log('launchApp blocked: not connected package=$packageName');

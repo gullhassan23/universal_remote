@@ -65,6 +65,15 @@ abstract class ITvService {
 
   Future<bool> sendKey(String key);
 
+  /// Sends text using the best available input strategy for the active TV.
+  ///
+  /// Implementations should try direct IME commit first when possible and
+  /// optionally prepare an input context (search/assistant) when needed.
+  Future<bool> sendTextPrepared(
+    String text, {
+    bool autoPrepareInputContext = true,
+  });
+
   Future<bool> launchApp(String packageName);
 
   Future<bool> castMedia(CastMediaItem item);
