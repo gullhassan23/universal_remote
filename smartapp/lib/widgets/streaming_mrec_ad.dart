@@ -102,10 +102,7 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
       }
 
       if (!_isLoaded || _ad == null) {
-        return const SizedBox(
-          width: 300,
-          height: 250,
-        );
+        return const SizedBox.shrink();
       }
 
       return SizedBox(

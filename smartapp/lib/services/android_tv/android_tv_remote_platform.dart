@@ -16,6 +16,22 @@ class AndroidTvRemotePlatform {
   bool _initialized = false;
   VoidCallback? _onPairingPromptRequested;
 
+  void _log(String message) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('AndroidTvRemotePlatform: $message');
+    }
+  }
+
+  String _previewText(String value) {
+    final escaped = value
+        .replaceAll('\n', r'\n')
+        .replaceAll('\r', r'\r')
+        .replaceAll('\t', r'\t');
+    if (escaped.length <= 64) return escaped;
+    return '${escaped.substring(0, 64)}...';
+  }
+
   void setOnPairingPromptRequested(VoidCallback? callback) {
     _onPairingPromptRequested = callback;
   }
@@ -67,19 +83,25 @@ class AndroidTvRemotePlatform {
 
   Future<bool> sendKeyCode(int keyCode) async {
     ensureInitialized();
+    _log('sendKeyCode call args={keyCode:$keyCode}');
     final ok = await _channel.invokeMethod<bool>(
       'sendKeyCode',
       <String, dynamic>{'keyCode': keyCode},
     );
+    _log('sendKeyCode result=${ok == true} rawResult=$ok');
     return ok == true;
   }
 
   Future<bool> sendText(String text) async {
     ensureInitialized();
+    _log(
+      'sendText call args={textLength:${text.length},textPreview:"${_previewText(text)}"}',
+    );
     final ok = await _channel.invokeMethod<bool>(
       'sendText',
       <String, dynamic>{'text': text},
     );
+    _log('sendText result=${ok == true} rawResult=$ok');
     return ok == true;
   }
 

@@ -47,228 +47,238 @@ class _CastScreenState extends State<CastScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Image.asset(
-                  ImageRes.kGetStartedBackgroundAsset2,
-                  fit: BoxFit.cover,
-                ),
-              ),
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              ImageRes.kGetStartedBackgroundAsset2,
             ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(22, 14, 22, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Center(
-                      child: TopBannerAd(),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: TopBannerAd(),
+                ),
+                // const PremiumStatusBanner(),
+                const SizedBox(height: 8),
+                Obx(
+                  () => Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Cast',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            height: 0.95,
+                          ),
+                        ),
+                      ),
+                      PremiumStatusBanner(),
+                      if (controller.isCastingActive)
+                        IconButton(
+                          onPressed: controller.stopCastingAndReset,
+                          tooltip: 'Stop casting',
+                          icon: const Icon(
+                            Icons.cast_connected,
+                            color: Colors.white,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Obx(
+                  () => CastSessionBanner(
+                    label: controller.connectedDeviceName.value.isEmpty
+                        ? ''
+                        : 'Connected to ${controller.connectedDeviceName.value}',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Obx(() {
+                  final message = controller.progressMessage.value;
+                  if (message.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.24),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    // const PremiumStatusBanner(),
-                    const SizedBox(height: 8),
-                    Obx(
-                      () => Row(
+                  );
+                }),
+                Expanded(
+                  child: Obx(() {
+                    if (!controller.hasMedia) {
+                      return GridView.count(
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 0.84,
                         children: [
-                          const Expanded(
-                            child: Text(
-                              'Cast',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                                height: 0.95,
-                              ),
-                            ),
+                          CastTile(
+                            ontap: () {},
+                            title: 'Browser',
+                            subtitle: 'Cast your screen',
+                            image: CastTileImage.browse,
                           ),
-                          PremiumStatusBanner(),
-                          if (controller.isCastingActive)
-                            IconButton(
-                              onPressed: controller.stopCastingAndReset,
-                              tooltip: 'Stop casting',
-                              icon: const Icon(
-                                Icons.cast_connected,
-                                color: Colors.white,
-                              ),
-                            ),
+                          CastTile(
+                            ontap: _handleMediaCastTap,
+                            title: 'Media',
+                            subtitle: 'Cast photos & video',
+                            image: CastTileImage.media,
+                          ),
+                          CastTile(
+                            ontap: () {},
+                            title: 'Mirror',
+                            subtitle: 'Mirror your screen',
+                            image: CastTileImage.mirror,
+                          ),
+                          CastTile(
+                            ontap: () {},
+                            title: 'YouTube',
+                            subtitle: 'Watch YouTube',
+                            image: CastTileImage.youtube,
+                          ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Obx(
-                      () => CastSessionBanner(
-                        label: controller.connectedDeviceName.value.isEmpty
-                            ? ''
-                            : 'Connected to ${controller.connectedDeviceName.value}',
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Obx(() {
-                      final message = controller.progressMessage.value;
-                      if (message.isEmpty) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.24),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            message,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                      );
+                    }
+
+                    final queue = controller.mediaQueue;
+                    final currentIndex = controller.currentMediaIndex.value;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!_pageController.hasClients) return;
+                      if (_pageController.page?.round() == currentIndex) return;
+                      _pageController.jumpToPage(currentIndex);
+                    });
+
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              child: PageView.builder(
+                                controller: _pageController,
+                                itemCount: queue.length,
+                                onPageChanged: (index) {
+                                  controller.castMediaAt(index);
+                                },
+                                itemBuilder: (_, index) {
+                                  final media = queue[index];
+                                  return _MediaPreviewCard(item: media);
+                                },
+                              ),
                             ),
                           ),
                         ),
-                      );
-                    }),
-                    Expanded(
-                      child: Obx(() {
-                        if (!controller.hasMedia) {
-                          return GridView.count(
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: 0.84,
-                            children: [
-                              CastTile(
-                                ontap: () {},
-                                title: 'Browser',
-                                subtitle: 'Cast your screen',
-                                image: CastTileImage.browse,
-                              ),
-                              CastTile(
-                                ontap: _handleMediaCastTap,
-                                title: 'Media',
-                                subtitle: 'Cast photos & video',
-                                image: CastTileImage.media,
-                              ),
-                              CastTile(
-                                ontap: () {},
-                                title: 'Mirror',
-                                subtitle: 'Mirror your screen',
-                                image: CastTileImage.mirror,
-                              ),
-                              CastTile(
-                                ontap: () {},
-                                title: 'YouTube',
-                                subtitle: 'Watch YouTube',
-                                image: CastTileImage.youtube,
-                              ),
-                            ],
-                          );
-                        }
-
-                        final queue = controller.mediaQueue;
-                        final currentIndex = controller.currentMediaIndex.value;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!_pageController.hasClients) return;
-                          if (_pageController.page?.round() == currentIndex)
-                            return;
-                          _pageController.jumpToPage(currentIndex);
-                        });
-
-                        return Column(
+                        const SizedBox(height: 12),
+                        Text(
+                          '${currentIndex + 1} / ${queue.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
                           children: [
                             Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Container(
-                                  color: Colors.black.withValues(alpha: 0.28),
-                                  child: PageView.builder(
-                                    controller: _pageController,
-                                    itemCount: queue.length,
-                                    onPageChanged: (index) {
-                                      controller.castMediaAt(index);
-                                    },
-                                    itemBuilder: (_, index) {
-                                      final media = queue[index];
-                                      return _MediaPreviewCard(item: media);
-                                    },
+                              child: OutlinedButton.icon(
+                                onPressed: currentIndex > 0
+                                    ? () => _moveToPage(currentIndex - 1)
+                                    : null,
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.7),
                                   ),
+                                  foregroundColor: Colors.white,
                                 ),
+                                icon: const Icon(Icons.chevron_left),
+                                label: const Text('Previous'),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              '${currentIndex + 1} / ${queue.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: currentIndex > 0
-                                        ? () => _moveToPage(currentIndex - 1)
-                                        : null,
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.7),
-                                      ),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    icon: const Icon(Icons.chevron_left),
-                                    label: const Text('Previous'),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: currentIndex < queue.length - 1
+                                    ? () => _moveToPage(currentIndex + 1)
+                                    : null,
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.7),
                                   ),
+                                  foregroundColor: Colors.white,
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: currentIndex < queue.length - 1
-                                        ? () => _moveToPage(currentIndex + 1)
-                                        : null,
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.7),
-                                      ),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    icon: const Icon(Icons.chevron_right),
-                                    label: const Text('Next'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _handleMediaCastTap,
-                                icon: const Icon(
-                                    Icons.add_photo_alternate_outlined),
-                                label: const Text('Replace Media'),
+                                icon: const Icon(Icons.chevron_right),
+                                label: const Text('Next'),
                               ),
                             ),
                           ],
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 12),
-                    const Center(
-                      child: StreamingMrecAd(),
-                    ),
-                  ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _handleMediaCastTap,
+                            icon:
+                                const Icon(Icons.add_photo_alternate_outlined),
+                            label: const Text('Replace Media'),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                 ),
-              ),
+                // const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final adWidth = constraints.maxWidth.clamp(0.0, 300.0);
+                    final adHeight = adWidth * (140 / 300);
+
+                    return Center(
+                      child: SizedBox(
+                        width: adWidth,
+                        height: adHeight,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: const SizedBox(
+                            width: 300,
+                            height: 200,
+                            child: StreamingMrecAd(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

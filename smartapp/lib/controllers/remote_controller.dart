@@ -44,6 +44,15 @@ class RemoteController extends GetxController {
     debugPrint('[button] key=$buttonKey event=$event$actionSegment');
   }
 
+  String _previewPayload(String payload) {
+    final escaped = payload
+        .replaceAll('\n', r'\n')
+        .replaceAll('\r', r'\r')
+        .replaceAll('\t', r'\t');
+    if (escaped.length <= 64) return escaped;
+    return '${escaped.substring(0, 64)}...';
+  }
+
   Future<void> handleButtonTap({
     required String buttonKey,
     required FutureOr<void> Function() onTap,
@@ -107,6 +116,10 @@ class RemoteController extends GetxController {
     bool openPickerOnFailure = false,
   }) {
     if (text.isEmpty) return Future<bool>.value(false);
+    debugPrint(
+      '[remote_controller] send_text_reliably length=${text.length} '
+      'openPickerOnFailure=$openPickerOnFailure preview="${_previewPayload(text)}"',
+    );
     return _sendReliably(
       payload: '__TEXT__:$text',
       openPickerOnFailure: openPickerOnFailure,
@@ -119,6 +132,12 @@ class RemoteController extends GetxController {
     required bool openPickerOnFailure,
     required Duration retryDelay,
   }) async {
+    debugPrint(
+      '[remote_controller] send_reliably_start '
+      'payloadPreview="${_previewPayload(payload)}" '
+      'openPickerOnFailure=$openPickerOnFailure '
+      'connectionState=${_connectionController.connectionState.value.name}',
+    );
     _showReconnectNoticeIfAny();
     if (_connectionController.connectionState.value !=
             TvConnectionState.connected &&
@@ -131,17 +150,21 @@ class RemoteController extends GetxController {
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {
       var ok = await _connectionController.sendKey(payload);
+      debugPrint('[remote_controller] send_attempt_1 ok=$ok');
       if (!ok) {
         await Future<void>.delayed(retryDelay);
         ok = await _connectionController.sendKey(payload);
+        debugPrint('[remote_controller] send_attempt_2 ok=$ok');
       }
       if (ok) return true;
 
       final device = _connectionController.currentDevice.value;
       if (device != null) {
         final reconnected = await _connectionController.connectTo(device);
+        debugPrint('[remote_controller] reconnect_for_resend ok=$reconnected');
         if (reconnected) {
           final resent = await _connectionController.sendKey(payload);
+          debugPrint('[remote_controller] resend_after_reconnect ok=$resent');
           if (resent) return true;
         }
       }
@@ -149,8 +172,10 @@ class RemoteController extends GetxController {
 
     final restored =
         await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
+    debugPrint('[remote_controller] restore_last_device ok=$restored');
     if (restored) {
       final resentAfterRestore = await _connectionController.sendKey(payload);
+      debugPrint('[remote_controller] resend_after_restore ok=$resentAfterRestore');
       if (resentAfterRestore) return true;
     }
 
@@ -159,6 +184,10 @@ class RemoteController extends GetxController {
       _pendingKey = payload;
       _openPickerIfNeeded();
     }
+    debugPrint(
+      '[remote_controller] send_reliably_failed '
+      'payloadPreview="${_previewPayload(payload)}"',
+    );
     return false;
   }
 

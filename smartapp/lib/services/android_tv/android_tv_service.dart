@@ -370,7 +370,8 @@ class AndroidTvService implements ITvService {
       final text = key.substring(_batchTextPrefix.length);
       if (text.isEmpty) return false;
       _log(
-        'sendKey text payload length=${text.length} preview="${_previewTextForLog(text)}"',
+        'sendKey route=text_ime payloadFormat="__TEXT__:<text>" '
+        'length=${text.length} preview="${_previewTextForLog(text)}"',
       );
       try {
         var sent = await AndroidTvRemotePlatform.instance.sendText(text);
@@ -398,7 +399,10 @@ class AndroidTvService implements ITvService {
       }
       return false;
     }
-    _log('sendKey key event="$key" mappedCode=$code');
+    _log(
+      'sendKey route=keycode payload="$key" mappedCode=$code '
+      'payloadFormat="{method:sendKeyCode,args:{keyCode:int}}"',
+    );
     try {
       final sent = await AndroidTvRemotePlatform.instance.sendKeyCode(code);
       _log('sendKey key event result=$sent key="$key" code=$code');

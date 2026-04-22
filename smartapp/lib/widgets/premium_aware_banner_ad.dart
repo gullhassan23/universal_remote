@@ -100,17 +100,12 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
       final bool isPremium = _premiumController.isPremium.value;
       final bool isLoaded = _isLoaded;
       final BannerAd? ad = _ad;
-      if (isPremium) {
+      if (isPremium || _adController.adUnitId.isEmpty) {
         return const SizedBox.shrink();
       }
-      final double width = ad?.size.width.toDouble() ?? _adController.adSize.width.toDouble();
-      final double height = ad?.size.height.toDouble() ?? _adController.adSize.height.toDouble();
 
       if (!isLoaded || ad == null) {
-        return Padding(
-          padding: widget.padding ?? EdgeInsets.zero,
-          child: _BannerShimmerPlaceholder(width: width, height: height),
-        );
+        return const SizedBox.shrink();
       }
       return Padding(
         padding: widget.padding ?? EdgeInsets.zero,
@@ -121,68 +116,5 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
         ),
       );
     });
-  }
-}
-
-class _BannerShimmerPlaceholder extends StatefulWidget {
-  const _BannerShimmerPlaceholder({required this.width, required this.height});
-
-  final double width;
-  final double height;
-
-  @override
-  State<_BannerShimmerPlaceholder> createState() =>
-      _BannerShimmerPlaceholderState();
-}
-
-class _BannerShimmerPlaceholderState extends State<_BannerShimmerPlaceholder>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, __) {
-        final double offset = (_controller.value * 2) - 1;
-        return SizedBox(
-          width: widget.width,
-          height: widget.height,
-          child: ShaderMask(
-            blendMode: BlendMode.srcATop,
-            shaderCallback: (Rect bounds) {
-              return LinearGradient(
-                begin: Alignment(-1.0 - offset, 0),
-                end: Alignment(1.0 - offset, 0),
-                colors: <Color>[
-                  Colors.grey.shade300,
-                  Colors.grey.shade100,
-                  Colors.grey.shade300,
-                ],
-                stops: const <double>[0.1, 0.5, 0.9],
-              ).createShader(bounds);
-            },
-            child: Container(
-              color: Colors.grey.shade300,
-            ),
-          ),
-        );
-      },
-    );
   }
 }

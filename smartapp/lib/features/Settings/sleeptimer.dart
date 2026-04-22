@@ -21,150 +21,144 @@ class SleepTimerUI extends GetView<SleepTimerController> {
 
     return Scaffold(
       body: Container(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Image.asset(
-                  ImageRes.kGetStartedBackgroundAsset2,
-                  fit: BoxFit.cover,
-                ),
-              ),
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              ImageRes.kGetStartedBackgroundAsset2,
             ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_ios,
-                              color: Colors.white, size: 20),
-                          onPressed: HapticAction.wrap(Get.back),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 40,
-                            minHeight: 40,
-                          ),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Sleep timer',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 40),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'SLEEP IN:',
-                      style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13),
-                    ),
-                    const SizedBox(height: 15),
-                    GridView.count(
-                      shrinkWrap: true,
-                      crossAxisCount: 2,
-                      childAspectRatio: 2.5,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      children: presets
-                          .map((preset) => Obx(() {
-                                final selected =
-                                    controller.selectedDuration.value ==
-                                        preset.duration;
-                                return _buildButton(
-                                  preset.label,
-                                  isSelected: selected,
-                                  onTap: () =>
-                                      _handlePresetTap(context, preset),
-                                );
-                              }))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 30),
-                    const Text(
-                      'SLEEP AT:',
-                      style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13),
-                    ),
-                    const SizedBox(height: 15),
-                    Obx(() {
-                      final running = controller.isRunning.value;
-                      if (!running) {
-                        return _buildStatusChip(
-                          icon: Icons.timer_off_outlined,
-                          label: 'No active sleep timer',
-                        );
-                      }
-                      return Column(
-                        children: [
-                          _buildStatusChip(
-                            icon: Icons.timer_outlined,
-                            label:
-                                'Timer running: ${controller.remainingLabel}',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildStatusChip(
-                            icon: Icons.schedule_outlined,
-                            label: 'Sleep at ${controller.endTimeLabel}',
-                          ),
-                        ],
-                      );
-                    }),
-                    const SizedBox(height: 20),
-                    Obx(() {
-                      if (!controller.isRunning.value)
-                        return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: _buildFullWidthButton(
-                          'Cancel timer',
-                          onTap: controller.cancel,
-                        ),
-                      );
-                    }),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.info_outline,
-                              color: Colors.white, size: 24),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'The Sleep timer only works if the app is connected to your TV. In order to keep the app connected please do not close the app',
-                              style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
-                                  height: 1.4),
-                            ),
-                          ),
-                        ],
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios,
+                          color: Colors.white, size: 20),
+                      onPressed: HapticAction.wrap(Get.back),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
                       ),
                     ),
+                    const Expanded(
+                      child: Text(
+                        'Sleep timer',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 40),
                   ],
                 ),
-              ),
+                const SizedBox(height: 12),
+                const Text(
+                  'SLEEP IN:',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13),
+                ),
+                const SizedBox(height: 15),
+                GridView.count(
+                  shrinkWrap: true,
+                  crossAxisCount: 2,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  children: presets
+                      .map((preset) => Obx(() {
+                            final selected =
+                                controller.selectedDuration.value ==
+                                    preset.duration;
+                            return _buildButton(
+                              preset.label,
+                              isSelected: selected,
+                              onTap: () => _handlePresetTap(context, preset),
+                            );
+                          }))
+                      .toList(),
+                ),
+                const SizedBox(height: 30),
+                const Text(
+                  'SLEEP AT:',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13),
+                ),
+                const SizedBox(height: 15),
+                Obx(() {
+                  final running = controller.isRunning.value;
+                  if (!running) {
+                    return _buildStatusChip(
+                      icon: Icons.timer_off_outlined,
+                      label: 'No active sleep timer',
+                    );
+                  }
+                  return Column(
+                    children: [
+                      _buildStatusChip(
+                        icon: Icons.timer_outlined,
+                        label: 'Timer running: ${controller.remainingLabel}',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildStatusChip(
+                        icon: Icons.schedule_outlined,
+                        label: 'Sleep at ${controller.endTimeLabel}',
+                      ),
+                    ],
+                  );
+                }),
+                const SizedBox(height: 20),
+                Obx(() {
+                  if (!controller.isRunning.value)
+                    return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _buildFullWidthButton(
+                      'Cancel timer',
+                      onTap: controller.cancel,
+                    ),
+                  );
+                }),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline,
+                          color: Colors.white, size: 24),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          'The Sleep timer only works if the app is connected to your TV. In order to keep the app connected please do not close the app',
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                              height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

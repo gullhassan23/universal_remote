@@ -28,6 +28,13 @@ class StreamingController extends GetxController {
       icon: StreamingAppIcon.youtube,
       accentColor: Color(0xFFFF0000),
     ),
+    StreamingAppItem(
+      id: 'prime',
+      name: 'Prime Video',
+      packageName: 'com.amazon.avod.thirdpartyclient',
+      icon: StreamingAppIcon.prime, // ensure icon added
+      accentColor: Color(0xFF00A8E1),
+    ),
   ];
 
   Future<bool> launchStreamingApp(StreamingAppItem app) async {

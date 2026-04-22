@@ -72,6 +72,23 @@ class _PremiumScreenState extends State<PremiumScreen> {
             SafeArea(
               child: Column(
                 children: [
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4, right: 10),
+                      child: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
+                        splashRadius: 18,
+                        iconSize: 18,
+                        onPressed: () => Get.back<void>(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),

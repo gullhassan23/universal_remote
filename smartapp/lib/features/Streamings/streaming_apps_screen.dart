@@ -65,95 +65,89 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Image.asset(
-                  ImageRes.kGetStartedBackgroundAsset2,
-                  fit: BoxFit.cover,
-                ),
-              ),
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              ImageRes.kGetStartedBackgroundAsset2,
             ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: TopBannerAd(),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Center(
-                      child: TopBannerAd(),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Apps',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            height: 0.95,
-                          ),
-                        ),
-                        const PremiumStatusBanner(),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: Obx(
-                        () {
-                          final isConnected =
-                              _connectionController.currentDevice.value != null;
-                          if (isConnected) {
-                            final launchingAppId =
-                                _streamingController.launchingAppId.value;
-                            final hasMrecSlot =
-                                StreamingController.apps.length >= 2;
-                            final totalItemCount =
-                                StreamingController.apps.length +
-                                    (hasMrecSlot ? 1 : 0);
-                            return ListView.separated(
-                              itemCount: totalItemCount,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                if (hasMrecSlot &&
-                                    index == StreamingController.apps.length) {
-                                  return const Center(
-                                    child: StreamingMrecAd(),
-                                  );
-                                }
-                                final app = StreamingController.apps[index];
-                                return StreamingAppTile(
-                                  app: app,
-                                  isBusy: launchingAppId == app.id,
-                                  onTap: () => _onAppTap(context, app),
-                                );
-                              },
-                            );
-                          }
-
-                          if (!_requestedDiscovery &&
-                              !_discoveryController.isLoading.value &&
-                              _discoveryController.devices.isEmpty) {
-                            _requestedDiscovery = true;
-                            Future<void>.microtask(
-                              _discoveryController.discoverDevices,
-                            );
-                          }
-
-                          return _buildDeviceSelection(context);
-                        },
+                    const Text(
+                      'Apps',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        height: 0.95,
                       ),
                     ),
+                    const PremiumStatusBanner(),
                   ],
                 ),
-              ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: Obx(
+                    () {
+                      final isConnected =
+                          _connectionController.currentDevice.value != null;
+                      if (isConnected) {
+                        final launchingAppId =
+                            _streamingController.launchingAppId.value;
+                        final hasMrecSlot =
+                            StreamingController.apps.length >= 2;
+                        final totalItemCount = StreamingController.apps.length +
+                            (hasMrecSlot ? 1 : 0);
+                        return ListView.separated(
+                          itemCount: totalItemCount,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            if (hasMrecSlot &&
+                                index == StreamingController.apps.length) {
+                              return const Center(
+                                child: StreamingMrecAd(),
+                              );
+                            }
+                            final app = StreamingController.apps[index];
+                            return StreamingAppTile(
+                              app: app,
+                              isBusy: launchingAppId == app.id,
+                              onTap: () => _onAppTap(context, app),
+                            );
+                          },
+                        );
+                      }
+
+                      if (!_requestedDiscovery &&
+                          !_discoveryController.isLoading.value &&
+                          _discoveryController.devices.isEmpty) {
+                        _requestedDiscovery = true;
+                        Future<void>.microtask(
+                          _discoveryController.discoverDevices,
+                        );
+                      }
+
+                      return _buildDeviceSelection(context);
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -8,7 +8,8 @@ import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/features/premium/premium_screen.dart';
-import 'package:smartapp/features/premium/premium_viersion_screen.dart';
+import 'package:smartapp/features/premium/pro_screen.dart';
+import 'package:smartapp/features/Settings/faq_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
@@ -115,114 +116,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Image.asset(
-                  ImageRes.kGetStartedBackgroundAsset2,
-                  fit: BoxFit.cover,
-                ),
-              ),
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+              ImageRes.kGetStartedBackgroundAsset2,
             ),
-            SafeArea(
-              child: Column(
-                children: [
-                  const Center(
-                    child: TopBannerAd(),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const Center(
+                child: TopBannerAd(),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _SectionTitle(title: 'REMOTE'),
-                                GestureDetector(
-                                    onTap: () =>
-                                        Get.to(() => const PremiumScreen()),
-                                    child: const PremiumStatusBanner()),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            _SettingsTile(
-                              icon: SettingsIcon.switchdevice,
-                              title: 'Switch device',
-                              onTap: () {
-                                _openDeviceDiscoverySheet();
-                              },
-                            ),
-                            _SettingsTile(
-                              icon: SettingsIcon.remotestyle,
-                              title: 'Remote style',
-                              onTap: () {},
-                            ),
-                            Obx(
-                              () => _SwitchSettingsTile(
-                                icon: SettingsIcon.haptic,
-                                title: 'Haptic feedback',
-                                subtitle: 'Enables haptics on remote',
-                                value:
-                                    vibrationController.isHapticEnabled.value,
-                                onChanged: (value) {
-                                  vibrationController.toggleHaptic(value);
-                                },
-                              ),
-                            ),
-                            _SettingsTile(
-                              icon: SettingsIcon.sleep,
-                              title: 'Sleep timer',
-                              subtitle: 'Turns off your TV automatically',
-                              onTap: _openSleepTimerWithConnectionCheck,
-                            ),
-                            const SizedBox(height: 20),
-                            const _SectionTitle(title: 'GENERAL'),
-                            const SizedBox(height: 12),
-                            _SettingsTile(
-                              icon: SettingsIcon.faq,
-                              title: 'FAQ',
-                              onTap: () {},
-                            ),
-                            _SettingsTile(
-                              icon: SettingsIcon.restore,
-                              title: 'Restore purchases',
-                              onTap: () {
-                                if (!premiumController.isPremium.value) {
-                                  Get.to(() => const PremiumScreen());
-                                  return;
-                                }
-                                Get.to(() => const PremiumViersionScreen());
-                              },
-                            ),
-                            _SettingsTile(
-                              icon: SettingsIcon.privacy,
-                              title: 'Privacy policy',
-                              onTap: _openPrivacyPolicy,
-                            ),
-                            _SettingsTile(
-                              icon: SettingsIcon.term,
-                              title: 'How to use app',
-                              onTap: () {
-                                Get.to(
-                                    () => const InstructionOnboardingScreen());
-                              },
-                            ),
+                            _SectionTitle(title: 'REMOTE'),
+                            GestureDetector(
+                                onTap: () =>
+                                    Get.to(() => const PremiumScreen()),
+                                child: const PremiumStatusBanner()),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        _SettingsTile(
+                          icon: SettingsIcon.switchdevice,
+                          title: 'Switch device',
+                          onTap: () {
+                            _openDeviceDiscoverySheet();
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.remotestyle,
+                          title: 'Remote style',
+                          onTap: () {},
+                        ),
+                        Obx(
+                          () => _SwitchSettingsTile(
+                            icon: SettingsIcon.haptic,
+                            title: 'Haptic feedback',
+                            subtitle: 'Enables haptics on remote',
+                            value: vibrationController.isHapticEnabled.value,
+                            onChanged: (value) {
+                              vibrationController.toggleHaptic(value);
+                            },
+                          ),
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.sleep,
+                          title: 'Sleep timer',
+                          subtitle: 'Turns off your TV automatically',
+                          onTap: _openSleepTimerWithConnectionCheck,
+                        ),
+                        const SizedBox(height: 20),
+                        const _SectionTitle(title: 'GENERAL'),
+                        const SizedBox(height: 12),
+                        _SettingsTile(
+                          icon: SettingsIcon.faq,
+                          title: 'FAQ',
+                          onTap: () {
+                            Get.to(() => const FaqScreen());
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.restore,
+                          title: 'Restore purchases',
+                          onTap: () {
+                            if (!premiumController.isPremium.value) {
+                              Get.to(() => const PremiumScreen());
+                              return;
+                            }
+                            Get.to(() => const Pro_Screen());
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.privacy,
+                          title: 'Privacy policy',
+                          onTap: _openPrivacyPolicy,
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.term,
+                          title: 'How to use app',
+                          onTap: () {
+                            Get.to(() => const InstructionOnboardingScreen());
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

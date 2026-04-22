@@ -29,6 +29,7 @@ class Premium {
 class StreamingAppIcon {
   static const String netflix = 'assets/images/netflix-icon.png';
   static const String youtube = 'assets/images/YTLogo.png';
+  static const String prime = 'assets/images/prime.png';
 }
 
 class SettingsIcon {
