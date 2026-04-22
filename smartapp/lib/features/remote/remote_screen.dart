@@ -44,15 +44,7 @@ class RemoteScreen extends GetView<RemoteController> {
     return _loggedTap(
       'KEY_POWER',
       () async {
-        final sentTvPower = await controller.sendKeyReliably(
-          'KEY_POWER',
-          openPickerOnFailure: true,
-        );
-        if (sentTvPower) return;
-        await controller.sendKeyReliably(
-          'KEY_ANDROID_POWER',
-          openPickerOnFailure: true,
-        );
+        await controller.sendPowerReliably(openPickerOnFailure: true);
       },
       action: 'send_power_key',
     );
@@ -61,6 +53,7 @@ class RemoteScreen extends GetView<RemoteController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
@@ -247,24 +240,35 @@ class RemoteScreen extends GetView<RemoteController> {
                       buttonKey: 'KEY_KEYBOARD',
                       onTap: () async {
                         if (!context.mounted) return;
-                        await showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: const Color(0xFF2A2A2A),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(16),
+                        final navigator = Navigator.of(context);
+                        controller.registerKeyboardSheetCloser(() {
+                          if (!navigator.mounted || !navigator.canPop()) {
+                            return;
+                          }
+                          navigator.pop();
+                        });
+                        try {
+                          await showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: const Color(0xFF2A2A2A),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
                             ),
-                          ),
-                          builder: (ctx) => Padding(
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                            builder: (ctx) => Padding(
+                              padding: EdgeInsets.only(
+                                bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                              ),
+                              child: _TvKeyboardSheet(
+                                controller: controller,
+                              ),
                             ),
-                            child: _TvKeyboardSheet(
-                              controller: controller,
-                            ),
-                          ),
-                        );
+                          );
+                        } finally {
+                          controller.unregisterKeyboardSheetCloser();
+                        }
                       },
                       action: 'open_keyboard',
                     ),

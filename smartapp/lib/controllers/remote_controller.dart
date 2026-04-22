@@ -13,6 +13,8 @@ import '../services/tv_service_interface.dart';
 import '../features/device_discovery/device_discovery_controller.dart';
 import '../widgets/remote_device_picker_sheet.dart';
 
+enum _RemoteSheetType { picker, keyboard }
+
 class RemoteController extends GetxController {
   RemoteController({
     TvConnectionController? connectionController,
@@ -36,6 +38,9 @@ class RemoteController extends GetxController {
   final RxBool showDevicePicker = false.obs;
   String? _pendingKey;
   bool _pickerSheetVisible = false;
+  _RemoteSheetType? _activeSheetType;
+  VoidCallback? _keyboardSheetCloser;
+  Worker? _connectionStateWorker;
 
   TvConnectionController get connectionController => _connectionController;
   MediaCastController get mediaCastController => _mediaCastController;
@@ -88,6 +93,20 @@ class RemoteController extends GetxController {
         _showDevicePickerSheet();
       }
     });
+    _connectionStateWorker = ever<TvConnectionState>(
+      _connectionController.connectionState,
+      (state) {
+        if (state == TvConnectionState.connected) {
+          _dismissActiveSheetIfVisible();
+        }
+      },
+    );
+  }
+
+  @override
+  void onClose() {
+    _connectionStateWorker?.dispose();
+    super.onClose();
   }
 
   Future<void> send(String key) async {
@@ -114,6 +133,21 @@ class RemoteController extends GetxController {
       openPickerOnFailure: openPickerOnFailure,
       retryDelay: const Duration(milliseconds: 30),
     );
+  }
+
+  Future<bool> sendPowerReliably({
+    bool openPickerOnFailure = false,
+  }) async {
+    final sentTvPower = await sendKeyReliably(
+      'KEY_POWER',
+      openPickerOnFailure: openPickerOnFailure,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 90));
+    final sentAndroidPower = await sendKeyReliably(
+      'KEY_ANDROID_POWER',
+      openPickerOnFailure: openPickerOnFailure,
+    );
+    return sentTvPower || sentAndroidPower;
   }
 
   Future<bool> sendTextReliably(
@@ -281,6 +315,7 @@ class RemoteController extends GetxController {
 
   Future<void> onDeviceSelected(TvDevice device) async {
     _pickerSheetVisible = false;
+    _activeSheetType = null;
     _setShowDevicePickerSafely(false);
     final success = await _discoveryController.connectTo(
       device,
@@ -300,8 +335,55 @@ class RemoteController extends GetxController {
 
   void dismissDevicePicker() {
     _pickerSheetVisible = false;
+    if (_activeSheetType == _RemoteSheetType.picker) {
+      _activeSheetType = null;
+    }
     _setShowDevicePickerSafely(false);
     _pendingKey = null;
+  }
+
+  void registerKeyboardSheetCloser(VoidCallback closeSheet) {
+    _activeSheetType = _RemoteSheetType.keyboard;
+    _keyboardSheetCloser = closeSheet;
+  }
+
+  void unregisterKeyboardSheetCloser() {
+    _keyboardSheetCloser = null;
+    if (_activeSheetType == _RemoteSheetType.keyboard) {
+      _activeSheetType = null;
+    }
+  }
+
+  void _dismissActiveSheetIfVisible() {
+    if (_activeSheetType == _RemoteSheetType.keyboard) {
+      _dismissKeyboardSheetIfVisible();
+      return;
+    }
+    if (_activeSheetType == _RemoteSheetType.picker || _pickerSheetVisible) {
+      _dismissPickerSheetIfVisible();
+    }
+  }
+
+  void _dismissPickerSheetIfVisible() {
+    if (!_pickerSheetVisible) return;
+    _pickerSheetVisible = false;
+    if (_activeSheetType == _RemoteSheetType.picker) {
+      _activeSheetType = null;
+    }
+    _setShowDevicePickerSafely(false);
+    if (Get.isBottomSheetOpen ?? false) {
+      Get.back<void>();
+    }
+  }
+
+  void _dismissKeyboardSheetIfVisible() {
+    final closer = _keyboardSheetCloser;
+    if (closer == null) return;
+    _keyboardSheetCloser = null;
+    if (_activeSheetType == _RemoteSheetType.keyboard) {
+      _activeSheetType = null;
+    }
+    closer();
   }
 
   void _openPickerIfNeeded() {
@@ -340,6 +422,7 @@ class RemoteController extends GetxController {
   }
 
   void _showDevicePickerSheet() {
+    _activeSheetType = _RemoteSheetType.picker;
     Get.bottomSheet(
       RemoteDevicePickerSheet(
         discoveryController: _discoveryController,
@@ -354,6 +437,9 @@ class RemoteController extends GetxController {
       ),
     ).whenComplete(() {
       _pickerSheetVisible = false;
+      if (_activeSheetType == _RemoteSheetType.picker) {
+        _activeSheetType = null;
+      }
       if (showDevicePicker.value) {
         _setShowDevicePickerSafely(false);
       }

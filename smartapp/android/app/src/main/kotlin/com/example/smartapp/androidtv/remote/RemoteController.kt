@@ -11,14 +11,35 @@ class RemoteController(
         // Android KeyEvent.KEYCODE_A .. KEYCODE_Z
         const val KEYCODE_A = 29
         const val KEYCODE_Z = 54
+        const val KEYCODE_POWER = 26
+        const val KEYCODE_TV_POWER = 116
     }
 
     fun sendKeyCode(keycode: Int): Boolean {
         return try {
+            val isPowerKey = keycode == KEYCODE_POWER || keycode == KEYCODE_TV_POWER
+            if (isPowerKey) {
+                // Some OEM TVs accept power reliably only when a full DOWN+UP is sent.
+                val downUpFirst = sendDownUpPress(keycode)
+                if (downUpFirst) {
+                    Logger.d("Power keycode sent via DOWN+UP: $keycode")
+                    return true
+                }
+                // Fallback to short press for devices that reject down/up framing.
+                val shortFallback = sendShortPress(keycode)
+                if (shortFallback) {
+                    Logger.d("Power keycode sent via SHORT fallback: $keycode")
+                }
+                return shortFallback
+            }
+
             // Android TV remote protocol expects a short key inject for regular key taps.
             val result = sendShortPress(keycode)
-            if (!result && keycode in KEYCODE_A..KEYCODE_Z) {
-                // Some TV OEMs ignore letter keys on SHORT; DOWN+UP is more reliable.
+            val shouldTryDownUpFallback =
+                keycode in KEYCODE_A..KEYCODE_Z ||
+                    isPowerKey
+            if (!result && shouldTryDownUpFallback) {
+                // Some TV OEMs ignore SHORT for letter/power keys; DOWN+UP is more reliable.
                 val downUpResult = sendDownUpPress(keycode)
                 if (downUpResult) {
                     Logger.d("Keycode sent via DOWN+UP fallback: $keycode")
