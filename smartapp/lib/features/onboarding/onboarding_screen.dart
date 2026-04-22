@@ -35,20 +35,21 @@ class _InstructionOnboardingScreenState
   static const int _pageCount = 3;
 
   final PageController _pageController = PageController();
-  int _pageIndex = 0;
+  final RxInt _pageIndex = 0.obs;
 
   @override
   void dispose() {
     _pageController.dispose();
+    _pageIndex.close();
     super.dispose();
   }
 
   void _syncPageIndex(int index) {
-    if (mounted) setState(() => _pageIndex = index);
+    if (mounted) _pageIndex.value = index;
   }
 
   void _goBack() {
-    if (_pageIndex == 0) {
+    if (_pageIndex.value == 0) {
       Get.offAllNamed('/');
     } else {
       _pageController.previousPage(
@@ -65,7 +66,7 @@ class _InstructionOnboardingScreenState
   }
 
   void _goNext() {
-    if (_pageIndex >= _pageCount - 1) {
+    if (_pageIndex.value >= _pageCount - 1) {
       unawaited(_completeAndGoHome());
     } else {
       _pageController.nextPage(

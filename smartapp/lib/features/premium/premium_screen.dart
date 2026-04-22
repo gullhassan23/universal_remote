@@ -15,7 +15,7 @@ class PremiumScreen extends StatefulWidget {
 }
 
 class _PremiumScreenState extends State<PremiumScreen> {
-  _PremiumPlanType _selectedPlan = _PremiumPlanType.weekly;
+  final Rx<_PremiumPlanType> _selectedPlan = _PremiumPlanType.weekly.obs;
 
   SubscriptionProduct _resolveSelectedProduct(
     List<SubscriptionProduct> products,
@@ -36,7 +36,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       );
     }
 
-    return matchBy(_selectedPlan) ??
+    return matchBy(_selectedPlan.value) ??
         matchBy(_PremiumPlanType.weekly) ??
         matchBy(_PremiumPlanType.monthly) ??
         matchBy(_PremiumPlanType.yearly) ??
@@ -135,62 +135,52 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             text: 'No Ads',
                           ),
                           const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _PlanCard(
-                                  badge: 'POPULAR',
-                                  title: 'Monthly',
-                                  subtitle: 'Rs 725/week',
-                                  priceLine: 'Rs 2,900.00',
-                                  durationLine: 'per month',
-                                  highlighted:
-                                      _selectedPlan == _PremiumPlanType.monthly,
-                                  onTap: () {
-                                    setState(
-                                      () => _selectedPlan =
-                                          _PremiumPlanType.monthly,
-                                    );
-                                  },
+                          Obx(
+                            () => Row(
+                              children: [
+                                Expanded(
+                                  child: _PlanCard(
+                                    badge: 'POPULAR',
+                                    title: 'Monthly',
+                                    subtitle: 'Rs 725/week',
+                                    priceLine: 'Rs 2,900.00',
+                                    durationLine: 'per month',
+                                    highlighted: _selectedPlan.value ==
+                                        _PremiumPlanType.monthly,
+                                    onTap: () => _selectedPlan.value =
+                                        _PremiumPlanType.monthly,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _PlanCard(
-                                  badge: '3 DAYS\nFREE TRIAL',
-                                  title: 'Weekly',
-                                  subtitle: 'Rs 1,900.00/\nweek',
-                                  priceLine: 'Rs 1,900.00',
-                                  durationLine: 'per week',
-                                  highlighted:
-                                      _selectedPlan == _PremiumPlanType.weekly,
-                                  onTap: () {
-                                    setState(
-                                      () =>
-                                          _selectedPlan = _PremiumPlanType.weekly,
-                                    );
-                                  },
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _PlanCard(
+                                    badge: '3 DAYS\nFREE TRIAL',
+                                    title: 'Weekly',
+                                    subtitle: 'Rs 1,900.00/\nweek',
+                                    priceLine: 'Rs 1,900.00',
+                                    durationLine: 'per week',
+                                    highlighted: _selectedPlan.value ==
+                                        _PremiumPlanType.weekly,
+                                    onTap: () => _selectedPlan.value =
+                                        _PremiumPlanType.weekly,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _PlanCard(
-                                  badge: 'BEST DEAL',
-                                  title: 'Yearly',
-                                  subtitle: 'Rs 151.92/week',
-                                  priceLine: 'Rs 7,900.00',
-                                  durationLine: 'per year',
-                                  highlighted:
-                                      _selectedPlan == _PremiumPlanType.yearly,
-                                  onTap: () {
-                                    setState(
-                                      () =>
-                                          _selectedPlan = _PremiumPlanType.yearly,
-                                    );
-                                  },
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _PlanCard(
+                                    badge: 'BEST DEAL',
+                                    title: 'Yearly',
+                                    subtitle: 'Rs 151.92/week',
+                                    priceLine: 'Rs 7,900.00',
+                                    durationLine: 'per year',
+                                    highlighted: _selectedPlan.value ==
+                                        _PremiumPlanType.yearly,
+                                    onTap: () => _selectedPlan.value =
+                                        _PremiumPlanType.yearly,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),

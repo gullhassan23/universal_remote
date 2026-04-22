@@ -32,7 +32,7 @@ class RemoteDevicePickerSheet extends StatefulWidget {
 }
 
 class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
-  String? _connectingDeviceId;
+  final RxnString _connectingDeviceId = RxnString();
 
   @override
   void initState() {
@@ -159,7 +159,7 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                       itemBuilder: (context, index) {
                         final device = devices[index];
                         final isConnectingThisDevice =
-                            _connectingDeviceId == device.id;
+                            _connectingDeviceId.value == device.id;
                         final brandLabel = device.brand == TvBrand.androidTv
                             ? 'Android TV'
                             : device.brand.name;
@@ -192,10 +192,8 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                                 )
                               : null,
                           onTap: () {
-                            if (_connectingDeviceId != null) return;
-                            setState(() {
-                              _connectingDeviceId = device.id;
-                            });
+                            if (_connectingDeviceId.value != null) return;
+                            _connectingDeviceId.value = device.id;
                             unawaited(
                               widget.onHandleTap(
                                 buttonKey: 'DEVICE_${device.name}',
@@ -205,9 +203,7 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                                     await widget.onDeviceSelected(device);
                                   } finally {
                                     if (!mounted) return;
-                                    setState(() {
-                                      _connectingDeviceId = null;
-                                    });
+                                    _connectingDeviceId.value = null;
                                   }
                                 },
                               ),

@@ -21,21 +21,18 @@ import 'package:smartapp/widgets/premium_status_banner.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
   static const String _supportEmail = 'admin@maxgamesproduction.com';
 
   // bool _isHapticEnabled = true;
-  final premiumController = Get.find<PremiumController>();
-  final vibrationController = Get.find<VibrationController>();
-  final _tvConnectionController = Get.find<TvConnectionController>();
-  final _discoveryController = Get.find<DeviceDiscoveryController>();
+  PremiumController get premiumController => Get.find<PremiumController>();
+  VibrationController get vibrationController =>
+      Get.find<VibrationController>();
+  TvConnectionController get _tvConnectionController =>
+      Get.find<TvConnectionController>();
+  DeviceDiscoveryController get _discoveryController =>
+      Get.find<DeviceDiscoveryController>();
 
   Future<void> _openPrivacyPolicy() async {
     final String privacyUrl = dotenv.env['PRIVACY_POLICY_URL']!.trim();
