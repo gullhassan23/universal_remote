@@ -29,8 +29,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const String _fallbackPrivacyUrl =
-      'https://sites.google.com/view/inverter-town-llc/privacy-policy';
+  static const String _supportEmail = 'admin@maxgamesproduction.com';
+
   // bool _isHapticEnabled = true;
   final premiumController = Get.find<PremiumController>();
   final vibrationController = Get.find<VibrationController>();
@@ -38,10 +38,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _discoveryController = Get.find<DeviceDiscoveryController>();
 
   Future<void> _openPrivacyPolicy() async {
-    final String privacyUrl =
-        dotenv.env['PRIVACY_POLICY_URL']?.trim().isNotEmpty == true
-            ? dotenv.env['PRIVACY_POLICY_URL']!.trim()
-            : _fallbackPrivacyUrl;
+    final String privacyUrl = dotenv.env['PRIVACY_POLICY_URL']!.trim();
+
     final uri = Uri.tryParse(privacyUrl);
     if (uri == null) {
       Get.snackbar('Error', 'Privacy policy URL is invalid.');
@@ -50,6 +48,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
       Get.snackbar('Error', 'Unable to open privacy policy.');
+    }
+  }
+
+  Future<void> _openFeedbackEmail(BuildContext context) async {
+    final Uri gmailUri = Uri(
+      scheme: 'googlegmail',
+      host: 'co',
+      queryParameters: {
+        'to': _supportEmail,
+        'subject': 'Feedback & Troubleshooting',
+      },
+    );
+
+    final Uri mailtoUri = Uri(
+      scheme: 'mailto',
+      path: _supportEmail,
+      queryParameters: {
+        'subject': 'Feedback & Troubleshooting',
+      },
+    );
+
+    Future<bool> _safeLaunch(Uri uri, LaunchMode mode) async {
+      try {
+        return await launchUrl(uri, mode: mode);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    final launchedGmailApp = await _safeLaunch(
+      gmailUri,
+      LaunchMode.externalNonBrowserApplication,
+    );
+    if (launchedGmailApp) {
+      return;
+    }
+
+    final launchedMailto = await _safeLaunch(
+      mailtoUri,
+      LaunchMode.externalNonBrowserApplication,
+    );
+    if (launchedMailto) {
+      return;
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open Gmail or any mail app on this device.'),
+        ),
+      );
     }
   }
 
@@ -211,6 +260,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'How to use app',
                           onTap: () {
                             Get.to(() => const InstructionOnboardingScreen());
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.term,
+                          title: 'Term & Conditions',
+                          onTap: () {
+                            Get.to(() => const InstructionOnboardingScreen());
+                          },
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.term,
+                          title: 'Send us a note',
+                          onTap: () {
+                            _openFeedbackEmail(context);
                           },
                         ),
                       ],

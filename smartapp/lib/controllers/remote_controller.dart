@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 
 import 'tv_connection_controller.dart';
@@ -280,7 +281,7 @@ class RemoteController extends GetxController {
 
   Future<void> onDeviceSelected(TvDevice device) async {
     _pickerSheetVisible = false;
-    showDevicePicker.value = false;
+    _setShowDevicePickerSafely(false);
     final success = await _discoveryController.connectTo(
       device,
       navigateToRemote: false,
@@ -299,13 +300,32 @@ class RemoteController extends GetxController {
 
   void dismissDevicePicker() {
     _pickerSheetVisible = false;
-    showDevicePicker.value = false;
+    _setShowDevicePickerSafely(false);
     _pendingKey = null;
   }
 
   void _openPickerIfNeeded() {
     if (_pickerSheetVisible || showDevicePicker.value) return;
-    showDevicePicker.value = true;
+    _setShowDevicePickerSafely(true);
+  }
+
+  void _setShowDevicePickerSafely(bool value) {
+    final schedulerPhase = SchedulerBinding.instance.schedulerPhase;
+    final isBuildingFrame =
+        schedulerPhase == SchedulerPhase.transientCallbacks ||
+        schedulerPhase == SchedulerPhase.persistentCallbacks ||
+        schedulerPhase == SchedulerPhase.midFrameMicrotasks;
+    if (isBuildingFrame) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (showDevicePicker.value != value) {
+          showDevicePicker.value = value;
+        }
+      });
+      return;
+    }
+    if (showDevicePicker.value != value) {
+      showDevicePicker.value = value;
+    }
   }
 
   void _showReconnectNoticeIfAny() {
@@ -334,7 +354,9 @@ class RemoteController extends GetxController {
       ),
     ).whenComplete(() {
       _pickerSheetVisible = false;
-      if (showDevicePicker.value) showDevicePicker.value = false;
+      if (showDevicePicker.value) {
+        _setShowDevicePickerSafely(false);
+      }
     });
   }
 }
