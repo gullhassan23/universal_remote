@@ -40,6 +40,24 @@ class RemoteScreen extends GetView<RemoteController> {
     );
   }
 
+  VoidCallback _sendPowerTap() {
+    return _loggedTap(
+      'KEY_POWER',
+      () async {
+        final sentTvPower = await controller.sendKeyReliably(
+          'KEY_POWER',
+          openPickerOnFailure: true,
+        );
+        if (sentTvPower) return;
+        await controller.sendKeyReliably(
+          'KEY_ANDROID_POWER',
+          openPickerOnFailure: true,
+        );
+      },
+      action: 'send_power_key',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,8 +96,7 @@ class RemoteScreen extends GetView<RemoteController> {
                           ),
                         ),
                       ),
-                      if (isConnected)
-                        const SizedBox(width: 10),
+                      if (isConnected) const SizedBox(width: 10),
                       if (isConnected)
                         TextButton.icon(
                           onPressed: _loggedTap(
@@ -219,7 +236,7 @@ class RemoteScreen extends GetView<RemoteController> {
               _roundedActionButton(
                 icon: Icons.power_settings_new,
                 iconColor: const Color(0xFFFF3D3D),
-                onTap: _sendKeyTap('KEY_POWER'),
+                onTap: _sendPowerTap(),
               ),
               SizedBox(height: 19),
               _roundedActionButton(
@@ -284,31 +301,31 @@ class RemoteScreen extends GetView<RemoteController> {
                   height: 48,
                 );
               }),
-              const SizedBox(height: 1),
-              Obx(() {
-                final state = voiceController.sessionState.value;
-                final status = voiceController.statusText.value;
-                if (state == VoiceSessionState.idle || status.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                final color = switch (state) {
-                  VoiceSessionState.error => const Color(0xFFFFAB91),
-                  VoiceSessionState.sent => const Color(0xFFA5D6A7),
-                  _ => const Color(0xFFE3F2FD),
-                };
-                return SizedBox(
-                  width: 140,
-                  child: Text(
-                    status,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                );
-              }),
+              // const SizedBox(height: 1),
+              // Obx(() {
+              //   final state = voiceController.sessionState.value;
+              //   final status = voiceController.statusText.value;
+              //   if (state == VoiceSessionState.idle || status.isEmpty) {
+              //     return const SizedBox.shrink();
+              //   }
+              //   final color = switch (state) {
+              //     VoiceSessionState.error => const Color(0xFFFFAB91),
+              //     VoiceSessionState.sent => const Color(0xFFA5D6A7),
+              //     _ => const Color(0xFFE3F2FD),
+              //   };
+              //   return SizedBox(
+              //     width: 140,
+              //     child: Text(
+              //       status,
+              //       textAlign: TextAlign.center,
+              //       style: TextStyle(
+              //         color: color,
+              //         fontSize: 11,
+              //         fontWeight: FontWeight.w500,
+              //       ),
+              //     ),
+              //   );
+              // }),
             ],
           ),
         ),

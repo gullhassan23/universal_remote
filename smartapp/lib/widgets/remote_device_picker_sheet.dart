@@ -42,186 +42,197 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      heightFactor: 0.75,
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Select your device',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: 260,
+            maxHeight: screenHeight * 0.78,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select your device',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70),
-                    onPressed: () {
-                      unawaited(
-                        widget.onHandleTap(
-                          buttonKey: 'DEVICE_PICKER_CLOSE',
-                          action: 'dismiss_picker',
-                          onTap: () {
-                            Get.back();
-                            widget.onDismiss();
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Obx(() {
-              final isLoading = widget.discoveryController.isLoading.value;
-              final devices = widget.discoveryController.devices;
-              final errorMessage =
-                  widget.discoveryController.errorMessage.value;
-
-              if (isLoading) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const _AnimatedDotsLoader(),
-                      const SizedBox(height: 20),
-                      const Text(
-                        textAlign: TextAlign.center,
-                        'Make sure your TV / Streaming player is turned on and connected to the same Wi-Fi network as your phone. If your device is not on the list, please power reset it and try again.',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 100),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFA9ACAB),
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        child: const Icon(Icons.search),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              if (devices.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        errorMessage.isNotEmpty
-                            ? errorMessage
-                            : 'No devices found.\nMake sure your phone and TV are on the same WiFi network.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 200),
-                      _RescanButton(
-                        buttonKey: 'DISCOVERY_RESCAN_EMPTY',
-                        onTap: () =>
-                            widget.discoveryController.discoverDevices(),
-                        onHandleTap: widget.onHandleTap,
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.95,
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: devices.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, color: Colors.white24),
-                      itemBuilder: (context, index) {
-                        final device = devices[index];
-                        final isConnectingThisDevice =
-                            _connectingDeviceId.value == device.id;
-                        final brandLabel = device.brand == TvBrand.androidTv
-                            ? 'Android TV'
-                            : device.brand.name;
-                        return ListTile(
-                          leading: const Icon(Icons.tv,
-                              color: Colors.white70, size: 28),
-                          title: Text(
-                            device.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () {
+                        unawaited(
+                          widget.onHandleTap(
+                            buttonKey: 'DEVICE_PICKER_CLOSE',
+                            action: 'dismiss_picker',
+                            onTap: () {
+                              Get.back();
+                              widget.onDismiss();
+                            },
                           ),
-                          subtitle: Text(
-                            '$brandLabel',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 13,
-                            ),
-                          ),
-                          trailing: isConnectingThisDevice
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.2,
-                                    color: Colors.white70,
-                                  ),
-                                )
-                              : null,
-                          onTap: () {
-                            if (_connectingDeviceId.value != null) return;
-                            _connectingDeviceId.value = device.id;
-                            unawaited(
-                              widget.onHandleTap(
-                                buttonKey: 'DEVICE_${device.name}',
-                                action: 'select_device',
-                                onTap: () async {
-                                  try {
-                                    await widget.onDeviceSelected(device);
-                                  } finally {
-                                    if (!mounted) return;
-                                    _connectingDeviceId.value = null;
-                                  }
-                                },
-                              ),
-                            );
-                          },
                         );
                       },
                     ),
-                  ),
-                  _RescanButton(
-                    buttonKey: 'DISCOVERY_RESCAN_LIST',
-                    onTap: () => widget.discoveryController.discoverDevices(),
-                    onHandleTap: widget.onHandleTap,
-                  ),
-                ],
-              );
-            }),
-          ],
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Obx(() {
+                  final isLoading = widget.discoveryController.isLoading.value;
+                  final devices = widget.discoveryController.devices;
+                  final errorMessage =
+                      widget.discoveryController.errorMessage.value;
+
+                  if (isLoading) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const _AnimatedDotsLoader(),
+                          const SizedBox(height: 20),
+                          const Text(
+                            textAlign: TextAlign.center,
+                            'Make sure your TV / Streaming player is turned on and connected to the same Wi-Fi network as your phone. If your device is not on the list, please power reset it and try again.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFA9ACAB),
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                            child: const Icon(Icons.search),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (devices.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            errorMessage.isNotEmpty
+                                ? errorMessage
+                                : 'No devices found.\nMake sure your phone and TV are on the same WiFi network.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _RescanButton(
+                            buttonKey: 'DISCOVERY_RESCAN_EMPTY',
+                            onTap: () =>
+                                widget.discoveryController.discoverDevices(),
+                            onHandleTap: widget.onHandleTap,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: devices.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, color: Colors.white24),
+                          itemBuilder: (context, index) {
+                            final device = devices[index];
+                            final isConnectingThisDevice =
+                                _connectingDeviceId.value == device.id;
+                            final brandLabel = device.brand == TvBrand.androidTv
+                                ? 'Android TV'
+                                : device.brand.name;
+                            return ListTile(
+                              leading: const Icon(Icons.tv,
+                                  color: Colors.white70, size: 28),
+                              title: Text(
+                                device.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '$brandLabel',
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: isConnectingThisDevice
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: Colors.white70,
+                                      ),
+                                    )
+                                  : null,
+                              onTap: () {
+                                if (_connectingDeviceId.value != null) return;
+                                _connectingDeviceId.value = device.id;
+                                unawaited(
+                                  widget.onHandleTap(
+                                    buttonKey: 'DEVICE_${device.name}',
+                                    action: 'select_device',
+                                    onTap: () async {
+                                      try {
+                                        await widget.onDeviceSelected(device);
+                                      } finally {
+                                        if (!mounted) return;
+                                        _connectingDeviceId.value = null;
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _RescanButton(
+                          buttonKey: 'DISCOVERY_RESCAN_LIST',
+                          onTap: () =>
+                              widget.discoveryController.discoverDevices(),
+                          onHandleTap: widget.onHandleTap,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
