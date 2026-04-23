@@ -16,6 +16,9 @@ class AndroidTvRemotePlatform {
   bool _initialized = false;
   VoidCallback? _onPairingPromptRequested;
 
+  /// Called from Android when the remote TLS reader stops or the socket is lost.
+  void Function(String reason)? onRemoteSessionEnded;
+
   void _log(String message) {
     if (kDebugMode) {
       // ignore: avoid_print
@@ -176,6 +179,21 @@ class AndroidTvRemotePlatform {
         // ignore: avoid_print
         print('AndroidTvRemotePlatform.disconnectNative: $e $st');
       }
+    }
+  }
+
+  /// Reflects native remote TLS, reader job, and ready flag (Android only).
+  Future<bool> isRemoteSessionAlive() async {
+    ensureInitialized();
+    try {
+      final ok = await _channel.invokeMethod<bool>('isRemoteSessionAlive');
+      return ok == true;
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.isRemoteSessionAlive: $e $st');
+      }
+      return false;
     }
   }
 }

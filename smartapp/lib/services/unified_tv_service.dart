@@ -52,6 +52,13 @@ class UnifiedTvService implements ITvService {
       _connectionStateController.stream;
 
   @override
+  Future<bool> verifyConnectedSessionAlive() async {
+    final svc = _activeService;
+    if (svc == null) return false;
+    return svc.verifyConnectedSessionAlive();
+  }
+
+  @override
   Stream<CastSessionUpdate> get castSessionStream => _castSessionController.stream;
 
   @override

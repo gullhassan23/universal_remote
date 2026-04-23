@@ -83,4 +83,9 @@ abstract class ITvService {
   Stream<CastSessionUpdate> get castSessionStream;
 
   Stream<TvConnectionState> get connectionStateStream;
+
+  /// When Dart reports [TvConnectionState.connected], verifies the native transport
+  /// (e.g. TLS session) is still alive. If not, implementations should sync to
+  /// disconnected and return false.
+  Future<bool> verifyConnectedSessionAlive();
 }

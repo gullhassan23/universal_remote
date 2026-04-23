@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -27,6 +29,8 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   bool _reconnectInProgress = false;
   bool _isInForeground = true;
   String? _pendingReconnectNotice;
+  Timer? _resumeDebounceTimer;
+  int _resumeToken = 0;
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
   final Rx<TvConnectionState> connectionState =
@@ -67,16 +71,39 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
 
   @override
   void onClose() {
+    _resumeDebounceTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    _isInForeground = state == AppLifecycleState.resumed;
-    if (state == AppLifecycleState.resumed) {
-      _attemptReconnectOnResume();
+    final resumed = state == AppLifecycleState.resumed;
+    _isInForeground = resumed;
+    if (resumed) {
+      final token = ++_resumeToken;
+      _resumeDebounceTimer?.cancel();
+      _resumeDebounceTimer = Timer(const Duration(milliseconds: 320), () {
+        if (token != _resumeToken) return;
+        unawaited(_handleAppResumedDebounced());
+      });
+    } else {
+      _resumeDebounceTimer?.cancel();
+      _resumeDebounceTimer = null;
     }
+  }
+
+  Future<void> _handleAppResumedDebounced() async {
+    if (_reconnectInProgress) return;
+    if (connectionState.value == TvConnectionState.connected) {
+      final stillAlive = await _tvService.verifyConnectedSessionAlive();
+      if (stillAlive) {
+        _log('resume: native session alive, skip reconnect');
+        return;
+      }
+      _log('resume: native session dead while Dart was connected, reconnecting');
+    }
+    await _attemptReconnectOnResume();
   }
 
   Future<void> _attemptReconnectOnResume() async {
@@ -96,18 +123,21 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   Future<bool> tryRestoreLastConnectedDeviceOnDemand() async {
     if (connectionState.value == TvConnectionState.connected) return true;
 
-    final existingRestore = _restoreFuture;
-    if (existingRestore != null) {
-      return existingRestore;
+    final inflight = _restoreFuture;
+    if (inflight != null) {
+      await inflight;
+      if (connectionState.value == TvConnectionState.connected) return true;
     }
 
     final restoreFuture = _restoreLastConnectedDevice();
     _restoreFuture = restoreFuture;
-    final restored = await restoreFuture;
-    if (!restored) {
-      _restoreFuture = null;
+    try {
+      return await restoreFuture;
+    } finally {
+      if (identical(_restoreFuture, restoreFuture)) {
+        _restoreFuture = null;
+      }
     }
-    return restored;
   }
 
   Future<bool> _restoreLastConnectedDevice() async {
@@ -215,6 +245,8 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> disconnect() async {
+    _resumeDebounceTimer?.cancel();
+    _resumeDebounceTimer = null;
     connectionState.value = TvConnectionState.disconnected;
     await _tvService.disconnect();
     currentDevice.value = null;

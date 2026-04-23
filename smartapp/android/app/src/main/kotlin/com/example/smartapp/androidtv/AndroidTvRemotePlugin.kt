@@ -15,6 +15,7 @@ import com.FutureDialLabs.tv.remote.universal.control.androidtv.util.Constants
 import com.FutureDialLabs.tv.remote.universal.control.androidtv.util.Logger
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -111,8 +112,43 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 "releaseMulticastLock" -> scope.launch {
                     releaseMulticastLock(result)
                 }
+                "isRemoteSessionAlive" -> mainHandler.post {
+                    result.success(evaluateRemoteSessionAlive())
+                }
                 else -> mainHandler.post { result.notImplemented() }
             }
+        }
+    }
+
+    /** True when remote TLS, reader job, and handshake-ready flag all look healthy. */
+    private fun evaluateRemoteSessionAlive(): Boolean {
+        val remote = tlsRemote ?: return false
+        if (!remote.isConnected()) return false
+        if (!remoteReady.get()) return false
+        val job = remoteReaderJob ?: return false
+        return job.isActive
+    }
+
+    private fun notifyDartRemoteSessionEnded(reason: String) {
+        if (!::methodChannel.isInitialized) return
+        try {
+            methodChannel.invokeMethod(
+                "onRemoteSessionEnded",
+                mapOf("reason" to reason),
+                object : MethodChannel.Result {
+                    override fun success(result: Any?) {}
+                    override fun error(
+                        errorCode: String,
+                        errorMessage: String?,
+                        errorDetails: Any?,
+                    ) {
+                    }
+
+                    override fun notImplemented() {}
+                },
+            )
+        } catch (e: Exception) {
+            Logger.e("notifyDartRemoteSessionEnded: ${e.message}", e)
         }
     }
 
@@ -204,7 +240,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
             return
         }
 
-        disconnectTlsOnly()
+        disconnectTlsOnly(skipReaderJobCancel = false)
 
         tlsPairing = TLSManager(sslContext)
         if (tlsPairing!!.connect(host, pairingPort) != true) {
@@ -706,8 +742,14 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
     }
 
-    private fun disconnectTlsOnly() {
-        remoteReaderJob?.cancel()
+    /**
+     * @param skipReaderJobCancel When true, the remote reader coroutine is already exiting; only
+     * clear native state (avoids canceling the job that invoked this path from the main thread).
+     */
+    private fun disconnectTlsOnly(skipReaderJobCancel: Boolean = false) {
+        if (!skipReaderJobCancel) {
+            remoteReaderJob?.cancel()
+        }
         remoteReaderJob = null
         remoteReady.set(false)
         imeCounter.set(0)
@@ -738,32 +780,58 @@ class AndroidTvRemotePlugin(private val context: Context) {
         remoteReady.set(false)
         val remote = tlsRemote ?: return
         remoteReaderJob = scope.launch {
-            while (isActive && remote.isConnected()) {
-                val msg = remote.receiveData() ?: continue
-                when (MessageParser.parseRemoteMessageType(msg)) {
-                    MessageParser.RemoteMessageType.CONFIGURE -> {
-                        remote.sendData(ProtobufMessage.createRemoteConfigureMessage())
-                        remoteReady.set(true)
+            try {
+                while (isActive && remote.isConnected()) {
+                    val msg = remote.receiveData()
+                    if (msg == null) {
+                        if (!remote.isConnected()) {
+                            break
+                        }
+                        continue
                     }
-                    MessageParser.RemoteMessageType.SET_ACTIVE -> {
-                        remote.sendData(ProtobufMessage.createRemoteSetActiveMessage())
-                    }
-                    MessageParser.RemoteMessageType.PING_REQUEST -> {
-                        val ping = MessageParser.parseRemotePingValue(msg)
-                        if (ping != null) {
-                            remote.sendData(ProtobufMessage.createRemotePingResponseMessage(ping))
+                    when (MessageParser.parseRemoteMessageType(msg)) {
+                        MessageParser.RemoteMessageType.CONFIGURE -> {
+                            remote.sendData(ProtobufMessage.createRemoteConfigureMessage())
+                            remoteReady.set(true)
+                        }
+                        MessageParser.RemoteMessageType.SET_ACTIVE -> {
+                            remote.sendData(ProtobufMessage.createRemoteSetActiveMessage())
+                        }
+                        MessageParser.RemoteMessageType.PING_REQUEST -> {
+                            val ping = MessageParser.parseRemotePingValue(msg)
+                            if (ping != null) {
+                                remote.sendData(ProtobufMessage.createRemotePingResponseMessage(ping))
+                            }
+                        }
+                        MessageParser.RemoteMessageType.OTHER -> {
+                            val counters = MessageParser.parseRemoteImeBatchEditCounters(msg)
+                            if (counters != null) {
+                                imeCounter.set(counters.first)
+                                imeFieldCounter.set(counters.second)
+                                lastImeUpdateAtMs.set(System.currentTimeMillis())
+                                Logger.d(
+                                    "remoteImeCountersUpdated: ime=${counters.first} field=${counters.second}",
+                                )
+                            }
                         }
                     }
-                    MessageParser.RemoteMessageType.OTHER -> {
-                        val counters = MessageParser.parseRemoteImeBatchEditCounters(msg)
-                        if (counters != null) {
-                            imeCounter.set(counters.first)
-                            imeFieldCounter.set(counters.second)
-                            lastImeUpdateAtMs.set(System.currentTimeMillis())
-                            Logger.d(
-                                "remoteImeCountersUpdated: ime=${counters.first} field=${counters.second}",
-                            )
-                        }
+                }
+                if (!isActive) {
+                    return@launch
+                }
+                Logger.d("remoteReaderLoop: session lost (socket closed or reader stopped)")
+                mainHandler.post {
+                    notifyDartRemoteSessionEnded("remote_session_lost")
+                    disconnectTlsOnly(skipReaderJobCancel = true)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("remoteReaderLoop: ${e.message}", e)
+                if (isActive) {
+                    mainHandler.post {
+                        notifyDartRemoteSessionEnded("remote_reader_error")
+                        disconnectTlsOnly(skipReaderJobCancel = true)
                     }
                 }
             }

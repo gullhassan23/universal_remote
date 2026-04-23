@@ -61,7 +61,15 @@ class AndroidTvService implements ITvService {
   AndroidTvService() {
     if (!kIsWeb && Platform.isAndroid) {
       AndroidTvRemotePlatform.instance.ensureInitialized();
+      AndroidTvRemotePlatform.instance.onRemoteSessionEnded =
+          _onNativeRemoteSessionEnded;
     }
+  }
+
+  void _onNativeRemoteSessionEnded(String reason) {
+    if (_state == TvConnectionState.disconnected) return;
+    _log('native session ended reason=$reason');
+    _syncState(TvConnectionState.disconnected);
   }
 
   @override
@@ -69,6 +77,21 @@ class AndroidTvService implements ITvService {
       _connectionStateController.stream;
   @override
   Stream<CastSessionUpdate> get castSessionStream => _castSessionController.stream;
+
+  @override
+  Future<bool> verifyConnectedSessionAlive() async {
+    if (_state != TvConnectionState.connected) {
+      return false;
+    }
+    if (!Platform.isAndroid) {
+      return true;
+    }
+    final alive = await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+    if (!alive) {
+      _syncState(TvConnectionState.disconnected);
+    }
+    return alive;
+  }
 
   void _syncState(TvConnectionState s) {
     _state = s;
@@ -386,6 +409,10 @@ class AndroidTvService implements ITvService {
     try {
       final sent = await AndroidTvRemotePlatform.instance.sendKeyCode(code);
       _log('sendKey key event result=$sent key="$key" code=$code');
+      if (!sent &&
+          !await AndroidTvRemotePlatform.instance.isRemoteSessionAlive()) {
+        _syncState(TvConnectionState.disconnected);
+      }
       return sent;
     } catch (e) {
       if (kDebugMode) {

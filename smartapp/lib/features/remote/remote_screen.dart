@@ -83,7 +83,7 @@ class RemoteScreen extends GetView<RemoteController> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 22,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.5,
                           ),
