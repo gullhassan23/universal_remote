@@ -331,6 +331,7 @@ class _CastScreenState extends State<CastScreen> {
           if (connected && (Get.isBottomSheetOpen ?? false)) {
             Get.back<void>();
           }
+          return connected;
         },
         onDismiss: () {
           if (!result.isCompleted) {

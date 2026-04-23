@@ -101,6 +101,20 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                 Obx(() {
                   final running = controller.isRunning.value;
                   if (!running) {
+                    final completion = controller.lastCompletionSucceeded.value;
+                    if (completion == false) {
+                      return _buildStatusChip(
+                        icon: Icons.error_outline,
+                        label:
+                            'Timer ended, but TV sleep command failed. Reconnect and retry.',
+                      );
+                    }
+                    if (completion == true) {
+                      return _buildStatusChip(
+                        icon: Icons.check_circle_outline,
+                        label: 'Timer completed and sleep command sent.',
+                      );
+                    }
                     return _buildStatusChip(
                       icon: Icons.timer_off_outlined,
                       label: 'No active sleep timer',
@@ -182,6 +196,7 @@ class SleepTimerUI extends GetView<SleepTimerController> {
   Future<Duration?> _showCustomTimerBottomSheet(BuildContext context) {
     var selectedHours = 0;
     var selectedMinutes = 15;
+    var selectedSeconds = 0;
 
     return showModalBottomSheet<Duration>(
       context: context,
@@ -193,7 +208,17 @@ class SleepTimerUI extends GetView<SleepTimerController> {
       builder: (bottomSheetContext) {
         return StatefulBuilder(
           builder: (context, setState) {
-            final totalMinutes = (selectedHours * 60) + selectedMinutes;
+            final totalSeconds = (selectedHours * 3600) +
+                (selectedMinutes * 60) +
+                selectedSeconds;
+            String durationSummary() {
+              final parts = <String>[];
+              if (selectedHours > 0) parts.add('${selectedHours}h');
+              if (selectedMinutes > 0) parts.add('${selectedMinutes}m');
+              if (selectedSeconds > 0) parts.add('${selectedSeconds}s');
+              return parts.join(' ');
+            }
+
             return SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -211,7 +236,7 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Select hours and minutes',
+                      'Select hours, minutes, and seconds',
                       style: TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 20),
@@ -228,7 +253,7 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                             },
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _numberPickerColumn(
                             title: 'Minutes',
@@ -240,13 +265,25 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                             },
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _numberPickerColumn(
+                            title: 'Seconds',
+                            value: selectedSeconds,
+                            min: 0,
+                            max: 59,
+                            onChanged: (value) {
+                              setState(() => selectedSeconds = value);
+                            },
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      totalMinutes == 0
+                      totalSeconds <= 0
                           ? 'Please select a duration'
-                          : 'Timer will run for ${selectedHours}h ${selectedMinutes}m',
+                          : 'Timer will run for ${durationSummary()}',
                       style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 16),
@@ -263,11 +300,12 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                           child: _buildFullWidthButton(
                             'Start',
                             onTap: () {
-                              if (totalMinutes <= 0) return;
+                              if (totalSeconds <= 0) return;
                               Navigator.of(bottomSheetContext).pop(
                                 Duration(
                                   hours: selectedHours,
                                   minutes: selectedMinutes,
+                                  seconds: selectedSeconds,
                                 ),
                               );
                             },

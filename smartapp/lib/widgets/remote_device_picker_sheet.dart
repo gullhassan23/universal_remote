@@ -18,7 +18,7 @@ class RemoteDevicePickerSheet extends StatefulWidget {
   });
 
   final DeviceDiscoveryController discoveryController;
-  final Future<void> Function(TvDevice) onDeviceSelected;
+  final Future<bool> Function(TvDevice) onDeviceSelected;
   final VoidCallback onDismiss;
   final Future<void> Function({
     required String buttonKey,
@@ -205,7 +205,11 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                                     action: 'select_device',
                                     onTap: () async {
                                       try {
-                                        await widget.onDeviceSelected(device);
+                                        final connected = await widget
+                                            .onDeviceSelected(device);
+                                        if (connected && mounted) {
+                                          Navigator.of(context).maybePop();
+                                        }
                                       } finally {
                                         if (!mounted) return;
                                         _connectingDeviceId.value = null;

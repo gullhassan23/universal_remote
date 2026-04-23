@@ -313,7 +313,7 @@ class RemoteController extends GetxController {
     await _mediaCastController.pickAndCastImage();
   }
 
-  Future<void> onDeviceSelected(TvDevice device) async {
+  Future<bool> onDeviceSelected(TvDevice device) async {
     _pickerSheetVisible = false;
     _activeSheetType = null;
     _setShowDevicePickerSafely(false);
@@ -331,6 +331,7 @@ class RemoteController extends GetxController {
         await _connectionController.sendKey(pendingKey);
       }
     }
+    return success;
   }
 
   void dismissDevicePicker() {

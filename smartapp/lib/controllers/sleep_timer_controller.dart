@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import 'tv_connection_controller.dart';
@@ -12,6 +13,7 @@ class SleepTimerController extends GetxController {
   final TvConnectionController _connectionController;
 
   final RxBool isRunning = false.obs;
+  final RxnBool lastCompletionSucceeded = RxnBool();
   final Rx<Duration> remaining = Duration.zero.obs;
   final Rxn<Duration> selectedDuration = Rxn<Duration>();
   final Rxn<DateTime> targetEndTime = Rxn<DateTime>();
@@ -41,6 +43,7 @@ class SleepTimerController extends GetxController {
   void start(Duration duration) {
     if (duration <= Duration.zero) return;
     _cancelTicker();
+    lastCompletionSucceeded.value = null;
     selectedDuration.value = duration;
     targetEndTime.value = DateTime.now().add(duration);
     isRunning.value = true;
@@ -83,12 +86,45 @@ class SleepTimerController extends GetxController {
   }
 
   Future<void> _completeTimer() async {
-    final sent = await _connectionController.sendKey('KEY_POWER');
-    if (!sent) {
-      await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
-      await _connectionController.sendKey('KEY_POWER');
+    final sent = await _sendPowerReliablyForSleepTimer();
+    lastCompletionSucceeded.value = sent;
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('SleepTimerController: completeTimer powerSent=$sent');
     }
     _resetState();
+  }
+
+  Future<bool> _sendPowerReliablyForSleepTimer() async {
+    Future<bool> sendPowerKeys() async {
+      final sentTvPower = await _connectionController.sendKey('KEY_POWER');
+      await Future<void>.delayed(const Duration(milliseconds: 90));
+      final sentAndroidPower =
+          await _connectionController.sendKey('KEY_ANDROID_POWER');
+      return sentTvPower || sentAndroidPower;
+    }
+
+    if (await sendPowerKeys()) return true;
+
+    // Long-running timers can keep stale "connected" state while the transport
+    // is already dead. Force reconnect to current device before restore.
+    final currentDevice = _connectionController.currentDevice.value;
+    if (currentDevice != null) {
+      final reconnected = await _connectionController.connectTo(currentDevice);
+      if (reconnected && await sendPowerKeys()) return true;
+    }
+
+    final restored =
+        await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
+    if (!restored) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('SleepTimerController: restore failed after power send failure');
+      }
+      return false;
+    }
+
+    return sendPowerKeys();
   }
 
   void _resetState() {
