@@ -10,6 +10,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/ad_controller.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/controllers/remote_style_controller.dart';
 import 'package:smartapp/controllers/sleep_timer_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/firebase_options.dart';
@@ -58,6 +59,7 @@ void _registerDependencies() {
   Get.put(PremiumController(), permanent: true);
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
   Get.put(VibrationController(), permanent: true);
+  Get.put(RemoteStyleController(), permanent: true);
   // Controllers
   final tvConnectionController = Get.put(
     TvConnectionController(

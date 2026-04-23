@@ -4,15 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../services/android_tv/android_tv_keycodes.dart';
-import '../../utils/constant.dart';
 
 import '../../controllers/remote_controller.dart';
+import '../../controllers/remote_style_controller.dart';
 import '../../controllers/voice_controller.dart';
 import '../../services/tv_service_interface.dart';
 import '../cast/cast_session_banner.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
   const RemoteScreen({super.key});
+
+  RemoteStyleController get _remoteStyleController =>
+      Get.find<RemoteStyleController>();
 
   VoidCallback _loggedTap(
     String buttonKey,
@@ -55,95 +58,95 @@ class RemoteScreen extends GetView<RemoteController> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(
-              ImageRes.kGetStartedBackgroundAsset2,
+      body: Obx(
+        () => Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(_remoteStyleController.appliedWallpaper.value),
+              fit: BoxFit.cover,
             ),
-            fit: BoxFit.cover,
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 6),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                Obx(() {
-                  final isConnected =
-                      controller.connectionController.connectionState.value ==
-                          TvConnectionState.connected;
-                  return Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Connect a device',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 6),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Obx(() {
+                    final isConnected =
+                        controller.connectionController.connectionState.value ==
+                            TvConnectionState.connected;
+                    return Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Connect a device',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
+                        if (isConnected) const SizedBox(width: 10),
+                        if (isConnected)
+                          TextButton.icon(
+                            onPressed: _loggedTap(
+                              'DISCONNECT_TV',
+                              () {
+                                unawaited(
+                                  controller.connectionController.disconnect(),
+                                );
+                              },
+                              action: 'disconnect_tv',
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.red.withOpacity(0.28),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.link_off, size: 16),
+                            label: Text('Disconnect'),
+                          ),
+                      ],
+                    );
+                  }),
+                  Obx(() {
+                    final label =
+                        controller.connectionController.castConnectionLabel.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: CastSessionBanner(label: label),
+                    );
+                  }),
+                  const SizedBox(height: 26),
+                  _buildMainButtons(context),
+                  const SizedBox(height: 20),
+                  _buildModeToggle(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Obx(
+                      () => AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: controller.selectedTab.value == 0
+                            ? _buildDpad()
+                            : _buildNumberTab(),
                       ),
-                      if (isConnected) const SizedBox(width: 10),
-                      if (isConnected)
-                        TextButton.icon(
-                          onPressed: _loggedTap(
-                            'DISCONNECT_TV',
-                            () {
-                              unawaited(
-                                controller.connectionController.disconnect(),
-                              );
-                            },
-                            action: 'disconnect_tv',
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.red.withOpacity(0.28),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          icon: const Icon(Icons.link_off, size: 16),
-                          label: Text('Disconnect'),
-                        ),
-                    ],
-                  );
-                }),
-                Obx(() {
-                  final label =
-                      controller.connectionController.castConnectionLabel.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: CastSessionBanner(label: label),
-                  );
-                }),
-                const SizedBox(height: 26),
-                _buildMainButtons(context),
-                const SizedBox(height: 20),
-                _buildModeToggle(),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: Obx(
-                    () => AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: controller.selectedTab.value == 0
-                          ? _buildDpad()
-                          : _buildNumberTab(),
                     ),
                   ),
-                ),
-                _buildBottomButtons(context),
-                const SizedBox(height: 10),
-              ],
+                  _buildBottomButtons(context),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           ),
         ),

@@ -10,6 +10,7 @@ import 'package:smartapp/features/device_discovery/device_discovery_controller.d
 import 'package:smartapp/features/premium/premium_screen.dart';
 import 'package:smartapp/features/premium/pro_screen.dart';
 import 'package:smartapp/features/Settings/faq_screen.dart';
+import 'package:smartapp/features/Settings/remote_style.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
@@ -208,7 +209,9 @@ class SettingsScreen extends StatelessWidget {
                         _SettingsTile(
                           icon: SettingsIcon.remotestyle,
                           title: 'Remote style',
-                          onTap: () {},
+                          onTap: () {
+                            Get.to(() => const RemoteStyleScreen());
+                          },
                         ),
                         Obx(
                           () => _SwitchSettingsTile(

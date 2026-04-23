@@ -75,5 +75,6 @@ flutter:
     - assets/images/onboarding/
     - assets/images/settings/
     - assets/images/bottomnav/
+    - assets/images/remote_wallpapers/
 
     - .env

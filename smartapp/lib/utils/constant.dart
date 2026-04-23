@@ -15,6 +15,23 @@ class ImageRes {
   static const String kGetStartedBackgroundAsset2 = 'assets/images/BGround.png';
 }
 
+class RemoteWallpaperAssets {
+  RemoteWallpaperAssets._();
+
+  static const String wallpaper1 =
+      'assets/images/remote_wallpapers/wallpaper_1.png';
+  static const String wallpaper2 =
+      'assets/images/remote_wallpapers/wallpaper_2.png';
+  static const String wallpaper3 =
+      'assets/images/remote_wallpapers/wallpaper_3.png';
+  static const String wallpaper4 =
+      'assets/images/remote_wallpapers/wallpaper_4.png';
+  static const String wallpaper5 =
+      'assets/images/remote_wallpapers/wallpaper_5.png';
+  static const String wallpaper6 =
+      'assets/images/remote_wallpapers/wallpaper_6.png';
+}
+
 class CastTileImage {
   static const browse = 'assets/images/Browser.png';
   static const mirror = 'assets/images/Mirror.png';
