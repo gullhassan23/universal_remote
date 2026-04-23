@@ -25,6 +25,8 @@ import 'package:url_launcher/url_launcher.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   static const String _supportEmail = 'admin@maxgamesproduction.com';
+  static const String _defaultTermsConditionsUrl =
+      'https://docs.google.com/document/d/12WTnUBG0hlYkg5fRPIwxP4VnNkUhv_gnC19ulCfgHic/edit?tab=t.0';
 
   // bool _isHapticEnabled = true;
   PremiumController get premiumController => Get.find<PremiumController>();
@@ -46,6 +48,25 @@ class SettingsScreen extends StatelessWidget {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
       Get.snackbar('Error', 'Unable to open privacy policy.');
+    }
+  }
+
+  Future<void> _openTermsAndConditions() async {
+    final String termsUrl =
+        (dotenv.env['TERMS_CONDITIONS_URL'] ??
+                dotenv.env['TERMS_AND_CONDITIONS_URL'] ??
+                _defaultTermsConditionsUrl)
+            .trim();
+
+    final uri = Uri.tryParse(termsUrl);
+    if (uri == null) {
+      Get.snackbar('Error', 'Terms & Conditions URL is invalid.');
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      Get.snackbar('Error', 'Unable to open Terms & Conditions.');
     }
   }
 
@@ -266,9 +287,7 @@ class SettingsScreen extends StatelessWidget {
                         _SettingsTile(
                           icon: SettingsIcon.term,
                           title: 'Term & Conditions',
-                          onTap: () {
-                            Get.to(() => const InstructionOnboardingScreen());
-                          },
+                          onTap: _openTermsAndConditions,
                         ),
                         _SettingsTile(
                           icon: SettingsIcon.notebook,
