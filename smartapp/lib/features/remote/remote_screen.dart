@@ -14,6 +14,8 @@ import '../cast/cast_session_banner.dart';
 class RemoteScreen extends GetView<RemoteController> {
   const RemoteScreen({super.key});
 
+  static const Color _fallbackBackgroundColor = Color(0xFF0B1B25);
+
   RemoteStyleController get _remoteStyleController =>
       Get.find<RemoteStyleController>();
 
@@ -56,11 +58,13 @@ class RemoteScreen extends GetView<RemoteController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,
       extendBodyBehindAppBar: true,
       body: Obx(
         () => Container(
           decoration: BoxDecoration(
+            color: _fallbackBackgroundColor,
             image: DecorationImage(
               image: AssetImage(_remoteStyleController.appliedWallpaper.value),
               fit: BoxFit.cover,
@@ -121,8 +125,8 @@ class RemoteScreen extends GetView<RemoteController> {
                     );
                   }),
                   Obx(() {
-                    final label =
-                        controller.connectionController.castConnectionLabel.value;
+                    final label = controller
+                        .connectionController.castConnectionLabel.value;
                     return Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: CastSessionBanner(label: label),

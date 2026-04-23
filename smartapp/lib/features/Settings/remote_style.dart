@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
 import 'package:smartapp/utils/constant.dart';
+import 'package:smartapp/utils/haptic_action.dart';
 
 class RemoteStyleScreen extends StatefulWidget {
   const RemoteStyleScreen({super.key});
@@ -11,7 +12,8 @@ class RemoteStyleScreen extends StatefulWidget {
 }
 
 class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
-  final RemoteStyleController _styleController = Get.find<RemoteStyleController>();
+  final RemoteStyleController _styleController =
+      Get.find<RemoteStyleController>();
 
   @override
   void initState() {
@@ -22,9 +24,6 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Remote Style'),
-      ),
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -37,6 +36,35 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.adaptive.arrow_back,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: HapticAction.wrap(Get.back),
+                      padding: const EdgeInsets.only(left: 12),
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Remote Style',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: GridView.builder(

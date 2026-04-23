@@ -57,7 +57,9 @@ class SettingsIcon {
   static const String restore = 'assets/images/settings/Restorepurchases.png';
   static const String sleep = 'assets/images/settings/Sleeptimer.png';
   static const String switchdevice = 'assets/images/settings/SwitchDevice.png';
-  static const String term = 'assets/images/settings/Termsconditions.png';
+  static const String howtouse = 'assets/images/settings/howtouse.png';
+  static const String term = 'assets/images/settings/Terms.png';
+  static const String notebook = 'assets/images/settings/NotePad.png';
 }
 
 class NavIcon {

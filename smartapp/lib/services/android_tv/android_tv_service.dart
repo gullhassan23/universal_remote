@@ -93,6 +93,29 @@ class AndroidTvService implements ITvService {
     return alive;
   }
 
+  @override
+  Future<bool> startTerminationKeepAlive({
+    Duration duration = const Duration(minutes: 20),
+  }) async {
+    if (!Platform.isAndroid) return false;
+    if (_state != TvConnectionState.connected) return false;
+    return AndroidTvRemotePlatform.instance.startTerminationKeepAlive(
+      durationMs: duration.inMilliseconds,
+    );
+  }
+
+  @override
+  Future<bool> adoptKeepAliveSessionIfAvailable() async {
+    if (!Platform.isAndroid) return false;
+    final adopted =
+        await AndroidTvRemotePlatform.instance.adoptKeepAliveSessionIfAvailable();
+    if (!adopted) {
+      return false;
+    }
+    _syncState(TvConnectionState.connected);
+    return true;
+  }
+
   void _syncState(TvConnectionState s) {
     _state = s;
     _connectionStateController.add(s);

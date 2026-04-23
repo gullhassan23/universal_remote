@@ -88,4 +88,10 @@ abstract class ITvService {
   /// (e.g. TLS session) is still alive. If not, implementations should sync to
   /// disconnected and return false.
   Future<bool> verifyConnectedSessionAlive();
+
+  /// Requests a native keep-alive grace period for app termination.
+  Future<bool> startTerminationKeepAlive({Duration duration = const Duration(minutes: 20)});
+
+  /// Adopts an existing native keep-alive session if still active.
+  Future<bool> adoptKeepAliveSessionIfAvailable();
 }

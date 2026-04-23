@@ -58,6 +58,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun registerWith(flutterEngine: FlutterEngine) {
+        AndroidTvKeepAliveRegistry.plugin = this
         methodChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL,
@@ -114,6 +115,18 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 }
                 "isRemoteSessionAlive" -> mainHandler.post {
                     result.success(evaluateRemoteSessionAlive())
+                }
+                "startTerminationKeepAlive" -> scope.launch {
+                    startTerminationKeepAlive(
+                        call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
+                        result,
+                    )
+                }
+                "adoptKeepAliveSessionIfAvailable" -> mainHandler.post {
+                    adoptKeepAliveSessionIfAvailable(result)
+                }
+                "getKeepAliveStatus" -> mainHandler.post {
+                    getKeepAliveStatus(result)
                 }
                 else -> mainHandler.post { result.notImplemented() }
             }
@@ -735,11 +748,59 @@ class AndroidTvRemotePlugin(private val context: Context) {
 
     private fun disconnectSession(result: MethodChannel.Result) {
         try {
+            AndroidTvKeepAliveRegistry.clearKeepAlive()
+            AndroidTvKeepAliveService.stop(context.applicationContext)
             disconnectTlsOnly()
             mainHandler.post { result.success(true) }
         } catch (e: Exception) {
             mainHandler.post { result.error("DISC", e.message, null) }
         }
+    }
+
+    fun forceDisconnectForKeepAliveTimeout() {
+        disconnectTlsOnly()
+    }
+
+    fun scheduleTerminationKeepAlive(durationMs: Long): Boolean {
+        if (!evaluateRemoteSessionAlive()) return false
+        AndroidTvKeepAliveService.start(
+            context.applicationContext,
+            durationMs.coerceAtLeast(1L),
+        )
+        return true
+    }
+
+    private fun startTerminationKeepAlive(
+        arguments: Map<*, *>,
+        result: MethodChannel.Result,
+    ) {
+        val durationMs =
+            (arguments["durationMs"] as? Number)?.toLong()
+                ?: AndroidTvKeepAliveRegistry.DEFAULT_KEEP_ALIVE_MS
+        val started = scheduleTerminationKeepAlive(durationMs)
+        mainHandler.post { result.success(started) }
+    }
+
+    private fun adoptKeepAliveSessionIfAvailable(result: MethodChannel.Result) {
+        val active = AndroidTvKeepAliveRegistry.isKeepAliveActive() && evaluateRemoteSessionAlive()
+        if (active) {
+            AndroidTvKeepAliveRegistry.clearKeepAlive()
+            AndroidTvKeepAliveService.stop(context.applicationContext)
+            result.success(true)
+            return
+        }
+        result.success(false)
+    }
+
+    private fun getKeepAliveStatus(result: MethodChannel.Result) {
+        val isActive = AndroidTvKeepAliveRegistry.isKeepAliveActive()
+        val remainingMs = AndroidTvKeepAliveRegistry.remainingMs()
+        result.success(
+            mapOf(
+                "active" to isActive,
+                "remainingMs" to remainingMs,
+            ),
+        )
     }
 
     /**
@@ -765,6 +826,9 @@ class AndroidTvRemotePlugin(private val context: Context) {
 
     fun destroy() {
         try {
+            AndroidTvKeepAliveRegistry.plugin = null
+            AndroidTvKeepAliveRegistry.clearKeepAlive()
+            AndroidTvKeepAliveService.stop(context.applicationContext)
             disconnectTlsOnly()
             if (multicastLock?.isHeld == true) {
                 multicastLock?.release()

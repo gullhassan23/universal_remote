@@ -22,8 +22,8 @@ class FaqScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios,
+                    icon: Icon(
+                      Icons.adaptive.arrow_back,
                       color: Colors.white,
                       size: 20,
                     ),

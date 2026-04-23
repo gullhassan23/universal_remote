@@ -64,6 +64,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       castSession.value = update;
     });
     _castSessionManager.events.listen(_onCastEvent);
+    unawaited(_adoptKeepAliveSessionOnLaunch());
     _tryRestoreCastSession();
     // No cold-start auto-reconnect: avoids Android TV pairing dialog before the
     // user uses the remote. Restore runs from key taps, sleep timer, or resume.
@@ -80,6 +81,13 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final resumed = state == AppLifecycleState.resumed;
     _isInForeground = resumed;
+    if (state == AppLifecycleState.detached) {
+      unawaited(
+        _tvService.startTerminationKeepAlive(
+          duration: const Duration(minutes: 20),
+        ),
+      );
+    }
     if (resumed) {
       final token = ++_resumeToken;
       _resumeDebounceTimer?.cancel();
@@ -94,6 +102,11 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> _handleAppResumedDebounced() async {
+    final adopted = await _tvService.adoptKeepAliveSessionIfAvailable();
+    if (adopted) {
+      _log('resume: adopted active keep-alive session');
+      return;
+    }
     if (_reconnectInProgress) return;
     if (connectionState.value == TvConnectionState.connected) {
       final stillAlive = await _tvService.verifyConnectedSessionAlive();
@@ -118,6 +131,13 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     }
 
     await _attemptReconnectToDevice(lastDevice);
+  }
+
+  Future<void> _adoptKeepAliveSessionOnLaunch() async {
+    final adopted = await _tvService.adoptKeepAliveSessionIfAvailable();
+    if (adopted) {
+      _log('launch: adopted active keep-alive session');
+    }
   }
 
   Future<bool> tryRestoreLastConnectedDeviceOnDemand() async {

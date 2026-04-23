@@ -196,4 +196,53 @@ class AndroidTvRemotePlatform {
       return false;
     }
   }
+
+  Future<bool> startTerminationKeepAlive({int durationMs = 20 * 60 * 1000}) async {
+    ensureInitialized();
+    try {
+      final ok = await _channel.invokeMethod<bool>(
+        'startTerminationKeepAlive',
+        <String, dynamic>{'durationMs': durationMs},
+      );
+      return ok == true;
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.startTerminationKeepAlive: $e $st');
+      }
+      return false;
+    }
+  }
+
+  Future<bool> adoptKeepAliveSessionIfAvailable() async {
+    ensureInitialized();
+    try {
+      final ok =
+          await _channel.invokeMethod<bool>('adoptKeepAliveSessionIfAvailable');
+      return ok == true;
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.adoptKeepAliveSessionIfAvailable: $e $st');
+      }
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> getKeepAliveStatus() async {
+    ensureInitialized();
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('getKeepAliveStatus');
+      if (raw is! Map) {
+        return const <String, dynamic>{'active': false, 'remainingMs': 0};
+      }
+      return raw.map((key, value) => MapEntry(key.toString(), value));
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.getKeepAliveStatus: $e $st');
+      }
+      return const <String, dynamic>{'active': false, 'remainingMs': 0};
+    }
+  }
 }

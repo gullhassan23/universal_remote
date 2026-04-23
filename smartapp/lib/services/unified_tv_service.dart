@@ -59,6 +59,34 @@ class UnifiedTvService implements ITvService {
   }
 
   @override
+  Future<bool> startTerminationKeepAlive({
+    Duration duration = const Duration(minutes: 20),
+  }) async {
+    final svc = _activeService;
+    if (svc == null) return false;
+    return svc.startTerminationKeepAlive(duration: duration);
+  }
+
+  @override
+  Future<bool> adoptKeepAliveSessionIfAvailable() async {
+    final adopted = await _androidTv.adoptKeepAliveSessionIfAvailable();
+    if (!adopted) return false;
+    _activeService = _androidTv;
+    await _stateSubscription?.cancel();
+    await _castSubscription?.cancel();
+    _stateSubscription = _activeService!.connectionStateStream.listen(
+      _forwardConnectionState,
+    );
+    _castSubscription = _activeService!.castSessionStream.listen((update) {
+      if (!_castSessionController.isClosed) {
+        _castSessionController.add(update);
+      }
+    });
+    _forwardConnectionState(TvConnectionState.connected);
+    return true;
+  }
+
+  @override
   Stream<CastSessionUpdate> get castSessionStream => _castSessionController.stream;
 
   @override

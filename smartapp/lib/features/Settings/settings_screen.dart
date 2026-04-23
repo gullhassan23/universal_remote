@@ -257,7 +257,7 @@ class SettingsScreen extends StatelessWidget {
                           onTap: _openPrivacyPolicy,
                         ),
                         _SettingsTile(
-                          icon: SettingsIcon.term,
+                          icon: SettingsIcon.howtouse,
                           title: 'How to use app',
                           onTap: () {
                             Get.to(() => const InstructionOnboardingScreen());
@@ -271,7 +271,7 @@ class SettingsScreen extends StatelessWidget {
                           },
                         ),
                         _SettingsTile(
-                          icon: SettingsIcon.term,
+                          icon: SettingsIcon.notebook,
                           title: 'Send us a note',
                           onTap: () {
                             _openFeedbackEmail(context);
