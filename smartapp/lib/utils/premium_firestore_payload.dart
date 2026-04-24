@@ -17,6 +17,8 @@ Map<String, dynamic> buildPremiumFirestorePayload({
   bool includeIapMetadata = false,
 }) {
   final Map<String, dynamic> payload = <String, dynamic>{
+    // Keep both keys for backward compatibility; security rules require `userId`.
+    'userId': userId,
     'deviceId': userId,
     'isPremium': isPremium,
     'mode': isPremium ? 'premium' : 'free',
