@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/utils/constant.dart';
+import 'package:smartapp/utils/premium_navigation.dart';
 
 import '../../controllers/tv_connection_controller.dart';
 import '../../features/device_discovery/device_discovery_controller.dart';
@@ -95,7 +96,10 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                         height: 0.95,
                       ),
                     ),
-                    const PremiumStatusBanner(),
+                    GestureDetector(
+                      onTap: openPremiumStatusScreen,
+                      child: const PremiumStatusBanner(),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),

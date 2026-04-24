@@ -120,27 +120,18 @@ class _InstructionOnboardingScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                SizedBox(height: 6),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 12, 4),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: _goBack,
-                        icon: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white.withValues(alpha: 0.95),
-                          size: 22,
-                        ),
+                  padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+                  child: Center(
+                    child: Text(
+                      'Instructions',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.98),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
-                      Text(
-                        'Instructions',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.98),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 Expanded(

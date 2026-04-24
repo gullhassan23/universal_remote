@@ -98,7 +98,10 @@ class _CastScreenState extends State<CastScreen> {
                               color: Color(0xFFFFD27A),
                             ),
                           ),
-                        PremiumStatusBanner(),
+                        GestureDetector(
+                          onTap: openPremiumStatusScreen,
+                          child: PremiumStatusBanner(),
+                        ),
                         if (controller.isCastingActive)
                           IconButton(
                             onPressed: controller.stopCastingAndReset,

@@ -7,7 +7,6 @@ import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
-import 'package:smartapp/features/premium/premium_screen.dart';
 import 'package:smartapp/features/Settings/faq_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
@@ -230,8 +229,7 @@ class SettingsScreen extends StatelessWidget {
                           children: [
                             _SectionTitle(title: 'REMOTE'),
                             GestureDetector(
-                                onTap: () =>
-                                    Get.to(() => const PremiumScreen()),
+                                onTap: openPremiumStatusScreen,
                                 child: const PremiumStatusBanner()),
                           ],
                         ),

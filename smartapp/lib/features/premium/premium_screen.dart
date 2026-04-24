@@ -105,7 +105,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                           const SizedBox(height: 18),
                           const Text(
-                            'Control your TV\nfrom your phone',
+                            'Turn Your Phone Into a Smart Remote Instantly',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
@@ -114,25 +114,33 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               height: 1.15,
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Control any TV in seconds -- no setup, no frustration',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 15,
+                              height: 1.3,
+                            ),
+                          ),
                           const SizedBox(height: 18),
                           const _FeatureItem(
                             icon: Icons.control_camera,
-                            text: 'Full Remote Control',
+                            text: 'Control Any TV Instantly',
                           ),
-                          const SizedBox(height: 14),
-                          const _FeatureItem(
-                            icon: Icons.touch_app_outlined,
-                            text: 'Responsive Touchpad',
-                          ),
+                          
+                         
                           const SizedBox(height: 14),
                           const _FeatureItem(
                             icon: Icons.gamepad_outlined,
-                            text: 'Hot Keys for Channels',
+                            text: '1-Tap Channel & Volume',
                           ),
                           const SizedBox(height: 14),
                           const _FeatureItem(
                             icon: Icons.block,
-                            text: 'No Ads',
+                            text: 'No Ads. No Interruptions',
                           ),
                           const SizedBox(height: 18),
                           Obx(
@@ -272,7 +280,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     ),
                                   )
                                 : const Text(
-                                    'Start my free trail',
+                                    'Start Free -- Unlock Now',
                                     style: TextStyle(
                                       fontSize: 20, // FIXED
                                       fontWeight: FontWeight.w600,
@@ -281,6 +289,18 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                         );
                       },
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Limited Time Offer -- Cancel Anytime',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],

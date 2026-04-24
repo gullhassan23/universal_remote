@@ -1,26 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:smartapp/utils/constant.dart';
+import 'package:get/get.dart';
+import 'package:smartapp/features/remote/remote_screen.dart';
+
 
 class Pro_Screen extends StatelessWidget {
   const Pro_Screen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(
-              ImageRes.kGetStartedBackgroundAsset2,
+    return Scaffold(backgroundColor: Color(0xFF006B7D),
+      body: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+     Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4, right: 10),
+                      child: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
+                        splashRadius: 18,
+                        iconSize: 18,
+                        onPressed: () => Get.back<void>(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ),
+                  ),
+            const SizedBox(height: 8),
+            const _PremiumHeaderCard(),
+            const SizedBox(height: 24),
+            const Profeature(
+              title: 'Control Any TV Instantly',
+              icon: Icons.control_camera,
             ),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(18.0),
-            child: const _PremiumHeaderCard(),
-          ),
+            const SizedBox(height: 16),
+            const Profeature(
+              icon: Icons.gamepad_outlined,
+              title: '1-Tap Channel & Volume',
+            ),
+            const SizedBox(height: 16),
+            const Profeature(
+              icon: Icons.block,
+              title: 'No Ads. No Interruptions',
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF58BEE9),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const RemoteScreen()),
+                  );
+                },
+                child: const Text(
+                  'Remoting',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
         ),
       ),
     );
@@ -62,6 +118,55 @@ class _PremiumHeaderCard extends StatelessWidget {
               color: Colors.white,
               fontSize: 30,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text("All Pro features are unlocked on your account",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+class Profeature extends StatelessWidget {
+  final String title;
+
+  final IconData icon;
+
+  const Profeature({
+    super.key,
+    required this.title,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Color(0xFF2E323C),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 28,
+            color: Color(0xFF58BEE9),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
