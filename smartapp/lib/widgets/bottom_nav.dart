@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:smartapp/features/Streamings/streaming_apps_screen.dart';
 import 'package:smartapp/features/Settings/settings_screen.dart';
 import 'package:smartapp/features/cast/cast_screen.dart';
 import 'package:smartapp/features/remote/remote_screen.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 class BottomNav extends StatefulWidget {
@@ -14,6 +16,13 @@ class BottomNav extends StatefulWidget {
 
 class _BottomNavState extends State<BottomNav> {
   int _selectedIndex = 0;
+  late final AnalyticsService _analyticsService;
+  static const List<(String, String)> _tabAnalytics = <(String, String)>[
+    ('RemoteScreen', 'RemoteScreen'),
+    ('StreamingAppsScreen', 'StreamingAppsScreen'),
+    ('CastScreen', 'CastScreen'),
+    ('SettingsScreen', 'SettingsScreen'),
+  ];
 
   static const List<Widget> _tabs = <Widget>[
     RemoteScreen(),
@@ -21,6 +30,13 @@ class _BottomNavState extends State<BottomNav> {
     CastScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _analyticsService = Get.find<AnalyticsService>();
+    _trackTab(_selectedIndex);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +60,7 @@ class _BottomNavState extends State<BottomNav> {
           setState(() {
             _selectedIndex = index;
           });
+          _trackTab(index);
         },
         destinations: [
           NavigationDestination(
@@ -79,6 +96,14 @@ class _BottomNavState extends State<BottomNav> {
         width: isSelected ? 30 : 25,
         height: isSelected ? 30 : 25,
       ),
+    );
+  }
+
+  void _trackTab(int index) {
+    final tab = _tabAnalytics[index];
+    _analyticsService.logScreen(
+      screenName: tab.$1,
+      screenClass: tab.$2,
     );
   }
 }

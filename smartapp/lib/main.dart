@@ -15,6 +15,7 @@ import 'package:smartapp/controllers/sleep_timer_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/firebase_options.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'app.dart';
@@ -53,6 +54,7 @@ Future<void> main() async {
 
 Future<void> _registerDependencies() async {
   // Servicescd 
+  Get.put(AnalyticsService(), permanent: true);
   final tvService = UnifiedTvService();
   final networkContextService = Get.put(NetworkContextService(), permanent: true);
   Get.put<ITvService>(tvService, permanent: true);

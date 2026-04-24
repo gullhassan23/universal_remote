@@ -31,6 +31,7 @@ dependencies:
 
   # firebase
   firebase_core: ^4.6.0
+  firebase_analytics: ^12.0.2
 
   # mDNS discovery for Android TV Remote (_androidtvremote._tcp)
   multicast_dns: ^0.3.2
