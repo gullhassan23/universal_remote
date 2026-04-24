@@ -99,9 +99,11 @@ class VoiceController extends GetxController {
 
     await _speech.listen(
       onResult: _handleSpeechResult,
-      partialResults: true,
-      cancelOnError: false,
-      listenMode: ListenMode.dictation,
+      listenOptions: SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: false,
+        listenMode: ListenMode.dictation,
+      ),
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 5),
       localeId: Get.deviceLocale?.toLanguageTag(),

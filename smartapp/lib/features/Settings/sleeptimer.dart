@@ -162,7 +162,7 @@ class SleepTimerUI extends GetView<SleepTimerController> {
                         child: Text(
                           'The Sleep timer only works if the app is connected to your TV. In order to keep the app connected please do not close the app',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 14,
                               height: 1.4),
                         ),

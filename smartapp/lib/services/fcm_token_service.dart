@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
 
 /// Matches [AndroidManifest] `com.google.firebase.messaging.default_notification_channel_id`.
@@ -38,6 +39,9 @@ Future<String?> getFcmTokenWithRetry(
 
 Future<void> updateFcmTokenInFirestore() async {
   try {
+    if (Get.isRegistered<PremiumController>()) {
+      await Get.find<PremiumController>().syncPremiumFromFirestore();
+    }
     final userId = await getOrCreateUserId();
     final token = await getFcmTokenWithRetry();
     if (token == null || token.isEmpty) {
@@ -109,6 +113,32 @@ Future<void> _showForegroundAndroidNotification(RemoteMessage message) async {
       ),
     ),
   );
+}
+
+Future<void> showLocalSubscriptionNotification({
+  required String title,
+  required String body,
+}) async {
+  try {
+    await _localNotifications.show(
+      Object.hash(title, body, DateTime.now().millisecondsSinceEpoch),
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          _androidFcmChannelId,
+          'Push notifications',
+          channelDescription: 'Firebase Cloud Messaging',
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
+  } catch (e) {
+    debugPrint('[FCM] local subscription notification failed: $e');
+  }
 }
 
 Future<void> initializeFcmAndUploadToken() async {
@@ -188,13 +218,15 @@ Map<String, dynamic> _buildUserMetadataPayload({
   required String userId,
   required String fcmToken,
 }) {
-  final bool isPremium = Get.isRegistered<PremiumController>()
-      ? Get.find<PremiumController>().isPremium.value
-      : false;
-  return <String, dynamic>{
-    'deviceId': userId,
-    'fcmToken': fcmToken,
-    'isPremium': isPremium,
-    'updatedAt': FieldValue.serverTimestamp(),
-  };
+  final PremiumController? premiumController =
+      Get.isRegistered<PremiumController>() ? Get.find<PremiumController>() : null;
+  final bool isPremium = premiumController?.isPremium.value ?? false;
+  return buildPremiumFirestorePayload(
+    userId: userId,
+    isPremium: isPremium,
+    source: 'fcm_token_service',
+    productId: premiumController?.activeProductId.value,
+    expiryDate: premiumController?.expiryDate.value,
+    fcmToken: fcmToken,
+  );
 }

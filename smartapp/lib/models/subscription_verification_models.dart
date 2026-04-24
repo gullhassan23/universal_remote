@@ -42,6 +42,8 @@ class SubscriptionVerificationResult {
     this.message,
     this.state,
     this.expiryTime,
+    this.purchaseDate,
+    this.isExpired = false,
     this.raw,
   });
 
@@ -49,6 +51,8 @@ class SubscriptionVerificationResult {
   final String? message;
   final String? state;
   final String? expiryTime;
+  final String? purchaseDate;
+  final bool isExpired;
   final Map<String, dynamic>? raw;
 
   factory SubscriptionVerificationResult.fromJson(Map<String, dynamic> json) {
@@ -58,6 +62,8 @@ class SubscriptionVerificationResult {
       message: json['message']?.toString(),
       state: json['state']?.toString(),
       expiryTime: json['expiryTime']?.toString(),
+      purchaseDate: json['purchaseDate']?.toString(),
+      isExpired: json['isExpired'] == true,
       raw: json,
     );
   }

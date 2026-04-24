@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBDR6w4vFhR_ixpYtlLrfYcC1lM4DCLRVU',
-    appId: '1:109265895311:android:c05f88ce3b69e0fa5f55fa',
+    appId: '1:109265895311:android:4de3f678f643812d5f55fa',
     messagingSenderId: '109265895311',
     projectId: 'smart-tv-remote-ios',
     storageBucket: 'smart-tv-remote-ios.firebasestorage.app',

@@ -256,7 +256,7 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
                                     'Please enter the pin code displayed on\nyour TV.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(alpha: 0.9),
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       height: 1.2,
@@ -282,7 +282,7 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
                                     decoration: InputDecoration(
                                       hintText: '------',
                                       hintStyle: TextStyle(
-                                        color: Colors.white.withOpacity(0.35),
+                                        color: Colors.white.withValues(alpha: 0.35),
                                         letterSpacing: 2,
                                       ),
                                       filled: true,
@@ -317,7 +317,7 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
                             Divider(
                               height: 1,
                               thickness: 1,
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                             ),
 
                             /// BUTTONS
@@ -353,7 +353,7 @@ Future<String?> showAndroidTvPairingDialog(BuildContext context) async {
                                     width: 1,
                                     thickness: 1,
                                     color:
-                                        Colors.white.withOpacity(0.2),
+                                        Colors.white.withValues(alpha: 0.2),
                                   ),
                                   Expanded(
                                     child: TextButton(

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
@@ -13,6 +14,7 @@ import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
 import 'package:smartapp/models/subscription_verification_models.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
+import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
 
 typedef PremiumActivationHook = Future<void> Function(String productId);
@@ -20,15 +22,18 @@ typedef PremiumActivationHook = Future<void> Function(String productId);
 class SubscriptionIAPService extends GetxService {
   static const String _logTag = '[IAP]';
   static const List<String> _fallbackProductIds = <String>[
-    'remote_premium_monthly',
-    'remote_premium_yearly',
+    'tv.remote.control.app.premium.weekly',
+    'tv.remote.control.app.premium.monthly',
+    'tv.remote.control.app.premium.yearly',
   ];
 
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final RxBool isStoreAvailable = false.obs;
   final RxBool isLoading = false.obs;
   final RxBool isPurchasing = false.obs;
+  final RxBool isRestoring = false.obs;
   final RxnString lastError = RxnString();
+  final RxnString lastMessage = RxnString();
   final RxList<SubscriptionProduct> products = <SubscriptionProduct>[].obs;
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
@@ -106,6 +111,7 @@ class SubscriptionIAPService extends GetxService {
 
     isPurchasing.value = true;
     lastError.value = null;
+    lastMessage.value = null;
 
     try {
       final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
@@ -115,6 +121,8 @@ class SubscriptionIAPService extends GetxService {
       );
       if (!launched) {
         lastError.value = 'Purchase flow did not start';
+      } else {
+        lastMessage.value = 'Complete your purchase in the store dialog.';
       }
       return launched;
     } catch (error) {
@@ -132,11 +140,17 @@ class SubscriptionIAPService extends GetxService {
       return;
     }
     _log('restorePurchases requested.');
+    isRestoring.value = true;
+    lastError.value = null;
+    lastMessage.value = null;
     try {
       await _inAppPurchase.restorePurchases();
+      lastMessage.value = 'Restore request sent. Verifying purchases...';
     } catch (error) {
       lastError.value = error.toString();
       _log('restorePurchases failed: $error');
+    } finally {
+      isRestoring.value = false;
     }
   }
 
@@ -160,6 +174,7 @@ class SubscriptionIAPService extends GetxService {
         );
         switch (purchase.status) {
           case PurchaseStatus.pending:
+            lastMessage.value = 'Purchase is pending approval.';
             break;
           case PurchaseStatus.purchased:
             await _handleVerifiedFlow(purchase: purchase, isRestore: false);
@@ -200,16 +215,27 @@ class SubscriptionIAPService extends GetxService {
     if (verification.isValid) {
       _log('Verification succeeded for ${purchase.productID}');
       await _unlockPremium(
+        purchase: purchase,
         productId: purchase.productID,
         verification: verification,
+        isRestore: isRestore,
       );
       _processedPurchaseKeys.add(_buildPurchaseKey(purchase));
       await _completePurchaseIfNeeded(purchase);
+      lastMessage.value = isRestore
+          ? 'Premium restored successfully.'
+          : 'Premium unlocked successfully.';
       return;
     }
 
     _log('Verification failed for ${purchase.productID}: ${verification.message}');
     lastError.value = verification.message ?? 'Purchase verification failed';
+    if (verification.isExpired || _isInactiveState(verification.state)) {
+      await _downgradePremium(
+        reason: verification.message ??
+            'Subscription inactive or expired. Premium access removed.',
+      );
+    }
     await _completePurchaseIfNeeded(purchase);
     _processedPurchaseKeys.add(_buildPurchaseKey(purchase));
   }
@@ -218,14 +244,6 @@ class SubscriptionIAPService extends GetxService {
     PurchaseDetails purchase, {
     required bool isRestore,
   }) async {
-    final String endpoint = dotenv.env['IAP_VERIFY_FUNCTION_URL']?.trim() ?? '';
-    if (endpoint.isEmpty) {
-      return SubscriptionVerificationResult(
-        isValid: false,
-        message: 'IAP verification endpoint is missing',
-      );
-    }
-
     final String userId = await getOrCreateUserId();
     final String? fcmToken = await getFcmTokenWithRetry();
     final String platform = _platformLabel();
@@ -249,6 +267,77 @@ class SubscriptionIAPService extends GetxService {
       _log(
         'Android payload includes purchaseToken for backend verification. '
         'If backend currently validates Apple only, Android purchases will remain locked until backend support is added.',
+      );
+    }
+
+    final SubscriptionVerificationResult callableResult =
+        await _verifyPurchaseViaCallable(payload);
+    if (callableResult.isValid || callableResult.message != 'CALLABLE_FALLBACK') {
+      return callableResult;
+    }
+
+    _log('Callable verification unavailable. Falling back to HTTP endpoint.');
+    return _verifyPurchaseViaHttp(payload);
+  }
+
+  Future<SubscriptionVerificationResult> _verifyPurchaseViaCallable(
+    SubscriptionVerificationPayload payload,
+  ) async {
+    try {
+      final HttpsCallable callable = FirebaseFunctions.instanceFor(
+        region: 'us-central1',
+      ).httpsCallable(
+        'verifyIapPurchaseCallable',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 15)),
+      );
+      final HttpsCallableResult<dynamic> response = await callable.call(payload.toJson());
+      final dynamic data = response.data;
+      if (data is! Map) {
+        return SubscriptionVerificationResult(
+          isValid: false,
+          message: 'Unexpected callable response format',
+        );
+      }
+      final Map<String, dynamic> body = data.cast<String, dynamic>();
+      return SubscriptionVerificationResult.fromJson(body);
+    } on FirebaseFunctionsException catch (error) {
+      _log('Callable verification error (${error.code}): ${error.message}');
+      final bool shouldFallback = <String>{
+        'unavailable',
+        'not-found',
+        'unimplemented',
+        'deadline-exceeded',
+        'cancelled',
+        // Same backend over HTTP can succeed if callable misconfigured / wrong region.
+        'internal',
+      }.contains(error.code);
+      if (!shouldFallback) {
+        return SubscriptionVerificationResult(
+          isValid: false,
+          message: error.message ?? 'Callable verification failed',
+        );
+      }
+      return SubscriptionVerificationResult(
+        isValid: false,
+        message: 'CALLABLE_FALLBACK',
+      );
+    } catch (error) {
+      _log('Callable verification failed: $error');
+      return SubscriptionVerificationResult(
+        isValid: false,
+        message: 'CALLABLE_FALLBACK',
+      );
+    }
+  }
+
+  Future<SubscriptionVerificationResult> _verifyPurchaseViaHttp(
+    SubscriptionVerificationPayload payload,
+  ) async {
+    final String endpoint = dotenv.env['IAP_VERIFY_FUNCTION_URL']?.trim() ?? '';
+    if (endpoint.isEmpty) {
+      return SubscriptionVerificationResult(
+        isValid: false,
+        message: 'IAP verification endpoint is missing',
       );
     }
 
@@ -298,8 +387,10 @@ class SubscriptionIAPService extends GetxService {
   }
 
   Future<void> _unlockPremium({
+    required PurchaseDetails purchase,
     required String productId,
     required SubscriptionVerificationResult verification,
+    required bool isRestore,
   }) async {
     if (!Get.isRegistered<PremiumController>()) {
       _log('PremiumController not registered. Skipping premium unlock.');
@@ -311,12 +402,21 @@ class SubscriptionIAPService extends GetxService {
       productId: productId,
       autoRenew: _extractAutoRenew(verification),
       expiryDate: _parseExpiryDate(verification.expiryTime),
+      purchaseDate:
+          _parseDate(verification.purchaseDate) ??
+          _parseMillisDate(purchase.transactionDate),
       fcmToken: fcmToken,
     );
     await _persistPremiumSubscriptionMetadata(
+      purchase: purchase,
       productId: productId,
       verification: verification,
       fcmToken: fcmToken,
+      isRestore: isRestore,
+    );
+    await showLocalSubscriptionNotification(
+      title: 'Premium Activated',
+      body: 'Your subscription is active. Remote Style is unlocked.',
     );
 
     if (_premiumActivationHook != null) {
@@ -325,34 +425,36 @@ class SubscriptionIAPService extends GetxService {
   }
 
   Future<void> _persistPremiumSubscriptionMetadata({
+    required PurchaseDetails purchase,
     required String productId,
     required SubscriptionVerificationResult verification,
     String? fcmToken,
+    required bool isRestore,
   }) async {
     try {
       final String userId = await getOrCreateUserId();
       final String platform = _platformLabel();
       final DateTime? expiryDate = _parseExpiryDate(verification.expiryTime);
-      final Map<String, dynamic> payload = <String, dynamic>{
-        'deviceId': userId,
-        'isPremium': true,
-        'autoRenew': _extractAutoRenew(verification),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'expiryDate':
-            expiryDate == null ? null : Timestamp.fromDate(expiryDate.toUtc()),
-        'lastSubscribeDate': FieldValue.serverTimestamp(),
-        'premiumProductId': productId,
-        'iap': <String, dynamic>{
-          'platform': platform,
-          'productId': productId,
-          'state': verification.state,
-          'expiryTime': verification.expiryTime,
-          'verifiedAt': FieldValue.serverTimestamp(),
-        },
-      };
-      if (fcmToken != null && fcmToken.isNotEmpty) {
-        payload['fcmToken'] = fcmToken;
-      }
+      final DateTime? purchaseDate =
+          _parseDate(verification.purchaseDate) ??
+          _parseMillisDate(purchase.transactionDate) ??
+          DateTime.now().toUtc();
+      final Map<String, dynamic> payload = buildPremiumFirestorePayload(
+        userId: userId,
+        isPremium: true,
+        source: 'subscription_iap_service',
+        productId: productId,
+        autoRenew: _extractAutoRenew(verification),
+        purchaseDate: purchaseDate,
+        expiryDate: expiryDate,
+        platform: platform,
+        state: verification.state,
+        transactionId: purchase.purchaseID,
+        orderId: _extractAndroidOrderId(purchase),
+        isRestore: isRestore,
+        fcmToken: fcmToken,
+        includeIapMetadata: true,
+      );
 
       await FirebaseFirestore.instance.collection('Users').doc(userId).set(
             payload,
@@ -375,9 +477,11 @@ class SubscriptionIAPService extends GetxService {
   }
 
   Set<String> _loadProductIdsFromEnv() {
+    final String weekly = dotenv.env['IAP_PRODUCT_WEEKLY']?.trim() ?? '';
     final String monthly = dotenv.env['IAP_PRODUCT_MONTHLY']?.trim() ?? '';
     final String yearly = dotenv.env['IAP_PRODUCT_YEARLY']?.trim() ?? '';
     final Set<String> ids = <String>{
+      if (weekly.isNotEmpty) weekly,
       if (monthly.isNotEmpty) monthly,
       if (yearly.isNotEmpty) yearly,
       ..._fallbackProductIds,
@@ -425,7 +529,37 @@ class SubscriptionIAPService extends GetxService {
 
   DateTime? _parseExpiryDate(String? value) {
     if (value == null || value.isEmpty) return null;
-    return DateTime.tryParse(value);
+    return DateTime.tryParse(value)?.toUtc();
+  }
+
+  DateTime? _parseDate(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value)?.toUtc();
+  }
+
+  DateTime? _parseMillisDate(String? millis) {
+    if (millis == null || millis.isEmpty) return null;
+    final int? parsed = int.tryParse(millis);
+    if (parsed == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(parsed, isUtc: true);
+  }
+
+  bool _isInactiveState(String? state) {
+    if (state == null) return false;
+    const Set<String> inactive = <String>{
+      'APPLE_INACTIVE',
+      'SUBSCRIPTION_STATE_EXPIRED',
+      'SUBSCRIPTION_STATE_CANCELED',
+      'SUBSCRIPTION_STATE_REVOKED',
+      'SUBSCRIPTION_STATE_PAUSED',
+    };
+    return inactive.contains(state);
+  }
+
+  Future<void> _downgradePremium({required String reason}) async {
+    if (!Get.isRegistered<PremiumController>()) return;
+    await Get.find<PremiumController>().setPremium(enabled: false);
+    lastMessage.value = reason;
   }
 
   void _log(String message) {

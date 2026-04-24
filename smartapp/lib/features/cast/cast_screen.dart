@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/media_cast_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
@@ -11,10 +13,12 @@ import 'package:smartapp/features/cast/cast_session_banner.dart';
 import 'package:smartapp/models/tv_device.dart';
 import 'package:smartapp/services/tv_service_interface.dart' hide CastMediaItem;
 import 'package:smartapp/utils/constant.dart';
+import 'package:smartapp/utils/premium_navigation.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 import 'package:smartapp/widgets/streaming_mrec_ad.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CastScreen extends StatefulWidget {
   const CastScreen({super.key});
@@ -24,6 +28,8 @@ class CastScreen extends StatefulWidget {
 }
 
 class _CastScreenState extends State<CastScreen> {
+  static const String _fallbackStreamingAppUrl =
+      'https://play.google.com/store/apps/details?id=com.FutureDialLabs.screen.mirroring.tv.casting.wireless.app';
   late final MediaCastController controller;
   late final TvConnectionController _tvConnectionController;
   late final DeviceDiscoveryController _discoveryController;
@@ -42,6 +48,8 @@ class _CastScreenState extends State<CastScreen> {
     _pageController.dispose();
     super.dispose();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -67,31 +75,44 @@ class _CastScreenState extends State<CastScreen> {
                 // const PremiumStatusBanner(),
                 const SizedBox(height: 8),
                 Obx(
-                  () => Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Cast',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            height: 0.95,
+                  () {
+                    final bool isPremium =
+                        Get.find<PremiumController>().isPremium.value;
+                    return Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Cast',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              height: 0.95,
+                            ),
                           ),
                         ),
-                      ),
-                      PremiumStatusBanner(),
-                      if (controller.isCastingActive)
-                        IconButton(
-                          onPressed: controller.stopCastingAndReset,
-                          tooltip: 'Stop casting',
-                          icon: const Icon(
-                            Icons.cast_connected,
-                            color: Colors.white,
+                        if (!isPremium)
+                          IconButton(
+                            onPressed: openRemoteStyleOrPaywall,
+                            tooltip: 'Premium remote styles',
+                            icon: const Icon(
+                              Icons.diamond_outlined,
+                              color: Color(0xFFFFD27A),
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
+                        PremiumStatusBanner(),
+                        if (controller.isCastingActive)
+                          IconButton(
+                            onPressed: controller.stopCastingAndReset,
+                            tooltip: 'Stop casting',
+                            icon: const Icon(
+                              Icons.cast_connected,
+                              color: Colors.white,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 18),
                 Obx(
@@ -139,7 +160,7 @@ class _CastScreenState extends State<CastScreen> {
                         childAspectRatio: 0.84,
                         children: [
                           CastTile(
-                            ontap: () {},
+                            ontap: () => _openStreamingUrl(),
                             title: 'Browser',
                             subtitle: 'Cast your screen',
                             image: CastTileImage.browse,
@@ -151,13 +172,13 @@ class _CastScreenState extends State<CastScreen> {
                             image: CastTileImage.media,
                           ),
                           CastTile(
-                            ontap: () {},
+                            ontap: () => _openStreamingUrl(),
                             title: 'Mirror',
                             subtitle: 'Mirror your screen',
                             image: CastTileImage.mirror,
                           ),
                           CastTile(
-                            ontap: () {},
+                            ontap: () => _openStreamingUrl(),
                             title: 'YouTube',
                             subtitle: 'Watch YouTube',
                             image: CastTileImage.youtube,
@@ -296,6 +317,30 @@ class _CastScreenState extends State<CastScreen> {
   Future<void> _handleMediaCastTap() async {
     if (!await _ensureTvConnectedForMediaCast()) return;
     await controller.pickAndCastMedia();
+  }
+
+  Future<void> _openStreamingUrl() async {
+    final String streamingUrl =
+        (dotenv.env['StreamingAppLink'] ?? _fallbackStreamingAppUrl).trim();
+
+    final uri = Uri.tryParse(streamingUrl);
+    if (uri == null) {
+      Get.snackbar(
+        'Error',
+        'Streaming app link is invalid.',
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      Get.snackbar(
+        'Error',
+        'Unable to open streaming app.',
+        colorText: Colors.white,
+      );
+    }
   }
 
   Future<bool> _ensureTvConnectedForMediaCast() async {

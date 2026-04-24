@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/utils/premium_navigation.dart';
 
 import '../../services/android_tv/android_tv_keycodes.dart';
 
@@ -80,6 +82,8 @@ class RemoteScreen extends GetView<RemoteController> {
                     final isConnected =
                         controller.connectionController.connectionState.value ==
                             TvConnectionState.connected;
+                    final bool isPremium =
+                        Get.find<PremiumController>().isPremium.value;
                     return Row(
                       children: [
                         const Expanded(
@@ -95,6 +99,15 @@ class RemoteScreen extends GetView<RemoteController> {
                             ),
                           ),
                         ),
+                        if (!isPremium)
+                          IconButton(
+                            onPressed: openRemoteStyleOrPaywall,
+                            tooltip: 'Premium remote styles',
+                            icon: const Icon(
+                              Icons.diamond_outlined,
+                              color: Color(0xFFFFD27A),
+                            ),
+                          ),
                         if (isConnected) const SizedBox(width: 10),
                         if (isConnected)
                           TextButton.icon(
@@ -109,7 +122,7 @@ class RemoteScreen extends GetView<RemoteController> {
                             ),
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white,
-                              backgroundColor: Colors.red.withOpacity(0.28),
+                              backgroundColor: Colors.red.withValues(alpha: 0.28),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),

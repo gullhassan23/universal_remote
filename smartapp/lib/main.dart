@@ -41,22 +41,22 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await initializeFcmAndUploadToken();
   if (!kIsWeb && Platform.isAndroid) {
     AndroidTvRemotePlatform.instance.ensureInitialized();
   }
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  _registerDependencies();
+  await _registerDependencies();
+  await initializeFcmAndUploadToken();
 
   runApp(const MyApp());
 }
 
-void _registerDependencies() {
-  // Services
+Future<void> _registerDependencies() async {
+  // Servicescd 
   final tvService = UnifiedTvService();
   final networkContextService = Get.put(NetworkContextService(), permanent: true);
   Get.put<ITvService>(tvService, permanent: true);
-  Get.put(PremiumController(), permanent: true);
+  final premiumController = Get.put(PremiumController(), permanent: true);
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
   Get.put(VibrationController(), permanent: true);
   Get.put(RemoteStyleController(), permanent: true);
@@ -112,7 +112,8 @@ void _registerDependencies() {
     permanent: true,
   );
 
-  iapService.initialize(
+  await premiumController.syncPremiumFromFirestore();
+  await iapService.initialize(
     premiumActivationHook: (String productId) async {
       debugPrint('[IAP] Premium activated for product=$productId');
       // Adapty sync hook can be plugged in here when Adapty is integrated.
