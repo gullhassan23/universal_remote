@@ -177,6 +177,7 @@ class RemoteScreen extends GetView<RemoteController> {
     Color iconColor = Colors.white,
     double width = 89,
     double height = 50,
+    bool showPremiumBadge = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -189,7 +190,24 @@ class RemoteScreen extends GetView<RemoteController> {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.white, width: 0.3),
         ),
-        child: Icon(icon, color: iconColor, size: 30),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Center(
+              child: Icon(icon, color: iconColor, size: 30),
+            ),
+            if (showPremiumBadge)
+              const Positioned(
+                top: 6,
+                right: 8,
+                child: Icon(
+                  Icons.diamond_outlined,
+                  size: 14,
+                  color: Color(0xFFFFD27A),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -302,11 +320,17 @@ class RemoteScreen extends GetView<RemoteController> {
               SizedBox(height: 19),
               Obx(() {
                 final isListening = voiceController.isListening.value;
+                final isPremium = isPremiumUnlocked();
                 return _roundedActionButton(
                   icon: isListening ? Icons.mic : Icons.mic_none,
                   iconColor:
                       isListening ? const Color(0xFFFFE082) : Colors.white,
+                  showPremiumBadge: !isPremium,
                   onTap: () {
+                    if (!isPremium) {
+                      openPremiumPaywall();
+                      return;
+                    }
                     unawaited(
                       controller.handleButtonTap(
                         buttonKey: 'KEY_MIC',

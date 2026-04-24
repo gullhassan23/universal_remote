@@ -169,6 +169,10 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _openSleepTimerWithConnectionCheck() async {
+    if (!isPremiumUnlocked()) {
+      openPremiumPaywall();
+      return;
+    }
     if (_tvConnectionController.connectionState.value ==
         TvConnectionState.connected) {
       await Get.to(() => const SleepTimerUI());
@@ -243,6 +247,7 @@ class SettingsScreen extends StatelessWidget {
                           icon: SettingsIcon.remotestyle,
                           title: 'Remote style',
                           onTap: openRemoteStyleOrPaywall,
+                          isPremiumFeature: true,
                         ),
                         Obx(
                           () => _SwitchSettingsTile(
@@ -260,6 +265,7 @@ class SettingsScreen extends StatelessWidget {
                           title: 'Sleep timer',
                           subtitle: 'Turns off your TV automatically',
                           onTap: _openSleepTimerWithConnectionCheck,
+                          isPremiumFeature: true,
                         ),
                         const SizedBox(height: 20),
                         const _SectionTitle(title: 'GENERAL'),
@@ -337,12 +343,14 @@ class _SettingsTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.onTap,
+    this.isPremiumFeature = false,
   });
 
   final String icon;
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
+  final bool isPremiumFeature;
 
   @override
   Widget build(BuildContext context) {
@@ -363,13 +371,32 @@ class _SettingsTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isPremiumFeature) ...[
+                        const SizedBox(width: 8),
+                        Obx(
+                          () => Get.find<PremiumController>().isPremium.value
+                              ? const SizedBox.shrink()
+                              : const Icon(
+                                  Icons.diamond_outlined,
+                                  size: 15,
+                                  color: Color(0xFFFFD27A),
+                                ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (subtitle != null)
                     Text(

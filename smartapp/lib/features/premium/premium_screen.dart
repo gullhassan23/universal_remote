@@ -23,15 +23,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
   ) {
     return products.firstWhereOrNull(
       (p) => switch (plan) {
-        _PremiumPlanType.weekly =>
-          p.title.toLowerCase().contains('week') ||
-              p.id.toLowerCase().contains('week'),
-        _PremiumPlanType.monthly =>
-          p.title.toLowerCase().contains('month') ||
-              p.id.toLowerCase().contains('month'),
-        _PremiumPlanType.yearly =>
-          p.title.toLowerCase().contains('year') ||
-              p.id.toLowerCase().contains('year'),
+        _PremiumPlanType.weekly => p.title.toLowerCase().contains('week') ||
+            p.id.toLowerCase().contains('week'),
+        _PremiumPlanType.monthly => p.title.toLowerCase().contains('month') ||
+            p.id.toLowerCase().contains('month'),
+        _PremiumPlanType.yearly => p.title.toLowerCase().contains('year') ||
+            p.id.toLowerCase().contains('year'),
       },
     );
   }
@@ -94,7 +91,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   ),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: Column(
                         children: [
                           ClipRRect(
@@ -113,7 +110,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
-                              fontSize: 34, // FIXED
+                              fontSize: 28, // FIXED
                               height: 1.15,
                             ),
                           ),
@@ -160,8 +157,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     child: _PlanCard(
                                       badge: 'POPULAR',
                                       title: 'Monthly',
-                                      subtitle:
-                                          monthlyProduct?.description ??
+                                      subtitle: monthlyProduct?.description ??
                                           'Billed every month',
                                       priceLine:
                                           monthlyProduct?.priceLabel ?? '--',
@@ -177,10 +173,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     child: _PlanCard(
                                       badge: '3 DAYS\nFREE TRIAL',
                                       title: 'Weekly',
-                                      subtitle:
-                                          weeklyProduct?.description ??
+                                      subtitle: weeklyProduct?.description ??
                                           'Billed every week',
-                                      priceLine: weeklyProduct?.priceLabel ?? '--',
+                                      priceLine:
+                                          weeklyProduct?.priceLabel ?? '--',
                                       durationLine: 'per week',
                                       highlighted: _selectedPlan.value ==
                                           _PremiumPlanType.weekly,
@@ -193,10 +189,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     child: _PlanCard(
                                       badge: 'BEST DEAL',
                                       title: 'Yearly',
-                                      subtitle:
-                                          yearlyProduct?.description ??
+                                      subtitle: yearlyProduct?.description ??
                                           'Billed every year',
-                                      priceLine: yearlyProduct?.priceLabel ?? '--',
+                                      priceLine:
+                                          yearlyProduct?.priceLabel ?? '--',
                                       durationLine: 'per year',
                                       highlighted: _selectedPlan.value ==
                                           _PremiumPlanType.yearly,
@@ -216,8 +212,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     padding: EdgeInsets.fromLTRB(20, 6, 20, 10 + bottomInset),
                     child: Obx(
                       () {
-                        final bool isBusy =
-                            iapService.isPurchasing.value ||
+                        final bool isBusy = iapService.isPurchasing.value ||
                             iapService.isRestoring.value;
                         return SizedBox(
                           width: double.infinity,
@@ -243,11 +238,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                       );
                                       return;
                                     }
-                                    final product = _resolveSelectedProduct(products);
+                                    final product =
+                                        _resolveSelectedProduct(products);
                                     final bool launched = await iapService.buy(
                                       product.productDetails,
                                     );
-                                    final String? error = iapService.lastError.value;
+                                    final String? error =
+                                        iapService.lastError.value;
                                     final String? message =
                                         iapService.lastMessage.value;
                                     if (error != null && error.isNotEmpty) {
@@ -305,17 +302,18 @@ class _FeatureItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40), // center alignment
+      padding: const EdgeInsets.symmetric(horizontal: 20), // center alignment
       child: Row(
         children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 22), // smaller
+          Icon(icon,
+              color: Colors.white.withValues(alpha: 0.9), size: 22), // smaller
           const SizedBox(width: 14),
           Text(
             text,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.95),
               fontWeight: FontWeight.w500,
-              fontSize: 18, // FIXED
+              fontSize: 15, // FIXED
             ),
           ),
         ],
@@ -353,7 +351,8 @@ class _PlanCard extends StatelessWidget {
         child: Ink(
           height: 185, // reduced
           decoration: BoxDecoration(
-            color: highlighted ? const Color(0xFF57BFFF) : const Color(0xFF3A3F4A),
+            color:
+                highlighted ? const Color(0xFF57BFFF) : const Color(0xFF3A3F4A),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: highlighted ? Colors.white : Colors.white24,
@@ -366,7 +365,8 @@ class _PlanCard extends StatelessWidget {
 
               // Badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: highlighted ? const Color(0xFFD6F1FF) : Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -377,7 +377,9 @@ class _PlanCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: highlighted ? const Color(0xFF1E88E5) : Colors.grey[700],
+                    color: highlighted
+                        ? const Color(0xFF1E88E5)
+                        : Colors.grey[700],
                   ),
                 ),
               ),

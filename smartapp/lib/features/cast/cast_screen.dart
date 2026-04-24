@@ -49,8 +49,6 @@ class _CastScreenState extends State<CastScreen> {
     super.dispose();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,6 +168,7 @@ class _CastScreenState extends State<CastScreen> {
                             title: 'Media',
                             subtitle: 'Cast photos & video',
                             image: CastTileImage.media,
+                            isPremiumFeature: true,
                           ),
                           CastTile(
                             ontap: () => _openStreamingUrl(),
@@ -315,6 +314,10 @@ class _CastScreenState extends State<CastScreen> {
   }
 
   Future<void> _handleMediaCastTap() async {
+    if (!isPremiumUnlocked()) {
+      openPremiumPaywall();
+      return;
+    }
     if (!await _ensureTvConnectedForMediaCast()) return;
     await controller.pickAndCastMedia();
   }
@@ -474,57 +477,77 @@ class CastTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.image,
+    this.isPremiumFeature = false,
   }) : super(key: key);
   final VoidCallback ontap;
   final String title;
   final String subtitle;
   final String image;
+  final bool isPremiumFeature;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: ontap,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          color: Colors.black.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(18),
+    return Obx(() {
+      final isPremiumUnlocked = Get.find<PremiumController>().isPremium.value;
+      return GestureDetector(
+        onTap: ontap,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            color: Colors.black.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Image.asset(
+                      image,
+                      width: 85,
+                      height: 85,
+                    ),
+                  ),
+                  if (isPremiumFeature && !isPremiumUnlocked)
+                    const Positioned(
+                      top: -8,
+                      right: 10,
+                      child: Icon(
+                        Icons.diamond_outlined,
+                        size: 18,
+                        color: Color(0xFFFFD27A),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 1.2,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Center(
-              child: Image.asset(
-                image,
-                width: 85,
-                height: 85,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 19,
-                fontWeight: FontWeight.w700,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.82),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 1.2,
-                height: 1.1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      );
+    });
   }
 }
