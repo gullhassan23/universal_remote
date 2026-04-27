@@ -33,6 +33,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   int _activeReconnectGeneration = 0;
   String? _pendingReconnectNotice;
   Timer? _resumeDebounceTimer;
+  Timer? _connectionHealthTimer;
   int _resumeToken = 0;
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
@@ -69,6 +70,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     _castSessionManager.events.listen(_onCastEvent);
     unawaited(_adoptKeepAliveSessionOnLaunch());
     _tryRestoreCastSession();
+    _startConnectionHealthChecks();
     // No cold-start auto-reconnect: avoids Android TV pairing dialog before the
     // user uses the remote. Restore runs from key taps, sleep timer, or resume.
   }
@@ -76,8 +78,26 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   @override
   void onClose() {
     _resumeDebounceTimer?.cancel();
+    _connectionHealthTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
+  }
+
+  void _startConnectionHealthChecks() {
+    _connectionHealthTimer?.cancel();
+    _connectionHealthTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      unawaited(_probeConnectedSessionHealth());
+    });
+  }
+
+  Future<void> _probeConnectedSessionHealth() async {
+    if (_manualDisconnectRequested || _reconnectInProgress || !_isInForeground) {
+      return;
+    }
+    if (connectionState.value != TvConnectionState.connected) {
+      return;
+    }
+    await _tvService.verifyConnectedSessionAlive();
   }
 
   @override

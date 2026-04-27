@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 
 import '../../services/android_tv/android_tv_keycodes.dart';
@@ -12,6 +11,7 @@ import '../../controllers/remote_style_controller.dart';
 import '../../controllers/voice_controller.dart';
 import '../../services/tv_service_interface.dart';
 import '../cast/cast_session_banner.dart';
+import '../../widgets/top_banner_ad.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
   const RemoteScreen({super.key});
@@ -74,16 +74,17 @@ class RemoteScreen extends GetView<RemoteController> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 6),
               child: Column(
                 children: [
                   const SizedBox(height: 8),
+                  const Center(
+                    child: TopBannerAd(),
+                  ),
                   Obx(() {
                     final isConnected =
                         controller.connectionController.connectionState.value ==
                             TvConnectionState.connected;
-                    final bool isPremium =
-                        Get.find<PremiumController>().isPremium.value;
                     return Row(
                       children: [
                         Expanded(
@@ -95,21 +96,21 @@ class RemoteScreen extends GetView<RemoteController> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 22,
+                              fontSize: 20,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.5,
                             ),
                           ),
                         ),
-                        if (!isPremium)
-                          IconButton(
-                            onPressed: openRemoteStyleOrPaywall,
-                            tooltip: 'Premium remote styles',
-                            icon: const Icon(
-                              Icons.diamond_outlined,
-                              color: Color(0xFFFFD27A),
-                            ),
-                          ),
+                        // if (!isPremium)
+                        //   IconButton(
+                        //     onPressed: openRemoteStyleOrPaywall,
+                        //     tooltip: 'Premium remote styles',
+                        //     icon: const Icon(
+                        //       Icons.diamond_outlined,
+                        //       color: Color(0xFFFFD27A),
+                        //     ),
+                        //   ),
                         if (isConnected) const SizedBox(width: 10),
                         if (isConnected)
                           TextButton.icon(

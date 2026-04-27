@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
@@ -74,16 +75,9 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: GridView.builder(
+                  child: FlutterCarousel.builder(
                     itemCount: _styleController.wallpapers.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.9,
-                    ),
-                    itemBuilder: (context, index) {
+                    itemBuilder: (context, index, realIndex) {
                       final wallpaperPath = _styleController.wallpapers[index];
                       return Obx(() {
                         final isPremiumUser = _premiumController.isPremium.value;
@@ -95,55 +89,76 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
                         return GestureDetector(
                           onTap: () =>
                               _styleController.selectWallpaper(wallpaperPath),
-                          child: Stack(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? const Color(0xFF4FC3F7)
+                                          : Colors.white24,
+                                      width: isSelected ? 3 : 1,
+                                    ),
+                                    image: DecorationImage(
+                                      image: AssetImage(wallpaperPath),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  alignment: Alignment.topRight,
+                                  padding: const EdgeInsets.all(10),
+                                  child: Icon(
+                                    isSelected
+                                        ? Icons.check_circle
+                                        : Icons.radio_button_unchecked,
                                     color: isSelected
                                         ? const Color(0xFF4FC3F7)
-                                        : Colors.white24,
-                                    width: isSelected ? 3 : 1,
-                                  ),
-                                  image: DecorationImage(
-                                    image: AssetImage(wallpaperPath),
-                                    fit: BoxFit.cover,
+                                        : Colors.white70,
                                   ),
                                 ),
-                                alignment: Alignment.topRight,
-                                padding: const EdgeInsets.all(10),
-                                child: Icon(
-                                  isSelected
-                                      ? Icons.check_circle
-                                      : Icons.radio_button_unchecked,
-                                  color: isSelected
-                                      ? const Color(0xFF4FC3F7)
-                                      : Colors.white70,
-                                ),
-                              ),
-                              if (!isPremiumUser && !isFreeWallpaper)
-                                Positioned(
-                                  top: 10,
-                                  left: 10,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.45),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.diamond_outlined,
-                                      size: 16,
-                                      color: Color(0xFFFFD27A),
+                                if (!isPremiumUser && !isFreeWallpaper)
+                                  Positioned(
+                                    top: 10,
+                                    left: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.45,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.diamond_outlined,
+                                        size: 16,
+                                        color: Color(0xFFFFD27A),
+                                      ),
                                     ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       });
                     },
+                    options: FlutterCarouselOptions(
+                      height: 500,
+                      viewportFraction: 0.72,
+                      enlargeCenterPage: true,
+                      enableInfiniteScroll: false,
+                      showIndicator: true,
+                      slideIndicator: CircularSlideIndicator(
+                        slideIndicatorOptions: SlideIndicatorOptions(
+                          indicatorBackgroundColor: Colors.white24,
+                          currentIndicatorColor: const Color(0xFF4FC3F7),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 SizedBox(
