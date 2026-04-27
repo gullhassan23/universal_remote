@@ -2,35 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/features/remote/remote_screen.dart';
 
-
 class Pro_Screen extends StatelessWidget {
   const Pro_Screen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(backgroundColor: Color(0xFF006B7D),
+    return Scaffold(
+      backgroundColor: Color(0xFF006B7D),
       body: Padding(
         padding: const EdgeInsets.all(18.0),
         child: Column(
           children: [
             const SizedBox(height: 10),
-     Align(
-                    alignment: Alignment.topRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 4, right: 10),
-                      child: IconButton(
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 32,
-                          height: 32,
-                        ),
-                        splashRadius: 18,
-                        iconSize: 18,
-                        onPressed: () => Get.back<void>(),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                      ),
-                    ),
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4, right: 10),
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
                   ),
+                  splashRadius: 18,
+                  iconSize: 18,
+                  onPressed: () => Get.back<void>(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
             const _PremiumHeaderCard(),
             const SizedBox(height: 24),
@@ -48,34 +48,6 @@ class Pro_Screen extends StatelessWidget {
               icon: Icons.block,
               title: 'No Ads. No Interruptions',
             ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF58BEE9),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const RemoteScreen()),
-                  );
-                },
-                child: const Text(
-                  'Remoting',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
           ],
         ),
       ),
