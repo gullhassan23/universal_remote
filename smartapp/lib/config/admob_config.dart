@@ -4,6 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdMobConfig {
+  static const String _iosTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/2934735716';
+  static const String _iosTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/4411468910';
+  static const String _iosTestRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/1712485313';
+  static const String _iosTestAppOpenAdUnitId =
+      'ca-app-pub-3940256099942544/5575463023';
+
   static String get bannerAdUnitId {
     if (!kIsWeb && Platform.isAndroid) {
       return _envOrFallback(
@@ -12,7 +21,7 @@ class AdMobConfig {
       );
     }
     if (!kIsWeb && Platform.isIOS) {
-      return _envOrFallback('ADMOB_IOS_BANNER_ID', '');
+      return _envOrFallback('ADMOB_IOS_BANNER_ID', _iosTestBannerAdUnitId);
     }
     return '';
   }
@@ -25,7 +34,10 @@ class AdMobConfig {
       );
     }
     if (!kIsWeb && Platform.isIOS) {
-      return _envOrFallback('ADMOB_IOS_INTERSTITIAL_ID', '');
+      return _envOrFallback(
+        'ADMOB_IOS_INTERSTITIAL_ID',
+        _iosTestInterstitialAdUnitId,
+      );
     }
     return '';
   }
@@ -38,7 +50,7 @@ class AdMobConfig {
       );
     }
     if (!kIsWeb && Platform.isIOS) {
-      return _envOrFallback('ADMOB_IOS_REWARDED_ID', '');
+      return _envOrFallback('ADMOB_IOS_REWARDED_ID', _iosTestRewardedAdUnitId);
     }
     return '';
   }
@@ -64,7 +76,7 @@ class AdMobConfig {
       );
     }
     if (!kIsWeb && Platform.isIOS) {
-      return _envOrFallback('ADMOB_IOS_APP_OPEN_ID', '');
+      return _envOrFallback('ADMOB_IOS_APP_OPEN_ID', _iosTestAppOpenAdUnitId);
     }
     return '';
   }

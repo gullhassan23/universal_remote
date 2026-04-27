@@ -34,6 +34,12 @@ import 'controllers/tv_connection_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await MobileAds.instance.initialize();
+  await MobileAds.instance.updateRequestConfiguration(
+    RequestConfiguration(
+      // iOS Simulator test device id (Google Mobile Ads docs).
+      testDeviceIds: <String>['SIMULATOR'],
+    ),
+  );
   try {
     await dotenv.load(fileName: '.env');
   } catch (error) {

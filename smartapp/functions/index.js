@@ -1,6 +1,7 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 
 admin.initializeApp();
@@ -8,6 +9,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const REGION = "us-central1";
+const APPSTORE_SHARED_SECRET = defineSecret("APPSTORE_SHARED_SECRET");
 
 function toIsoOrNull(msString) {
   const ms = Number(msString || 0);
@@ -53,6 +55,84 @@ function buildAndroidTemporaryResult(payload) {
   };
 }
 
+async function verifyAppleReceipt(receiptData) {
+  const sharedSecret = APPSTORE_SHARED_SECRET.value();
+  if (!sharedSecret) {
+    throw new Error("APPSTORE_SHARED_SECRET is not configured");
+  }
+  const payload = {
+    "receipt-data": receiptData,
+    "password": sharedSecret,
+    "exclude-old-transactions": true,
+  };
+
+  const verify = async (url) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  };
+
+  let data = await verify("https://buy.itunes.apple.com/verifyReceipt");
+  if (data.status === 21007) {
+    data = await verify("https://sandbox.itunes.apple.com/verifyReceipt");
+  }
+  return data;
+}
+
+function buildIosResult(payload, appleResponse) {
+  const latestReceiptInfo = Array.isArray(appleResponse.latest_receipt_info) ?
+    appleResponse.latest_receipt_info :
+    (Array.isArray(appleResponse.receipt?.in_app) ?
+      appleResponse.receipt.in_app :
+      []);
+
+  const matched = latestReceiptInfo
+      .filter((item) => item?.product_id === payload.productId);
+  const candidates = matched.length ? matched : latestReceiptInfo;
+  const latest = candidates.reduce((best, current) => {
+    const bestMs = Number(best?.expires_date_ms || 0);
+    const curMs = Number(current?.expires_date_ms || 0);
+    return curMs > bestMs ? current : best;
+  }, null);
+
+  const expiryIso = toIsoOrNull(latest?.expires_date_ms);
+  const purchaseIso = toIsoOrNull(latest?.purchase_date_ms);
+  const nowMs = Date.now();
+  const expiryMs = Number(latest?.expires_date_ms || 0);
+  const isActive = expiryMs > nowMs;
+
+  const pendingRenewalInfo = Array.isArray(appleResponse.pending_renewal_info) ?
+    appleResponse.pending_renewal_info :
+    [];
+  const renewalInfo = pendingRenewalInfo.find(
+      (item) =>
+        item?.auto_renew_product_id === payload.productId ||
+        item?.product_id === payload.productId,
+  ) || null;
+  const autoRenew = renewalInfo?.auto_renew_status === "1";
+
+  return {
+    isValid: isActive,
+    message: isActive ? "Apple receipt verified" : "Subscription expired/inactive",
+    state: isActive ? "APPLE_ACTIVE" : "APPLE_INACTIVE",
+    expiryTime: expiryIso,
+    purchaseDate: purchaseIso,
+    autoRenew,
+    isExpired: !isActive,
+    raw: {
+      platform: "ios",
+      verificationMode: "apple_verify_receipt",
+      appleStatus: appleResponse.status,
+      latestProductId: latest?.product_id || null,
+      transactionId: latest?.transaction_id || payload.transactionId || null,
+      originalTransactionId: latest?.original_transaction_id || null,
+    },
+  };
+}
+
 async function persistSubscriptionResult({userId, payload, result}) {
   const userRef = db.collection("Users").doc(userId);
 
@@ -92,6 +172,7 @@ exports.verifyIapPurchaseCallable = onCall(
       region: REGION,
       timeoutSeconds: 30,
       memory: "256MiB",
+      secrets: [APPSTORE_SHARED_SECRET],
     },
     async (request) => {
       const data = request.data || {};
@@ -117,16 +198,44 @@ exports.verifyIapPurchaseCallable = onCall(
           });
           return androidResult;
         }
+        if (platform === "ios") {
+          const appleResponse = await verifyAppleReceipt(receiptData);
+          if (appleResponse.status !== 0) {
+            return {
+              isValid: false,
+              message: `Apple verification failed (${appleResponse.status})`,
+              state: "APPLE_VERIFY_FAILED",
+              expiryTime: null,
+              purchaseDate: null,
+              autoRenew: false,
+              isExpired: false,
+              raw: {
+                platform: "ios",
+                verificationMode: "apple_verify_receipt",
+                appleStatus: appleResponse.status,
+              },
+            };
+          }
+
+          const iosResult = buildIosResult(data, appleResponse);
+          await persistSubscriptionResult({
+            userId,
+            payload: data,
+            result: iosResult,
+          });
+          return iosResult;
+        }
         return {
           isValid: false,
-          message: "Only Android verification is enabled currently",
+          message: "Unsupported platform for verification",
           state: "PLATFORM_NOT_SUPPORTED",
           expiryTime: null,
           purchaseDate: null,
           autoRenew: false,
+          isExpired: false,
           raw: {
             platform: platform || "unknown",
-            verificationMode: "android_only",
+            verificationMode: "unsupported_platform",
           },
         };
       } catch (error) {

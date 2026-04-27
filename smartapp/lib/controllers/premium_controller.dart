@@ -20,6 +20,7 @@ class PremiumController extends GetxController {
   final RxBool isSyncingPremium = false.obs;
   final RxnString premiumSyncError = RxnString();
   bool _isCacheRestored = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _premiumDocSub;
 
   @override
   void onInit() {
@@ -30,6 +31,7 @@ class PremiumController extends GetxController {
   Future<void> _bootstrapPremiumState() async {
     await _restoreCache();
     await syncPremiumFromFirestore();
+    await _startRealtimePremiumSync();
     unawaited(_syncUserProfileToFirestore());
   }
 
@@ -82,6 +84,44 @@ class PremiumController extends GetxController {
       debugPrint('[PREMIUM] Firestore sync failed: $error');
     } finally {
       isSyncingPremium.value = false;
+    }
+  }
+
+  Future<void> _startRealtimePremiumSync() async {
+    try {
+      final String deviceId = await getOrCreateUserId();
+      await _premiumDocSub?.cancel();
+      _premiumDocSub = FirebaseFirestore.instance
+          .collection('Users')
+          .doc(deviceId)
+          .snapshots()
+          .listen((snapshot) async {
+        final Map<String, dynamic>? data = snapshot.data();
+        if (data == null) return;
+
+        final bool remotePremium = data['isPremium'] == true;
+        final DateTime? remoteExpiryDate = _parseDate(data['expiryDate']);
+        final bool notExpired = remoteExpiryDate == null ||
+            remoteExpiryDate.isAfter(DateTime.now().toUtc());
+        final bool resolvedPremium = remotePremium && notExpired;
+        final String? remoteProductId = data['premiumProductId']?.toString();
+
+        final bool changed = isPremium.value != resolvedPremium ||
+            activeProductId.value !=
+                (resolvedPremium ? remoteProductId : null) ||
+            expiryDate.value?.toUtc() !=
+                (resolvedPremium ? remoteExpiryDate?.toUtc() : null);
+        if (!changed) return;
+
+        await _persistLocalState(
+          enabled: resolvedPremium,
+          productId: resolvedPremium ? remoteProductId : null,
+          expiryDate: remoteExpiryDate,
+        );
+      });
+    } catch (error) {
+      premiumSyncError.value = error.toString();
+      debugPrint('[PREMIUM] Realtime sync setup failed: $error');
     }
   }
 
@@ -168,5 +208,11 @@ class PremiumController extends GetxController {
     if (rawDate is DateTime) return rawDate.toUtc();
     if (rawDate is String) return DateTime.tryParse(rawDate)?.toUtc();
     return null;
+  }
+
+  @override
+  void onClose() {
+    _premiumDocSub?.cancel();
+    super.onClose();
   }
 }
