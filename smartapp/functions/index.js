@@ -133,8 +133,89 @@ function buildIosResult(payload, appleResponse) {
   };
 }
 
+function toMillisOrZero(iso) {
+  if (!iso || typeof iso !== "string") return 0;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function buildSubscriptionEvent({
+  payload,
+  previousIsPremium,
+  previousExpiry,
+  currentResult,
+}) {
+  const nowPremium = currentResult.isValid === true;
+  const wasPremium = previousIsPremium === true;
+  const isRestore = Boolean(payload.isRestore);
+  const oldExpiryMs = toMillisOrZero(previousExpiry);
+  const newExpiryMs = toMillisOrZero(currentResult.expiryTime);
+
+  if (nowPremium && isRestore) {
+    return {
+      type: "SUBSCRIPTION_RESTORED",
+      title: "Subscription Restored",
+      body: "Your premium subscription has been restored successfully.",
+    };
+  }
+
+  if (nowPremium && !wasPremium) {
+    return {
+      type: "SUBSCRIPTION_STARTED",
+      title: "Welcome to Premium",
+      body: "Your subscription is active. Enjoy all premium features!",
+    };
+  }
+
+  if (nowPremium && wasPremium && newExpiryMs > oldExpiryMs && oldExpiryMs > 0) {
+    return {
+      type: "SUBSCRIPTION_RENEWED",
+      title: "Subscription Renewed",
+      body: "Your premium subscription renewed successfully.",
+    };
+  }
+
+  if (!nowPremium && wasPremium) {
+    return {
+      type: "SUBSCRIPTION_CANCELED_OR_EXPIRED",
+      title: "Subscription Ended",
+      body: "Your premium subscription is no longer active.",
+    };
+  }
+
+  return null;
+}
+
+async function sendSubscriptionNotification({token, event}) {
+  if (!token || typeof token !== "string" || token.length <= 20 || !event) return;
+  try {
+    await admin.messaging().send({
+      token,
+      notification: {
+        title: event.title,
+        body: event.body,
+      },
+      data: {
+        type: event.type,
+      },
+    });
+  } catch (error) {
+    logger.warn("Subscription notification send failed", {
+      type: event.type,
+      error: String(error),
+    });
+  }
+}
+
 async function persistSubscriptionResult({userId, payload, result}) {
   const userRef = db.collection("Users").doc(userId);
+  const beforeSnap = await userRef.get();
+  const beforeData = beforeSnap.data() || {};
+  const previousIsPremium = beforeData.isPremium === true;
+  const previousExpiry =
+    beforeData.premiumExpiry ||
+    beforeData.subscription?.expiryTime ||
+    null;
 
   const historyItem = {
     verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -165,6 +246,16 @@ async function persistSubscriptionResult({userId, payload, result}) {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     subscriptionHistory: admin.firestore.FieldValue.arrayUnion(historyItem),
   }, {merge: true});
+
+  const event = buildSubscriptionEvent({
+    payload,
+    previousIsPremium,
+    previousExpiry,
+    currentResult: result,
+  });
+
+  const notificationToken = payload.fcmToken || beforeData.fcmToken || null;
+  await sendSubscriptionNotification({token: notificationToken, event});
 }
 
 exports.verifyIapPurchaseCallable = onCall(
@@ -254,6 +345,8 @@ exports.checkSubscriptionExpiryAndNotify = onSchedule(
     },
     async () => {
       const nowIso = new Date().toISOString();
+      const nowMs = Date.now();
+      const oneDayFromNowMs = nowMs + 24 * 60 * 60 * 1000;
       const snapshot = await db
           .collection("Users")
           .where("isPremium", "==", true)
@@ -269,7 +362,28 @@ exports.checkSubscriptionExpiryAndNotify = onSchedule(
 
         if (!expiry) return;
 
-        const expired = new Date(expiry).getTime() <= Date.now();
+        const expiryMs = Date.parse(expiry);
+        const expired = Number.isFinite(expiryMs) && expiryMs <= nowMs;
+        const renewingSoon =
+          Number.isFinite(expiryMs) &&
+          expiryMs > nowMs &&
+          expiryMs <= oneDayFromNowMs &&
+          data.subscription?.autoRenew === true;
+
+        if (renewingSoon && typeof fcmToken === "string" && fcmToken.length > 20) {
+          messages.push({
+            token: fcmToken,
+            notification: {
+              title: "Subscription Renewing Soon",
+              body: "Your premium subscription is set to auto-renew soon.",
+            },
+            data: {
+              type: "SUBSCRIPTION_RENEWING_SOON",
+              expiryTime: expiry,
+            },
+          });
+        }
+
         if (!expired) return;
 
         batch.set(doc.ref, {
