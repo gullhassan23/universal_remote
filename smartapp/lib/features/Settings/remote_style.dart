@@ -70,7 +70,7 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    // const SizedBox(width: 48),
                   ],
                 ),
                 const SizedBox(height: 16),

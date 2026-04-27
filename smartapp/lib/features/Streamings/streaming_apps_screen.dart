@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 
@@ -83,6 +84,29 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                 const Center(
                   child: TopBannerAd(),
                 ),
+                const SizedBox(height: 6),
+                Obx(() {
+                  final bool isPremium =
+                      Get.find<PremiumController>().isPremium.value;
+                  if (isPremium) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: GestureDetector(
+                      onTap: openPremiumStatusScreen,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          Premium.premium,
+                          width: double.infinity,
+                          height: 92,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -102,7 +126,7 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Expanded(
                   child: Obx(
                     () {

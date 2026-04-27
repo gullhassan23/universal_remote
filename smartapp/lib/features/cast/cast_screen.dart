@@ -70,12 +70,33 @@ class _CastScreenState extends State<CastScreen> {
                 const Center(
                   child: TopBannerAd(),
                 ),
-                // const PremiumStatusBanner(),
+                const SizedBox(height: 6),
+                Obx(() {
+                  final bool isPremium =
+                      Get.find<PremiumController>().isPremium.value;
+                  if (isPremium) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: GestureDetector(
+                      onTap: openPremiumStatusScreen,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          Premium.premium,
+                          width: double.infinity,
+                          height: 94,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
                 const SizedBox(height: 8),
                 Obx(
                   () {
-                    final bool isPremium =
-                        Get.find<PremiumController>().isPremium.value;
+                    // final bool isPremium =
+                    //     Get.find<PremiumController>().isPremium.value;
                     return Row(
                       children: [
                         const Expanded(
@@ -89,15 +110,15 @@ class _CastScreenState extends State<CastScreen> {
                             ),
                           ),
                         ),
-                        if (!isPremium)
-                          IconButton(
-                            onPressed: openRemoteStyleOrPaywall,
-                            tooltip: 'Premium remote styles',
-                            icon: const Icon(
-                              Icons.diamond_outlined,
-                              color: Color(0xFFFFD27A),
-                            ),
-                          ),
+                        // if (!isPremium)
+                        //   IconButton(
+                        //     onPressed: openRemoteStyleOrPaywall,
+                        //     tooltip: 'Premium remote styles',
+                        //     icon: const Icon(
+                        //       Icons.diamond_outlined,
+                        //       color: Color(0xFFFFD27A),
+                        //     ),
+                        //   ),
                         GestureDetector(
                           onTap: openPremiumStatusScreen,
                           child: PremiumStatusBanner(),
