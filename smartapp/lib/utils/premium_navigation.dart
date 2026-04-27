@@ -22,10 +22,6 @@ void openPremiumStatusScreen() {
 }
 
 void openRemoteStyleOrPaywall() {
-  if (isPremiumUnlocked()) {
-    Get.to(() => const RemoteStyleScreen());
-    return;
-  }
-  openPremiumPaywall();
+  Get.to(() => const RemoteStyleScreen());
 }
 

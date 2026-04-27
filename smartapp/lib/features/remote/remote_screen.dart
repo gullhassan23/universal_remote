@@ -86,9 +86,11 @@ class RemoteScreen extends GetView<RemoteController> {
                         Get.find<PremiumController>().isPremium.value;
                     return Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Connect a device',
+                            isConnected
+                                ? 'Connected Device'
+                                : 'Connect a device',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -122,7 +124,8 @@ class RemoteScreen extends GetView<RemoteController> {
                             ),
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white,
-                              backgroundColor: Colors.red.withValues(alpha: 0.28),
+                              backgroundColor:
+                                  Colors.red.withValues(alpha: 0.28),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
@@ -250,6 +253,13 @@ class RemoteScreen extends GetView<RemoteController> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              _roundedActionButton(
+                icon: Icons.search,
+                onTap: openRemoteStyleOrPaywall,
+                width: 88,
+                height: 50,
+              ),
+              SizedBox(height: 19),
               _roundedActionButton(
                 icon: Icons.search,
                 onTap: _sendKeyTap('KEY_SEARCH'),
