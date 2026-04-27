@@ -59,10 +59,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAClhnrBATR4cusIfOErO-6aCfymBx8GxU',
-    appId: '1:109265895311:ios:4cde999f7086b9c95f55fa',
+    appId: '1:109265895311:ios:86aebd324bbe87af5f55fa',
     messagingSenderId: '109265895311',
     projectId: 'smart-tv-remote-ios',
     storageBucket: 'smart-tv-remote-ios.firebasestorage.app',
-    iosBundleId: 'com.FutureDialLabs.tv.remote.universal.control',
+    iosBundleId: 'com.maxproduction.remote.control.tv.app',
   );
+
 }
