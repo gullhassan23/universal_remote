@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 
@@ -25,6 +28,7 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
   late final StreamingController _streamingController;
   late final TvConnectionController _connectionController;
   late final DeviceDiscoveryController _discoveryController;
+  late final AnalyticsService _analyticsService;
   bool _requestedDiscovery = false;
 
   @override
@@ -33,9 +37,16 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
     _streamingController = Get.find<StreamingController>();
     _connectionController = Get.find<TvConnectionController>();
     _discoveryController = Get.find<DeviceDiscoveryController>();
+    _analyticsService = Get.find<AnalyticsService>();
   }
 
   Future<void> _onAppTap(BuildContext context, StreamingAppItem app) async {
+    unawaited(
+      _analyticsService.trackClick(
+        app.name,
+        screenName: 'StreamingAppsScreen',
+      ),
+    );
     final success = await _streamingController.launchStreamingApp(app);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -50,6 +61,12 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
   }
 
   Future<void> _connectToDevice(BuildContext context, TvDevice device) async {
+    unawaited(
+      _analyticsService.trackClick(
+        'SelectDevice_${device.name}',
+        screenName: 'StreamingAppsScreen',
+      ),
+    );
     final messenger = ScaffoldMessenger.of(context);
     final success = await _discoveryController.connectTo(
       device,
@@ -93,7 +110,15 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: GestureDetector(
-                      onTap: openPremiumStatusScreen,
+                      onTap: () {
+                        unawaited(
+                          _analyticsService.trackClick(
+                            'PremiumBanner',
+                            screenName: 'StreamingAppsScreen',
+                          ),
+                        );
+                        openPremiumStatusScreen();
+                      },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(18),
                         child: Image.asset(
@@ -121,7 +146,15 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: openPremiumStatusScreen,
+                      onTap: () {
+                        unawaited(
+                          _analyticsService.trackClick(
+                            'PremiumStatusBanner',
+                            screenName: 'StreamingAppsScreen',
+                          ),
+                        );
+                        openPremiumStatusScreen();
+                      },
                       child: const PremiumStatusBanner(),
                     ),
                   ],
@@ -210,7 +243,15 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
               ),
               const SizedBox(height: 18),
               TextButton(
-                onPressed: _discoveryController.discoverDevices,
+                onPressed: () {
+                  unawaited(
+                    _analyticsService.trackClick(
+                      'DiscoverDevices',
+                      screenName: 'StreamingAppsScreen',
+                    ),
+                  );
+                  _discoveryController.discoverDevices();
+                },
                 child: const Text(
                   "Don't see your device?",
                   style: TextStyle(
@@ -270,7 +311,15 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
           ),
           Center(
             child: TextButton(
-              onPressed: _discoveryController.discoverDevices,
+              onPressed: () {
+                unawaited(
+                  _analyticsService.trackClick(
+                    'DiscoverDevices',
+                    screenName: 'StreamingAppsScreen',
+                  ),
+                );
+                _discoveryController.discoverDevices();
+              },
               child: const Text(
                 "Don't see your device?",
                 style: TextStyle(

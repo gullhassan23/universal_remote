@@ -1,10 +1,12 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -26,10 +28,18 @@ class _SplashScreenState extends State<SplashScreen>
   bool _isProgressComplete = false;
   bool _isAdFlowComplete = false;
   late final bool _isPremiumUser;
+  late final AnalyticsService _analyticsService;
 
   @override
   void initState() {
     super.initState();
+    _analyticsService = Get.find<AnalyticsService>();
+    unawaited(
+      _analyticsService.logScreen(
+        screenName: 'SplashScreen',
+        screenClass: 'SplashScreen',
+      ),
+    );
     _isPremiumUser = Get.find<PremiumController>().isPremium.value;
     _isAdFlowComplete = _isPremiumUser;
     _progressController = AnimationController(vsync: this, duration: _progressDuration)
@@ -61,6 +71,16 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     _hasTriedAdLoad = true;
+    unawaited(
+      _analyticsService.logEvent(
+        'click_SplashAppOpenAdLoad',
+        params: {
+          'screen_name': 'SplashScreen',
+          'button_name': 'SplashAppOpenAdLoad',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      ),
+    );
     AppOpenAd.load(
       adUnitId: adUnitId,
       request: const AdRequest(),
@@ -87,6 +107,16 @@ class _SplashScreenState extends State<SplashScreen>
   void _showAppOpenAdIfNeeded() {
     if (_isPremiumUser) {
       _isAdFlowComplete = true;
+      unawaited(
+        _analyticsService.logEvent(
+          'click_SplashAdFlowSkipped',
+          params: {
+            'screen_name': 'SplashScreen',
+            'button_name': 'SplashAdFlowSkipped',
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          },
+        ),
+      );
       _goToGetStartedWhenReady();
       return;
     }
@@ -102,6 +132,16 @@ class _SplashScreenState extends State<SplashScreen>
     final AppOpenAd? ad = _appOpenAd;
     if (ad == null || _isAdShowing) return;
     _isAdShowing = true;
+    unawaited(
+      _analyticsService.logEvent(
+        'click_SplashAdShown',
+        params: {
+          'screen_name': 'SplashScreen',
+          'button_name': 'SplashAdShown',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+      ),
+    );
     _appOpenAd = null;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (AppOpenAd shownAd) {

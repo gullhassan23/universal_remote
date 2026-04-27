@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 import 'onboarding/onboarding_screen.dart';
@@ -150,6 +152,13 @@ class GetStarted extends StatelessWidget {
                             shape: const StadiumBorder(),
                           ),
                           onPressed: () async {
+                            final analytics = Get.find<AnalyticsService>();
+                            unawaited(
+                              analytics.trackClick(
+                                'GetStartedButton',
+                                screenName: 'GetStarted',
+                              ),
+                            );
                             final completed =
                                 await isInstructionOnboardingCompleted();
                             if (completed) {

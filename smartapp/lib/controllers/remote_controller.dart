@@ -9,6 +9,7 @@ import 'media_cast_controller.dart';
 import 'vibratiion_controller.dart';
 import '../models/tv_device.dart';
 import '../services/companion/companion_tv_service.dart';
+import '../services/analytics_service.dart';
 import '../services/tv_service_interface.dart';
 import '../features/device_discovery/device_discovery_controller.dart';
 import '../widgets/remote_device_picker_sheet.dart';
@@ -33,6 +34,7 @@ class RemoteController extends GetxController {
   final DeviceDiscoveryController _discoveryController;
   final MediaCastController _mediaCastController;
   final CompanionTvService _companionTvService;
+  final AnalyticsService _analyticsService = Get.find<AnalyticsService>();
 
   var selectedTab = 0.obs;
   final RxBool showDevicePicker = false.obs;
@@ -68,6 +70,12 @@ class RemoteController extends GetxController {
     required FutureOr<void> Function() onTap,
     String action = 'tap',
   }) async {
+    unawaited(
+      _analyticsService.trackClick(
+        buttonKey,
+        screenName: 'Remote_Screen',
+      ),
+    );
     if (Get.isRegistered<VibrationController>()) {
       Get.find<VibrationController>().vibrate();
     }

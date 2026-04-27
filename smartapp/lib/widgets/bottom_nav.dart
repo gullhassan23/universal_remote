@@ -17,11 +17,17 @@ class BottomNav extends StatefulWidget {
 class _BottomNavState extends State<BottomNav> {
   int _selectedIndex = 0;
   late final AnalyticsService _analyticsService;
-  static const List<(String, String)> _tabAnalytics = <(String, String)>[
-    ('RemoteScreen', 'RemoteScreen'),
-    ('StreamingAppsScreen', 'StreamingAppsScreen'),
-    ('CastScreen', 'CastScreen'),
-    ('SettingsScreen', 'SettingsScreen'),
+  static const List<String> _tabScreenKeys = <String>[
+    'Remote_View',
+    'Streaming_App_Screen',
+    'CastScreen',
+    'SettingsScreen',
+  ];
+  static const List<String> _tabNavNames = <String>[
+    'Remote',
+    'Streaming',
+    'Cast',
+    'Settings',
   ];
 
   static const List<Widget> _tabs = <Widget>[
@@ -57,9 +63,16 @@ class _BottomNavState extends State<BottomNav> {
         ),
         selectedIndex: _selectedIndex,
         onDestinationSelected: (int index) {
+          final previousIndex = _selectedIndex;
           setState(() {
             _selectedIndex = index;
           });
+          if (previousIndex != index) {
+            _analyticsService.trackBottomNav(
+              _tabNavNames[index],
+              from: _tabNavNames[previousIndex],
+            );
+          }
           _trackTab(index);
         },
         destinations: [
@@ -100,10 +113,6 @@ class _BottomNavState extends State<BottomNav> {
   }
 
   void _trackTab(int index) {
-    final tab = _tabAnalytics[index];
-    _analyticsService.logScreen(
-      screenName: tab.$1,
-      screenClass: tab.$2,
-    );
+    _analyticsService.trackScreenByKey(_tabScreenKeys[index]);
   }
 }
