@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:smartapp/config/admob_config.dart';
+import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/utils/constant.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,19 +14,126 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
-  static const Duration _progressDuration = Duration(milliseconds: 2600);
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  static const Duration _progressDuration = Duration(milliseconds: 3000);
+  static const double _adTriggerProgress = 0.5;
+  late final AnimationController _progressController;
+  AppOpenAd? _appOpenAd;
+  bool _hasTriedAdLoad = false;
+  bool _hasTriggeredAdAtHalf = false;
+  bool _isAdShowing = false;
+  bool _isProgressComplete = false;
+  bool _isAdFlowComplete = false;
+  late final bool _isPremiumUser;
 
   @override
   void initState() {
     super.initState();
-    _goToGetStartedAfterDelay();
+    _isPremiumUser = Get.find<PremiumController>().isPremium.value;
+    _isAdFlowComplete = _isPremiumUser;
+    _progressController = AnimationController(vsync: this, duration: _progressDuration)
+      ..addListener(_handleProgressUpdate)
+      ..addStatusListener(_handleProgressStatus);
+    _loadAppOpenAdIfNeeded();
+    _progressController.forward();
   }
 
-  Future<void> _goToGetStartedAfterDelay() async {
-    await Future<void>.delayed(_progressDuration);
+  void _handleProgressUpdate() {
+    if (!_hasTriggeredAdAtHalf && _progressController.value >= _adTriggerProgress) {
+      _hasTriggeredAdAtHalf = true;
+      _showAppOpenAdIfNeeded();
+    }
+  }
+
+  void _handleProgressStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    _isProgressComplete = true;
+    _goToGetStartedWhenReady();
+  }
+
+  void _loadAppOpenAdIfNeeded() {
+    if (_isPremiumUser || _hasTriedAdLoad) return;
+    final String adUnitId = AdMobConfig.appOpenAdUnitId;
+    if (adUnitId.isEmpty) {
+      _isAdFlowComplete = true;
+      return;
+    }
+
+    _hasTriedAdLoad = true;
+    AppOpenAd.load(
+      adUnitId: adUnitId,
+      request: const AdRequest(),
+      adLoadCallback: AppOpenAdLoadCallback(
+        onAdLoaded: (AppOpenAd ad) {
+          if (!mounted || _isPremiumUser) {
+            ad.dispose();
+            return;
+          }
+          _appOpenAd?.dispose();
+          _appOpenAd = ad;
+          if (_hasTriggeredAdAtHalf && !_isAdShowing) {
+            _showLoadedAppOpenAd();
+          }
+        },
+        onAdFailedToLoad: (_) {
+          _isAdFlowComplete = true;
+          _goToGetStartedWhenReady();
+        },
+      ),
+    );
+  }
+
+  void _showAppOpenAdIfNeeded() {
+    if (_isPremiumUser) {
+      _isAdFlowComplete = true;
+      _goToGetStartedWhenReady();
+      return;
+    }
+    if (_appOpenAd == null) {
+      _isAdFlowComplete = true;
+      _goToGetStartedWhenReady();
+      return;
+    }
+    _showLoadedAppOpenAd();
+  }
+
+  void _showLoadedAppOpenAd() {
+    final AppOpenAd? ad = _appOpenAd;
+    if (ad == null || _isAdShowing) return;
+    _isAdShowing = true;
+    _appOpenAd = null;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (AppOpenAd shownAd) {
+        shownAd.dispose();
+        _isAdShowing = false;
+        _isAdFlowComplete = true;
+        _goToGetStartedWhenReady();
+      },
+      onAdFailedToShowFullScreenContent: (AppOpenAd shownAd, AdError error) {
+        shownAd.dispose();
+        _isAdShowing = false;
+        _isAdFlowComplete = true;
+        _goToGetStartedWhenReady();
+      },
+    );
+    ad.show();
+  }
+
+  void _goToGetStartedWhenReady() {
+    if (!_isProgressComplete || !_isAdFlowComplete) return;
     if (!mounted) return;
     Get.offAllNamed('/get-started');
+  }
+
+  @override
+  void dispose() {
+    _progressController
+      ..removeListener(_handleProgressUpdate)
+      ..removeStatusListener(_handleProgressStatus)
+      ..dispose();
+    _appOpenAd?.dispose();
+    super.dispose();
   }
 
   @override
@@ -113,11 +223,21 @@ class _SplashScreenState extends State<SplashScreen> {
                       },
                     ),
                   ),
-                  const Spacer(),
-                  TweenAnimationBuilder<double>(
-                    duration: _progressDuration,
-                    tween: Tween<double>(begin: 0, end: 1),
-                    builder: (context, value, child) {
+                  Text(
+                    'Effortless control for your Android TV is just moments away.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  AnimatedBuilder(
+                    animation: _progressController,
+                    builder: (context, child) {
+                      final double value = _progressController.value;
                       return Column(
                         children: [
                           ClipRRect(
