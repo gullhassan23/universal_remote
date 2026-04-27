@@ -26,10 +26,12 @@ class AndroidTvKeepAliveService : Service() {
         private const val ACTION_STOP = "com.example.smartapp.action.STOP_KEEP_ALIVE"
         const val EXTRA_DURATION_MS = "durationMs"
 
-        fun start(context: Context, durationMs: Long) {
+        fun start(context: Context, durationMs: Long?) {
             val intent = Intent(context, AndroidTvKeepAliveService::class.java).apply {
                 action = ACTION_START
-                putExtra(EXTRA_DURATION_MS, durationMs)
+                if (durationMs != null) {
+                    putExtra(EXTRA_DURATION_MS, durationMs)
+                }
             }
             context.startForegroundService(intent)
         }
@@ -57,12 +59,18 @@ class AndroidTvKeepAliveService : Service() {
             }
             ACTION_START, null -> {
                 val durationMs =
-                    intent?.getLongExtra(
-                        EXTRA_DURATION_MS,
-                        AndroidTvKeepAliveRegistry.DEFAULT_KEEP_ALIVE_MS,
-                    ) ?: AndroidTvKeepAliveRegistry.DEFAULT_KEEP_ALIVE_MS
-                AndroidTvKeepAliveRegistry.keepAliveExpiryAtMs =
-                    System.currentTimeMillis() + durationMs.coerceAtLeast(1L)
+                    if (intent?.hasExtra(EXTRA_DURATION_MS) == true) {
+                        intent.getLongExtra(
+                            EXTRA_DURATION_MS,
+                            AndroidTvKeepAliveRegistry.DEFAULT_KEEP_ALIVE_MS,
+                        ).coerceAtLeast(1L)
+                    } else {
+                        null
+                    }
+                AndroidTvKeepAliveRegistry.keepAliveExpiryAtMs = durationMs?.let {
+                    System.currentTimeMillis() + it
+                } ?: 0L
+                AndroidTvKeepAliveRegistry.keepAliveIndefinite = durationMs == null
                 startForeground(NOTIFICATION_ID, buildNotification())
                 startWatchdog()
             }
@@ -80,6 +88,10 @@ class AndroidTvKeepAliveService : Service() {
         watchdogJob = scope.launch {
             while (isActive) {
                 val remaining = AndroidTvKeepAliveRegistry.remainingMs()
+                if (AndroidTvKeepAliveRegistry.keepAliveIndefinite) {
+                    delay(1000L)
+                    continue
+                }
                 if (remaining <= 0L) {
                     AndroidTvKeepAliveRegistry.plugin?.forceDisconnectForKeepAliveTimeout()
                     AndroidTvKeepAliveRegistry.clearKeepAlive()
@@ -96,7 +108,13 @@ class AndroidTvKeepAliveService : Service() {
         ensureChannel()
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Remote connection active")
-            .setContentText("Connection will stay alive for up to 20 minutes.")
+            .setContentText(
+                if (AndroidTvKeepAliveRegistry.keepAliveIndefinite) {
+                    "Connection stays alive until you disconnect."
+                } else {
+                    "Connection will stay alive for up to 20 minutes."
+                },
+            )
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

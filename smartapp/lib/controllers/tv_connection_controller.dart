@@ -28,6 +28,9 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   Future<bool>? _restoreFuture;
   bool _reconnectInProgress = false;
   bool _isInForeground = true;
+  bool _manualDisconnectRequested = false;
+  bool _backgroundKeepAliveArmed = false;
+  int _activeReconnectGeneration = 0;
   String? _pendingReconnectNotice;
   Timer? _resumeDebounceTimer;
   int _resumeToken = 0;
@@ -80,15 +83,24 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final resumed = state == AppLifecycleState.resumed;
+    _log('lifecycle state=$state resumed=$resumed');
     _isInForeground = resumed;
-    if (state == AppLifecycleState.detached) {
+    if (!resumed) {
       unawaited(
-        _tvService.startTerminationKeepAlive(
-          duration: const Duration(minutes: 20),
+        _tvService.startBackgroundKeepAlive(
+          duration: null,
         ),
       );
+      _backgroundKeepAliveArmed = true;
+    }
+    if (state == AppLifecycleState.detached) {
+      unawaited(_tvService.startTerminationKeepAlive(duration: const Duration(hours: 4)));
     }
     if (resumed) {
+      if (_backgroundKeepAliveArmed) {
+        unawaited(_tvService.stopBackgroundKeepAlive());
+        _backgroundKeepAliveArmed = false;
+      }
       final token = ++_resumeToken;
       _resumeDebounceTimer?.cancel();
       _resumeDebounceTimer = Timer(const Duration(milliseconds: 320), () {
@@ -102,6 +114,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> _handleAppResumedDebounced() async {
+    if (_manualDisconnectRequested) return;
     final adopted = await _tvService.adoptKeepAliveSessionIfAvailable();
     if (adopted) {
       _log('resume: adopted active keep-alive session');
@@ -120,7 +133,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> _attemptReconnectOnResume() async {
-    if (_reconnectInProgress) return;
+    if (_manualDisconnectRequested) return;
     if (connectionState.value == TvConnectionState.connected) return;
 
     final lastDevice = currentDevice.value ??
@@ -130,7 +143,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       return;
     }
 
-    await _attemptReconnectToDevice(lastDevice);
+    await _attemptReconnectToDevice(lastDevice, aggressive: true);
   }
 
   Future<void> _adoptKeepAliveSessionOnLaunch() async {
@@ -175,7 +188,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> _attemptCastReconnect() async {
-    if (_reconnectInProgress) return;
+    if (_manualDisconnectRequested) return;
     final snapshot = activeCastSession.value;
     if (snapshot == null) return;
     await _attemptReconnectToDevice(
@@ -183,6 +196,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       reconnectingLabel: 'Reconnecting to ${snapshot.device.name}...',
       disconnectedLabel: 'Cast disconnected from ${snapshot.device.name}',
       connectedLabel: 'Casting to ${snapshot.device.name}',
+      aggressive: !_isInForeground,
     );
   }
 
@@ -191,8 +205,10 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     String? reconnectingLabel,
     String? connectedLabel,
     String? disconnectedLabel,
+    bool aggressive = false,
   }) async {
     if (_reconnectInProgress) return;
+    if (_manualDisconnectRequested) return;
     if (await _networkContextService.hasWifiChangedSinceLastConnection()) {
       _pendingReconnectNotice =
           'Your Wi-Fi changed. Connect to the same Wi-Fi as TV and reconnect.';
@@ -204,16 +220,41 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     }
 
     _reconnectInProgress = true;
+    final generation = ++_activeReconnectGeneration;
     if (reconnectingLabel != null) {
       castConnectionLabel.value = reconnectingLabel;
     }
     try {
-      for (final wait in const [250, 600, 1200]) {
-        await Future<void>.delayed(Duration(milliseconds: wait));
+      final scheduleMs = aggressive
+          ? <int>[250, 500, 900, 1500, 2400, 3800, 5600, 8000, 12000, 17000]
+          : <int>[250, 600, 1200];
+      for (var i = 0; i < scheduleMs.length; i++) {
+        if (_manualDisconnectRequested || generation != _activeReconnectGeneration) {
+          return;
+        }
+        final wait = scheduleMs[i];
+        final jitter = aggressive ? (i * 73) % 240 : 0;
+        await Future<void>.delayed(Duration(milliseconds: wait + jitter));
+        if (_manualDisconnectRequested || generation != _activeReconnectGeneration) {
+          return;
+        }
+        if (await _networkContextService.hasWifiChangedSinceLastConnection()) {
+          _pendingReconnectNotice =
+              'Your Wi-Fi changed. Connect to the same Wi-Fi as TV and reconnect.';
+          connectionState.value = TvConnectionState.disconnected;
+          if (disconnectedLabel != null) {
+            castConnectionLabel.value = disconnectedLabel;
+          }
+          return;
+        }
         final connected = await connectTo(device);
         if (connected) {
           if (connectedLabel != null) {
             castConnectionLabel.value = connectedLabel;
+          }
+          if (!_isInForeground) {
+            await _tvService.startBackgroundKeepAlive(duration: null);
+            _backgroundKeepAliveArmed = true;
           }
           return;
         }
@@ -227,6 +268,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<bool> connectTo(TvDevice device) async {
+    _manualDisconnectRequested = false;
     _log('connectTo start device=${device.name} ip=${device.ip}:${device.port}');
     currentDevice.value = device;
     final success = await _tvService.connect(device);
@@ -237,6 +279,10 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       _log('connectTo success device=${device.name} ip=${device.ip}');
       _pendingReconnectNotice = null;
       await _networkContextService.captureOnSuccessfulConnection();
+      if (!_isInForeground) {
+        await _tvService.startBackgroundKeepAlive(duration: null);
+        _backgroundKeepAliveArmed = true;
+      }
     }
     return success;
   }
@@ -265,8 +311,14 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }
 
   Future<void> disconnect() async {
+    _manualDisconnectRequested = true;
+    _activeReconnectGeneration++;
     _resumeDebounceTimer?.cancel();
     _resumeDebounceTimer = null;
+    if (_backgroundKeepAliveArmed) {
+      await _tvService.stopBackgroundKeepAlive();
+      _backgroundKeepAliveArmed = false;
+    }
     connectionState.value = TvConnectionState.disconnected;
     await _tvService.disconnect();
     currentDevice.value = null;

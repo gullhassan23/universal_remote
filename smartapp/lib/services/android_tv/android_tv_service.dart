@@ -105,6 +105,21 @@ class AndroidTvService implements ITvService {
   }
 
   @override
+  Future<bool> startBackgroundKeepAlive({Duration? duration}) async {
+    if (!Platform.isAndroid) return false;
+    if (_state != TvConnectionState.connected) return false;
+    return AndroidTvRemotePlatform.instance.startBackgroundKeepAlive(
+      durationMs: duration?.inMilliseconds,
+    );
+  }
+
+  @override
+  Future<bool> stopBackgroundKeepAlive() async {
+    if (!Platform.isAndroid) return false;
+    return AndroidTvRemotePlatform.instance.stopBackgroundKeepAlive();
+  }
+
+  @override
   Future<bool> adoptKeepAliveSessionIfAvailable() async {
     if (!Platform.isAndroid) return false;
     final adopted =

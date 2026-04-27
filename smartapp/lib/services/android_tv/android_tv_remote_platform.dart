@@ -214,6 +214,37 @@ class AndroidTvRemotePlatform {
     }
   }
 
+  Future<bool> startBackgroundKeepAlive({int? durationMs}) async {
+    ensureInitialized();
+    try {
+      final ok = await _channel.invokeMethod<bool>(
+        'startBackgroundKeepAlive',
+        <String, dynamic>{if (durationMs != null) 'durationMs': durationMs},
+      );
+      return ok == true;
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.startBackgroundKeepAlive: $e $st');
+      }
+      return false;
+    }
+  }
+
+  Future<bool> stopBackgroundKeepAlive() async {
+    ensureInitialized();
+    try {
+      final ok = await _channel.invokeMethod<bool>('stopBackgroundKeepAlive');
+      return ok == true;
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.stopBackgroundKeepAlive: $e $st');
+      }
+      return false;
+    }
+  }
+
   Future<bool> adoptKeepAliveSessionIfAvailable() async {
     ensureInitialized();
     try {

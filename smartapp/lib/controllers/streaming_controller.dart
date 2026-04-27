@@ -31,8 +31,8 @@ class StreamingController extends GetxController {
     StreamingAppItem(
       id: 'prime',
       name: 'Prime Video',
-      packageName: 'com.amazon.avod.thirdpartyclient',
-      icon: StreamingAppIcon.prime, 
+      packageName: 'com.amazon.amazonvideo.livingroom',
+      icon: StreamingAppIcon.prime,
       accentColor: Color(0xFF00A8E1),
     ),
   ];

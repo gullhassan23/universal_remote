@@ -68,6 +68,20 @@ class UnifiedTvService implements ITvService {
   }
 
   @override
+  Future<bool> startBackgroundKeepAlive({Duration? duration}) async {
+    final svc = _activeService;
+    if (svc == null) return false;
+    return svc.startBackgroundKeepAlive(duration: duration);
+  }
+
+  @override
+  Future<bool> stopBackgroundKeepAlive() async {
+    final svc = _activeService;
+    if (svc == null) return false;
+    return svc.stopBackgroundKeepAlive();
+  }
+
+  @override
   Future<bool> adoptKeepAliveSessionIfAvailable() async {
     final adopted = await _androidTv.adoptKeepAliveSessionIfAvailable();
     if (!adopted) return false;

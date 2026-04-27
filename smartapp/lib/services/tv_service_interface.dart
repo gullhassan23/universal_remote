@@ -92,6 +92,15 @@ abstract class ITvService {
   /// Requests a native keep-alive grace period for app termination.
   Future<bool> startTerminationKeepAlive({Duration duration = const Duration(minutes: 20)});
 
+  /// Starts or refreshes background keep-alive while the app is not foregrounded.
+  ///
+  /// If [duration] is null, implementations should keep the session alive until
+  /// the user manually disconnects (or the system invalidates the session).
+  Future<bool> startBackgroundKeepAlive({Duration? duration});
+
+  /// Stops any active background keep-alive lease.
+  Future<bool> stopBackgroundKeepAlive();
+
   /// Adopts an existing native keep-alive session if still active.
   Future<bool> adoptKeepAliveSessionIfAvailable();
 }

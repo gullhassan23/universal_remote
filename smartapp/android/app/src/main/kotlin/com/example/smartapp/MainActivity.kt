@@ -1,6 +1,7 @@
 package com.FutureDialLabs.tv.remote.universal.control
 
 import com.FutureDialLabs.tv.remote.universal.control.androidtv.AndroidTvRemotePlugin
+import android.content.ComponentCallbacks2
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -31,5 +32,17 @@ class MainActivity : FlutterActivity() {
         }
         androidTvRemotePlugin = null
         super.onDestroy()
+    }
+
+    override fun onStop() {
+        androidTvRemotePlugin?.scheduleBackgroundKeepAlive(null)
+        super.onStop()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            androidTvRemotePlugin?.scheduleBackgroundKeepAlive(null)
+        }
+        super.onTrimMemory(level)
     }
 }

@@ -632,7 +632,9 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   final TextEditingController _text = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   static const _typingDebounce = Duration(milliseconds: 140);
+  static const _retryFlushDelay = Duration(milliseconds: 550);
   Timer? _debounceTimer;
+  Timer? _retryTimer;
   String _lastSentText = '';
   String _pendingTargetText = '';
   Future<void> _sendQueue = Future<void>.value();
@@ -651,6 +653,7 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   void _onTextChanged() {
     _pendingTargetText = _text.text;
     _debounceTimer?.cancel();
+    _retryTimer?.cancel();
     _debounceTimer = Timer(_typingDebounce, _enqueueFlush);
   }
 
@@ -671,7 +674,10 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
     );
     if (sent) {
       _lastSentText = targetText;
+      _retryTimer?.cancel();
+      return;
     }
+    _scheduleRetryFlush();
   }
 
   Future<bool> _reconcileAndSend(String targetText) async {
@@ -701,43 +707,17 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
     final inserted = targetText.substring(prefix);
     if (inserted.isEmpty) return true;
 
-    // Prefer IME text commit first for real character entry. Key-event dispatch
-    // can report success even when some OEM TV keyboards ignore letter keycodes.
-    widget.controller.logButtonEvent(
-      buttonKey: 'TEXT_DELTA',
-      event: 'typing_send_attempt',
-      action: 'ime_delta',
-    );
-    final imeSent = await widget.controller.sendPreparedTextReliably(
-      inserted,
-      openPickerOnFailure: false,
-      autoPrepareInputContext: true,
-      source: 'mobile_keyboard',
-    );
-    if (imeSent) {
-      widget.controller.logButtonEvent(
-        buttonKey: 'TEXT_DELTA',
-        event: 'typing_send_success',
-        action: 'ime_delta',
-      );
-      return true;
-    }
-
-    widget.controller.logButtonEvent(
-      buttonKey: 'TEXT_DELTA',
-      event: 'typing_send_failed',
-      action: 'ime_delta',
-    );
-    debugPrint(
-      '[keyboard] ime_delta_failed insertedLength=${inserted.length}',
-    );
-
-    // Fallback to per-key events for TVs/fields where IME commit is rejected.
+    // Send per-key first for typed deltas (more reliable on many OEM TVs).
     final fallback = await _sendPerKeyFallback(inserted);
     if (fallback.allSent) return true;
 
-    // Last attempt: only do full sync if fallback could not send anything.
-    if (!fallback.sentAny && targetText.isNotEmpty) {
+    // If some chars were unsupported (or nothing was sent), escalate to IME full sync.
+    if (targetText.isNotEmpty) {
+      widget.controller.logButtonEvent(
+        buttonKey: 'TEXT_DELTA',
+        event: 'typing_send_attempt',
+        action: 'ime_full_sync',
+      );
       final fullSyncSent = await widget.controller.sendPreparedTextReliably(
         targetText,
         openPickerOnFailure: false,
@@ -745,12 +725,31 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
         source: 'mobile_keyboard',
       );
       debugPrint(
-        '[keyboard] full_sync_after_fallback '
-        'targetLength=${targetText.length} sent=$fullSyncSent',
+        '[keyboard] ime_full_sync_after_key_fallback '
+        'targetLength=${targetText.length} sent=$fullSyncSent '
+        'fallbackSentAny=${fallback.sentAny}',
       );
+      if (fullSyncSent) {
+        widget.controller.logButtonEvent(
+          buttonKey: 'TEXT_DELTA',
+          event: 'typing_send_success',
+          action: 'ime_full_sync',
+        );
+      } else {
+        widget.controller.logButtonEvent(
+          buttonKey: 'TEXT_DELTA',
+          event: 'typing_send_failed',
+          action: 'ime_full_sync',
+        );
+      }
       return fullSyncSent;
     }
     return false;
+  }
+
+  void _scheduleRetryFlush() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(_retryFlushDelay, _enqueueFlush);
   }
 
   Future<_FallbackSendResult> _sendPerKeyFallback(String inserted) async {
@@ -817,6 +816,10 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _retryTimer?.cancel();
+    if (_pendingTargetText != _lastSentText) {
+      _enqueueFlush();
+    }
     _text.removeListener(_onTextChanged);
     _text.dispose();
     _focusNode.dispose();

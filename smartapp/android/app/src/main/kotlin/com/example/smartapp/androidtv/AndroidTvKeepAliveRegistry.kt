@@ -7,6 +7,8 @@ object AndroidTvKeepAliveRegistry {
 
     @Volatile
     var keepAliveExpiryAtMs: Long = 0L
+    @Volatile
+    var keepAliveIndefinite: Boolean = false
 
     fun remainingMs(nowMs: Long = System.currentTimeMillis()): Long {
         val expiry = keepAliveExpiryAtMs
@@ -20,5 +22,6 @@ object AndroidTvKeepAliveRegistry {
 
     fun clearKeepAlive() {
         keepAliveExpiryAtMs = 0L
+        keepAliveIndefinite = false
     }
 }

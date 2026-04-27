@@ -122,6 +122,15 @@ class AndroidTvRemotePlugin(private val context: Context) {
                         result,
                     )
                 }
+                "startBackgroundKeepAlive" -> scope.launch {
+                    startBackgroundKeepAlive(
+                        call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
+                        result,
+                    )
+                }
+                "stopBackgroundKeepAlive" -> mainHandler.post {
+                    stopBackgroundKeepAlive(result)
+                }
                 "adoptKeepAliveSessionIfAvailable" -> mainHandler.post {
                     adoptKeepAliveSessionIfAvailable(result)
                 }
@@ -444,12 +453,29 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
         val remote = remoteController
         if (remote == null || !remoteReady.get()) {
+            Logger.e(
+                "sendTextPrepared: remote unavailable " +
+                    "remoteNull=${remote == null} remoteReady=${remoteReady.get()}",
+            )
             mainHandler.post { result.success(false) }
             return
         }
 
-        val directSent = sendTextWithCounterFallback(text)
-        if (directSent) {
+        Logger.d(
+            "sendTextPrepared: start length=${text.length} " +
+                "autoPrepare=$autoPrepareInputContext " +
+                "imeCounter=${imeCounter.get()} fieldCounter=${imeFieldCounter.get()} " +
+                "imeFresh=${isImeContextFresh()}",
+        )
+
+        if (autoPrepareInputContext && !isImeContextFresh()) {
+            Logger.d("sendTextPrepared: stale IME context, preparing before first send")
+            ensureInputContext(remote)
+        }
+
+        var sent = sendTextWithCounterFallback(text)
+        Logger.d("sendTextPrepared: directOrPrepreparedSend sent=$sent")
+        if (sent) {
             mainHandler.post { result.success(true) }
             return
         }
@@ -459,12 +485,24 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
 
         val prepared = ensureInputContext(remote)
+        Logger.d("sendTextPrepared: ensureInputContext prepared=$prepared")
         if (!prepared) {
             mainHandler.post { result.success(false) }
             return
         }
-        val sentAfterPrepare = sendTextWithCounterFallback(text)
-        mainHandler.post { result.success(sentAfterPrepare) }
+
+        repeat(2) { retry ->
+            if (retry > 0) {
+                Thread.sleep(55)
+            }
+            sent = sendTextWithCounterFallback(text)
+            Logger.d("sendTextPrepared: postPrepareRetry=$retry sent=$sent")
+            if (sent) {
+                mainHandler.post { result.success(true) }
+                return
+            }
+        }
+        mainHandler.post { result.success(false) }
     }
 
     private fun sendTextWithCounterFallback(text: String): Boolean {
@@ -477,6 +515,9 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 (currentIme + 1) to currentField,
                 currentIme to (currentField + 1),
                 (currentIme + 1) to (currentField + 1),
+                0 to 0,
+                1 to 0,
+                0 to 1,
             ).distinct()
 
         for ((attemptIdx, pair) in attempts.withIndex()) {
@@ -556,7 +597,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         return false
     }
 
-    private fun isImeContextFresh(freshnessMs: Long = 3000): Boolean {
+    private fun isImeContextFresh(freshnessMs: Long = 6000): Boolean {
         val updatedAt = lastImeUpdateAtMs.get()
         if (updatedAt <= 0L) return false
         return (System.currentTimeMillis() - updatedAt) <= freshnessMs
@@ -770,6 +811,15 @@ class AndroidTvRemotePlugin(private val context: Context) {
         return true
     }
 
+    fun scheduleBackgroundKeepAlive(durationMs: Long?): Boolean {
+        if (!evaluateRemoteSessionAlive()) return false
+        AndroidTvKeepAliveService.start(
+            context.applicationContext,
+            durationMs = durationMs,
+        )
+        return true
+    }
+
     private fun startTerminationKeepAlive(
         arguments: Map<*, *>,
         result: MethodChannel.Result,
@@ -781,8 +831,26 @@ class AndroidTvRemotePlugin(private val context: Context) {
         mainHandler.post { result.success(started) }
     }
 
+    private fun startBackgroundKeepAlive(
+        arguments: Map<*, *>,
+        result: MethodChannel.Result,
+    ) {
+        val durationMs = (arguments["durationMs"] as? Number)?.toLong()
+        val started = scheduleBackgroundKeepAlive(durationMs)
+        mainHandler.post { result.success(started) }
+    }
+
+    private fun stopBackgroundKeepAlive(result: MethodChannel.Result) {
+        AndroidTvKeepAliveRegistry.clearKeepAlive()
+        AndroidTvKeepAliveService.stop(context.applicationContext)
+        result.success(true)
+    }
+
     private fun adoptKeepAliveSessionIfAvailable(result: MethodChannel.Result) {
-        val active = AndroidTvKeepAliveRegistry.isKeepAliveActive() && evaluateRemoteSessionAlive()
+        val keepAliveActive =
+            AndroidTvKeepAliveRegistry.keepAliveIndefinite ||
+                AndroidTvKeepAliveRegistry.isKeepAliveActive()
+        val active = keepAliveActive && evaluateRemoteSessionAlive()
         if (active) {
             AndroidTvKeepAliveRegistry.clearKeepAlive()
             AndroidTvKeepAliveService.stop(context.applicationContext)
