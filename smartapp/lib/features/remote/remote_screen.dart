@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 
 import '../../services/android_tv/android_tv_keycodes.dart';
+import '../../services/analytics_service.dart';
 
 import '../../controllers/remote_controller.dart';
 import '../../controllers/remote_style_controller.dart';
@@ -20,6 +21,7 @@ class RemoteScreen extends GetView<RemoteController> {
 
   RemoteStyleController get _remoteStyleController =>
       Get.find<RemoteStyleController>();
+  AnalyticsService get _analyticsService => Get.find<AnalyticsService>();
 
   VoidCallback _loggedTap(
     String buttonKey,
@@ -285,6 +287,12 @@ class RemoteScreen extends GetView<RemoteController> {
                 icon: Icons.keyboard,
                 onTap: () {
                   unawaited(
+                    _analyticsService.trackTab(
+                      'Keyboard',
+                      screenName: 'Remote_Screen',
+                    ),
+                  );
+                  unawaited(
                     controller.handleButtonTap(
                       buttonKey: 'KEY_KEYBOARD',
                       onTap: () async {
@@ -406,14 +414,32 @@ class RemoteScreen extends GetView<RemoteController> {
               child: _buildModeSegment(
                 isActive: controller.selectedTab.value == 0,
                 icon: Icons.gamepad,
-                onTap: () => controller.selectedTab.value = 0,
+                onTap: () {
+                  if (controller.selectedTab.value == 0) return;
+                  controller.selectedTab.value = 0;
+                  unawaited(
+                    _analyticsService.trackTab(
+                      'Dpad',
+                      screenName: 'Remote_Screen',
+                    ),
+                  );
+                },
               ),
             ),
             Expanded(
               child: _buildModeSegment(
                 isActive: controller.selectedTab.value == 1,
                 text: '123',
-                onTap: () => controller.selectedTab.value = 1,
+                onTap: () {
+                  if (controller.selectedTab.value == 1) return;
+                  controller.selectedTab.value = 1;
+                  unawaited(
+                    _analyticsService.trackTab(
+                      'NumberPad',
+                      screenName: 'Remote_Screen',
+                    ),
+                  );
+                },
               ),
             ),
           ],

@@ -14,6 +14,7 @@ import 'package:smartapp/models/tv_device.dart';
 import 'package:smartapp/services/tv_service_interface.dart' hide CastMediaItem;
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 import 'package:smartapp/widgets/streaming_mrec_ad.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
@@ -33,6 +34,7 @@ class _CastScreenState extends State<CastScreen> {
   late final MediaCastController controller;
   late final TvConnectionController _tvConnectionController;
   late final DeviceDiscoveryController _discoveryController;
+  late final AnalyticsService _analyticsService;
   PageController _pageController = PageController();
 
   @override
@@ -41,6 +43,7 @@ class _CastScreenState extends State<CastScreen> {
     controller = Get.find<MediaCastController>();
     _tvConnectionController = Get.find<TvConnectionController>();
     _discoveryController = Get.find<DeviceDiscoveryController>();
+    _analyticsService = Get.find<AnalyticsService>();
   }
 
   @override
@@ -79,7 +82,15 @@ class _CastScreenState extends State<CastScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: GestureDetector(
-                      onTap: openPremiumStatusScreen,
+                      onTap: () {
+                        unawaited(
+                          _analyticsService.trackClick(
+                            'PremiumBanner',
+                            screenName: 'CastScreen',
+                          ),
+                        );
+                        openPremiumStatusScreen();
+                      },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(18),
                         child: Image.asset(
@@ -120,12 +131,28 @@ class _CastScreenState extends State<CastScreen> {
                         //     ),
                         //   ),
                         GestureDetector(
-                          onTap: openPremiumStatusScreen,
+                          onTap: () {
+                            unawaited(
+                              _analyticsService.trackClick(
+                                'PremiumStatusBanner',
+                                screenName: 'CastScreen',
+                              ),
+                            );
+                            openPremiumStatusScreen();
+                          },
                           child: PremiumStatusBanner(),
                         ),
                         if (controller.isCastingActive)
                           IconButton(
-                            onPressed: controller.stopCastingAndReset,
+                            onPressed: () {
+                              unawaited(
+                                _analyticsService.trackClick(
+                                  'StopCasting',
+                                  screenName: 'CastScreen',
+                                ),
+                              );
+                              controller.stopCastingAndReset();
+                            },
                             tooltip: 'Stop casting',
                             icon: const Icon(
                               Icons.cast_connected,
@@ -182,26 +209,26 @@ class _CastScreenState extends State<CastScreen> {
                         childAspectRatio: 0.84,
                         children: [
                           CastTile(
-                            ontap: () => _openStreamingUrl(),
+                            ontap: () => _openStreamingUrl('Browser'),
                             title: 'Browser',
                             subtitle: 'Cast your screen',
                             image: CastTileImage.browse,
                           ),
                           CastTile(
-                            ontap: _handleMediaCastTap,
+                            ontap: () => _handleMediaCastTap('Media'),
                             title: 'Media',
                             subtitle: 'Cast photos & video',
                             image: CastTileImage.media,
                             isPremiumFeature: true,
                           ),
                           CastTile(
-                            ontap: () => _openStreamingUrl(),
+                            ontap: () => _openStreamingUrl('Mirror'),
                             title: 'Mirror',
                             subtitle: 'Mirror your screen',
                             image: CastTileImage.mirror,
                           ),
                           CastTile(
-                            ontap: () => _openStreamingUrl(),
+                            ontap: () => _openStreamingUrl('YouTube'),
                             title: 'YouTube',
                             subtitle: 'Watch YouTube',
                             image: CastTileImage.youtube,
@@ -229,6 +256,12 @@ class _CastScreenState extends State<CastScreen> {
                                 controller: _pageController,
                                 itemCount: queue.length,
                                 onPageChanged: (index) {
+                                  unawaited(
+                                    _analyticsService.trackClick(
+                                      'MediaQueueSwipe',
+                                      screenName: 'CastScreen',
+                                    ),
+                                  );
                                   controller.castMediaAt(index);
                                 },
                                 itemBuilder: (_, index) {
@@ -254,7 +287,7 @@ class _CastScreenState extends State<CastScreen> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: currentIndex > 0
-                                    ? () => _moveToPage(currentIndex - 1)
+                                    ? () => _moveToPage(currentIndex - 1, 'Previous')
                                     : null,
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
@@ -270,7 +303,7 @@ class _CastScreenState extends State<CastScreen> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: currentIndex < queue.length - 1
-                                    ? () => _moveToPage(currentIndex + 1)
+                                    ? () => _moveToPage(currentIndex + 1, 'Next')
                                     : null,
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
@@ -288,7 +321,7 @@ class _CastScreenState extends State<CastScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: _handleMediaCastTap,
+                            onPressed: () => _handleMediaCastTap('ReplaceMedia'),
                             icon:
                                 const Icon(Icons.add_photo_alternate_outlined),
                             label: const Text('Replace Media'),
@@ -328,7 +361,13 @@ class _CastScreenState extends State<CastScreen> {
     );
   }
 
-  Future<void> _moveToPage(int index) async {
+  Future<void> _moveToPage(int index, String buttonName) async {
+    unawaited(
+      _analyticsService.trackClick(
+        buttonName,
+        screenName: 'CastScreen',
+      ),
+    );
     if (!_pageController.hasClients) return;
     await _pageController.animateToPage(
       index,
@@ -337,7 +376,13 @@ class _CastScreenState extends State<CastScreen> {
     );
   }
 
-  Future<void> _handleMediaCastTap() async {
+  Future<void> _handleMediaCastTap(String source) async {
+    unawaited(
+      _analyticsService.trackClick(
+        source,
+        screenName: 'CastScreen',
+      ),
+    );
     if (!isPremiumUnlocked()) {
       openPremiumPaywall();
       return;
@@ -346,7 +391,13 @@ class _CastScreenState extends State<CastScreen> {
     await controller.pickAndCastMedia();
   }
 
-  Future<void> _openStreamingUrl() async {
+  Future<void> _openStreamingUrl(String source) async {
+    unawaited(
+      _analyticsService.trackClick(
+        source,
+        screenName: 'CastScreen',
+      ),
+    );
     final String streamingUrl =
         (dotenv.env['StreamingAppLink'] ?? _fallbackStreamingAppUrl).trim();
 

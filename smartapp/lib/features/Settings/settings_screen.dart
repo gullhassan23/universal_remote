@@ -11,6 +11,7 @@ import 'package:smartapp/features/Settings/faq_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 import 'package:smartapp/features/onboarding/onboarding_screen.dart';
 import 'package:smartapp/models/tv_device.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/haptic_action.dart';
@@ -36,8 +37,15 @@ class SettingsScreen extends StatelessWidget {
   DeviceDiscoveryController get _discoveryController =>
       Get.find<DeviceDiscoveryController>();
   SubscriptionIAPService get _iapService => Get.find<SubscriptionIAPService>();
+  AnalyticsService get _analyticsService => Get.find<AnalyticsService>();
 
   Future<void> _openPrivacyPolicy() async {
+    unawaited(
+      _analyticsService.trackClick(
+        'PrivacyPolicy',
+        screenName: 'SettingsScreen',
+      ),
+    );
     final String privacyUrl = dotenv.env['PRIVACY_POLICY_URL']!.trim();
 
     final uri = Uri.tryParse(privacyUrl);
@@ -52,6 +60,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _openTermsAndConditions() async {
+    unawaited(
+      _analyticsService.trackClick(
+        'TermsAndConditions',
+        screenName: 'SettingsScreen',
+      ),
+    );
     final String termsUrl = (dotenv.env['TERMS_CONDITIONS_URL'] ??
             dotenv.env['TERMS_AND_CONDITIONS_URL'] ??
             _defaultTermsConditionsUrl)
@@ -70,6 +84,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _openFeedbackEmail(BuildContext context) async {
+    unawaited(
+      _analyticsService.trackClick(
+        'SendUsANote',
+        screenName: 'SettingsScreen',
+      ),
+    );
     final Uri gmailUri = Uri(
       scheme: 'googlegmail',
       host: 'co',
@@ -121,6 +141,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<bool> _openDeviceDiscoverySheet() async {
+    unawaited(
+      _analyticsService.trackClick(
+        'SwitchDevice',
+        screenName: 'SettingsScreen',
+      ),
+    );
     final result = Completer<bool>();
     await Get.bottomSheet<void>(
       RemoteDevicePickerSheet(
@@ -168,6 +194,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _openSleepTimerWithConnectionCheck() async {
+    unawaited(
+      _analyticsService.trackClick(
+        'SleepTimer',
+        screenName: 'SettingsScreen',
+      ),
+    );
     if (!isPremiumUnlocked()) {
       openPremiumPaywall();
       return;
@@ -185,6 +217,12 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _restorePurchases() async {
+    unawaited(
+      _analyticsService.trackClick(
+        'RestorePurchases',
+        screenName: 'SettingsScreen',
+      ),
+    );
     await _iapService.restorePurchases();
     if (_iapService.lastError.value != null) {
       Get.snackbar('Restore purchases', _iapService.lastError.value!);
@@ -229,7 +267,15 @@ class SettingsScreen extends StatelessWidget {
                           children: [
                             _SectionTitle(title: 'REMOTE'),
                             GestureDetector(
-                                onTap: openPremiumStatusScreen,
+                                onTap: () {
+                                  unawaited(
+                                    _analyticsService.trackClick(
+                                      'PremiumStatusBanner',
+                                      screenName: 'SettingsScreen',
+                                    ),
+                                  );
+                                  openPremiumStatusScreen();
+                                },
                                 child: const PremiumStatusBanner()),
                           ],
                         ),
@@ -244,7 +290,15 @@ class SettingsScreen extends StatelessWidget {
                         _SettingsTile(
                           icon: SettingsIcon.remotestyle,
                           title: 'Remote style',
-                          onTap: openRemoteStyleOrPaywall,
+                          onTap: () {
+                            unawaited(
+                              _analyticsService.trackClick(
+                                'RemoteStyle',
+                                screenName: 'SettingsScreen',
+                              ),
+                            );
+                            openRemoteStyleOrPaywall();
+                          },
                           isPremiumFeature: true,
                         ),
                         Obx(
@@ -254,6 +308,12 @@ class SettingsScreen extends StatelessWidget {
                             subtitle: 'Enables haptics on remote',
                             value: vibrationController.isHapticEnabled.value,
                             onChanged: (value) {
+                              unawaited(
+                                _analyticsService.trackClick(
+                                  'HapticFeedbackToggle',
+                                  screenName: 'SettingsScreen',
+                                ),
+                              );
                               vibrationController.toggleHaptic(value);
                             },
                           ),
@@ -272,6 +332,12 @@ class SettingsScreen extends StatelessWidget {
                           icon: SettingsIcon.faq,
                           title: 'FAQ',
                           onTap: () {
+                            unawaited(
+                              _analyticsService.trackClick(
+                                'FAQ',
+                                screenName: 'SettingsScreen',
+                              ),
+                            );
                             Get.to(() => const FaqScreen());
                           },
                         ),
@@ -289,6 +355,12 @@ class SettingsScreen extends StatelessWidget {
                           icon: SettingsIcon.howtouse,
                           title: 'How to use app',
                           onTap: () {
+                            unawaited(
+                              _analyticsService.trackClick(
+                                'HowToUseApp',
+                                screenName: 'SettingsScreen',
+                              ),
+                            );
                             Get.to(() => const InstructionOnboardingScreen());
                           },
                         ),

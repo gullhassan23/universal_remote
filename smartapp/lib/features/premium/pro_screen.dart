@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:smartapp/features/remote/remote_screen.dart';
+
 
 class Pro_Screen extends StatelessWidget {
   const Pro_Screen({super.key});
