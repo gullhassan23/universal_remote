@@ -119,14 +119,11 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                         );
                         openPremiumStatusScreen();
                       },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.asset(
-                          Premium.premium,
-                          width: double.infinity,
-                          height: 92,
-                          fit: BoxFit.cover,
-                        ),
+                      child: Image.asset(
+                        Premium.premium,
+                        width: double.infinity,
+                        height: 170,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   );

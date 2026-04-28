@@ -256,12 +256,12 @@ class RemoteScreen extends GetView<RemoteController> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _roundedActionButton(
-                icon: Icons.search,
-                onTap: openRemoteStyleOrPaywall,
-                width: 88,
-                height: 50,
-              ),
+              // _roundedActionButton(
+              //   icon: Icons.search,
+              //   onTap: openRemoteStyleOrPaywall,
+              //   width: 88,
+              //   height: 50,
+              // ),
               SizedBox(height: 19),
               _roundedActionButton(
                 icon: Icons.search,
