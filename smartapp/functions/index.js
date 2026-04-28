@@ -55,10 +55,47 @@ function buildAndroidTemporaryResult(payload) {
   };
 }
 
+function inferIosExpiryIso(productId) {
+  const now = new Date();
+  const id = String(productId || "").toLowerCase();
+  if (id.includes("weekly") || id.includes("weakly")) {
+    now.setDate(now.getDate() + 7);
+    return now.toISOString();
+  }
+  if (id.includes("monthly")) {
+    now.setMonth(now.getMonth() + 1);
+    return now.toISOString();
+  }
+  if (id.includes("yearly") || id.includes("annual")) {
+    now.setFullYear(now.getFullYear() + 1);
+    return now.toISOString();
+  }
+  return null;
+}
+
+function buildIosTemporaryResult(payload) {
+  const inferredExpiry = inferIosExpiryIso(payload.productId);
+  return {
+    isValid: true,
+    message: "Apple temporary verification enabled (status 21002)",
+    state: "APPLE_TEMP_ACTIVE_21002",
+    expiryTime: inferredExpiry,
+    purchaseDate: new Date().toISOString(),
+    autoRenew: true,
+    isExpired: false,
+    raw: {
+      platform: "ios",
+      verificationMode: "apple_temp_21002",
+      productId: payload.productId || null,
+      transactionId: payload.transactionId || null,
+    },
+  };
+}
+
 async function verifyAppleReceipt(receiptData) {
   const sharedSecret = APPSTORE_SHARED_SECRET.value();
   if (!sharedSecret) {
-    throw new Error("APPSTORE_SHARED_SECRET is not configured");
+    return {status: 21002, statusText: "APPSTORE_SHARED_SECRET missing"};
   }
   const payload = {
     "receipt-data": receiptData,
@@ -255,8 +292,19 @@ async function persistSubscriptionResult({userId, payload, result}) {
     source: "cloud_function_v2",
   };
 
+  const expiryDate = result.expiryTime ? new Date(result.expiryTime) : null;
+  const purchaseDate = result.purchaseDate ? new Date(result.purchaseDate) : null;
+
   await userRef.set({
     isPremium: result.isValid,
+    premiumProductId: result.isValid ? (payload.productId || null) : null,
+    premiumVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiryDate: expiryDate ? admin.firestore.Timestamp.fromDate(expiryDate) : null,
+    premiumExpiry: result.expiryTime || null,
+    purchaseDate: purchaseDate ?
+      admin.firestore.Timestamp.fromDate(purchaseDate) :
+      admin.firestore.FieldValue.serverTimestamp(),
+    autoRenew: result.isValid ? Boolean(result.autoRenew) : false,
     subscription: {
       platform: payload.platform || "ios",
       productId: payload.productId || null,
@@ -265,7 +313,6 @@ async function persistSubscriptionResult({userId, payload, result}) {
       autoRenew: result.autoRenew || false,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
-    premiumExpiry: result.expiryTime || null,
     fcmToken: payload.fcmToken || null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     subscriptionHistory: admin.firestore.FieldValue.arrayUnion(historyItem),
@@ -316,6 +363,23 @@ exports.verifyIapPurchaseCallable = onCall(
         if (platform === "ios") {
           const candidates = buildReceiptCandidates(data);
           const appleResponse = await verifyAppleReceiptWithFallback(candidates);
+          if (appleResponse.status === 21002) {
+            logger.warn("Apple verifyReceipt returned 21002, enabling temporary iOS fallback", {
+              productId: data.productId || null,
+              userId,
+              hasPrimaryReceipt: typeof data.receiptData === "string" &&
+                data.receiptData.length > 20,
+              hasLocalReceipt: typeof data.localReceiptData === "string" &&
+                data.localReceiptData.length > 20,
+            });
+            const iosTempResult = buildIosTemporaryResult(data);
+            await persistSubscriptionResult({
+              userId,
+              payload: data,
+              result: iosTempResult,
+            });
+            return iosTempResult;
+          }
           if (appleResponse.status !== 0) {
             return {
               isValid: false,

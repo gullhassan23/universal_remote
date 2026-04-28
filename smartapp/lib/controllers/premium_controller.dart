@@ -69,7 +69,8 @@ class PremiumController extends GetxController {
       print("expiryDate: ${data['expiryDate']}");
       print("productId: ${data['premiumProductId']}");
       final bool remotePremium = data['isPremium'] == true;
-      final DateTime? remoteExpiryDate = _parseDate(data['expiryDate']);
+      final DateTime? remoteExpiryDate =
+          _parseDate(data['expiryDate']) ?? _parseDate(data['premiumExpiry']);
       final bool notExpired = remoteExpiryDate == null ||
           remoteExpiryDate.isAfter(DateTime.now().toUtc());
       final bool resolvedPremium = remotePremium && notExpired;
@@ -100,7 +101,8 @@ class PremiumController extends GetxController {
         if (data == null) return;
 
         final bool remotePremium = data['isPremium'] == true;
-        final DateTime? remoteExpiryDate = _parseDate(data['expiryDate']);
+        final DateTime? remoteExpiryDate =
+            _parseDate(data['expiryDate']) ?? _parseDate(data['premiumExpiry']);
         final bool notExpired = remoteExpiryDate == null ||
             remoteExpiryDate.isAfter(DateTime.now().toUtc());
         final bool resolvedPremium = remotePremium && notExpired;
