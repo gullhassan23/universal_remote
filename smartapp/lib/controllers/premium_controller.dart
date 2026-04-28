@@ -3,17 +3,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
 
 class PremiumController extends GetxController {
-  static const String _kPremiumEnabledKey = 'premium_enabled';
-  static const String _kPremiumProductIdKey = 'premium_product_id';
-  static const String _kPremiumUpdatedAtKey = 'premium_updated_at_ms';
-  static const String _kPremiumExpiryDateKey = 'premium_expiry_date_iso';
-
   final RxBool isPremium = false.obs;
   final RxnString activeProductId = RxnString();
   final Rxn<DateTime> expiryDate = Rxn<DateTime>();
@@ -36,11 +30,7 @@ class PremiumController extends GetxController {
   }
 
   Future<void> _restoreCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    isPremium.value = prefs.getBool(_kPremiumEnabledKey) ?? false;
-    activeProductId.value = prefs.getString(_kPremiumProductIdKey);
-    final String? expiryIso = prefs.getString(_kPremiumExpiryDateKey);
-    expiryDate.value = expiryIso == null ? null : DateTime.tryParse(expiryIso);
+    // Local premium cache disabled by request; Firestore remains source of truth.
     _isCacheRestored = true;
   }
 
@@ -156,21 +146,6 @@ class PremiumController extends GetxController {
     isPremium.value = enabled;
     activeProductId.value = enabled ? productId : null;
     this.expiryDate.value = enabled ? expiryDate?.toUtc() : null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kPremiumEnabledKey, enabled);
-    if (enabled && productId != null) {
-      await prefs.setString(_kPremiumProductIdKey, productId);
-    } else {
-      await prefs.remove(_kPremiumProductIdKey);
-    }
-    if (enabled && expiryDate != null) {
-      await prefs.setString(
-          _kPremiumExpiryDateKey, expiryDate.toUtc().toIso8601String());
-    } else {
-      await prefs.remove(_kPremiumExpiryDateKey);
-    }
-    await prefs.setInt(
-        _kPremiumUpdatedAtKey, DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<void> _syncUserProfileToFirestore({
