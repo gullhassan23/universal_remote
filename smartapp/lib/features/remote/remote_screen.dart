@@ -77,98 +77,110 @@ class RemoteScreen extends GetView<RemoteController> {
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 6),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: TopBannerAd(),
-                  ),
-                  Obx(() {
-                    final isConnected =
-                        controller.connectionController.connectionState.value ==
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompactHeight = constraints.maxHeight < 520;
+                  final topGap = isCompactHeight ? 4.0 : 8.0;
+                  final bannerToMainGap = isCompactHeight ? 18.0 : 26.0;
+                  final mainToToggleGap = isCompactHeight ? 12.0 : 20.0;
+                  final toggleToPadGap = isCompactHeight ? 10.0 : 16.0;
+                  final bottomGap = isCompactHeight ? 4.0 : 10.0;
+
+                  return Column(
+                    children: [
+                      SizedBox(height: topGap),
+                      const Center(
+                        child: TopBannerAd(),
+                      ),
+                      Obx(() {
+                        final isConnected = controller
+                                .connectionController.connectionState.value ==
                             TvConnectionState.connected;
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            isConnected
-                                ? 'Connected Device'
-                                : 'Connect a device',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                isConnected
+                                    ? 'Connected Device'
+                                    : 'Connect a device',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                             ),
+                            // if (!isPremium)
+                            //   IconButton(
+                            //     onPressed: openRemoteStyleOrPaywall,
+                            //     tooltip: 'Premium remote styles',
+                            //     icon: const Icon(
+                            //       Icons.diamond_outlined,
+                            //       color: Color(0xFFFFD27A),
+                            //     ),
+                            //   ),
+                            if (isConnected) const SizedBox(width: 10),
+                            if (isConnected)
+                              TextButton.icon(
+                                onPressed: _loggedTap(
+                                  'DISCONNECT_TV',
+                                  () {
+                                    unawaited(
+                                      controller.connectionController
+                                          .disconnect(),
+                                    );
+                                  },
+                                  action: 'disconnect_tv',
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor:
+                                      Colors.red.withValues(alpha: 0.28),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.link_off, size: 16),
+                                label: const Text('Disconnect'),
+                              ),
+                          ],
+                        );
+                      }),
+                      Obx(() {
+                        final label = controller
+                            .connectionController.castConnectionLabel.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: CastSessionBanner(label: label),
+                        );
+                      }),
+                      SizedBox(height: bannerToMainGap),
+                      _buildMainButtons(context),
+                      SizedBox(height: mainToToggleGap),
+                      _buildModeToggle(),
+                      SizedBox(height: toggleToPadGap),
+                      Expanded(
+                        child: Obx(
+                          () => AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            child: controller.selectedTab.value == 0
+                                ? _buildDpad()
+                                : _buildNumberTab(),
                           ),
                         ),
-                        // if (!isPremium)
-                        //   IconButton(
-                        //     onPressed: openRemoteStyleOrPaywall,
-                        //     tooltip: 'Premium remote styles',
-                        //     icon: const Icon(
-                        //       Icons.diamond_outlined,
-                        //       color: Color(0xFFFFD27A),
-                        //     ),
-                        //   ),
-                        if (isConnected) const SizedBox(width: 10),
-                        if (isConnected)
-                          TextButton.icon(
-                            onPressed: _loggedTap(
-                              'DISCONNECT_TV',
-                              () {
-                                unawaited(
-                                  controller.connectionController.disconnect(),
-                                );
-                              },
-                              action: 'disconnect_tv',
-                            ),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              backgroundColor:
-                                  Colors.red.withValues(alpha: 0.28),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                            icon: const Icon(Icons.link_off, size: 16),
-                            label: Text('Disconnect'),
-                          ),
-                      ],
-                    );
-                  }),
-                  Obx(() {
-                    final label = controller
-                        .connectionController.castConnectionLabel.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: CastSessionBanner(label: label),
-                    );
-                  }),
-                  const SizedBox(height: 26),
-                  _buildMainButtons(context),
-                  const SizedBox(height: 20),
-                  _buildModeToggle(),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: Obx(
-                      () => AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: controller.selectedTab.value == 0
-                            ? _buildDpad()
-                            : _buildNumberTab(),
                       ),
-                    ),
-                  ),
-                  _buildBottomButtons(context),
-                  const SizedBox(height: 10),
-                ],
+                      _buildBottomButtons(context),
+                      SizedBox(height: bottomGap),
+                    ],
+                  );
+                },
               ),
             ),
           ),
