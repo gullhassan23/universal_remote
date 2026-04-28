@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/firebase_options.dart';
+import 'package:smartapp/services/adapty_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
@@ -57,6 +58,7 @@ Future<void> _registerCoreDependencies() async {
   Get.put<ITvService>(tvService, permanent: true);
 
   final premiumController = Get.put(PremiumController(), permanent: true);
+  final adaptyService = Get.put(AdaptyService(), permanent: true);
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
 
   Get.lazyPut<TvConnectionController>(
@@ -75,10 +77,13 @@ Future<void> _registerCoreDependencies() async {
   );
 
   await premiumController.syncPremiumFromFirestore();
+  await adaptyService.initialize();
   await iapService.initialize(
     premiumActivationHook: (String productId) async {
       debugPrint('[IAP] Premium activated for product=$productId');
-      // Adapty sync hook can be plugged in here when Adapty is integrated.
+      await adaptyService.syncProfileToPremiumState(
+        source: 'iap_activation_hook',
+      );
     },
   );
 }
