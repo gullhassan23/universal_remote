@@ -25,15 +25,15 @@ class _PremiumScreenState extends State<PremiumScreen> {
   String? _envProductIdForPlan(_PremiumPlanType plan) {
     final bool isIos = !kIsWeb && Platform.isIOS;
     return switch (plan) {
-      _PremiumPlanType.weekly => (dotenv.env[
-                isIos ? 'IAP_PRODUCT_IOS_WEEKLY' : 'IAP_PRODUCT_WEEKLY']
-            ?.trim()),
-      _PremiumPlanType.monthly => (dotenv.env[
-                isIos ? 'IAP_PRODUCT_IOS_MONTHLY' : 'IAP_PRODUCT_MONTHLY']
-            ?.trim()),
-      _PremiumPlanType.yearly => (dotenv.env[
-                isIos ? 'IAP_PRODUCT_IOS_YEARLY' : 'IAP_PRODUCT_YEARLY']
-            ?.trim()),
+      _PremiumPlanType.weekly => (dotenv
+          .env[isIos ? 'IAP_PRODUCT_IOS_WEEKLY' : 'IAP_PRODUCT_WEEKLY']
+          ?.trim()),
+      _PremiumPlanType.monthly => (dotenv
+          .env[isIos ? 'IAP_PRODUCT_IOS_MONTHLY' : 'IAP_PRODUCT_MONTHLY']
+          ?.trim()),
+      _PremiumPlanType.yearly => (dotenv
+          .env[isIos ? 'IAP_PRODUCT_IOS_YEARLY' : 'IAP_PRODUCT_YEARLY']
+          ?.trim()),
     };
   }
 
@@ -61,7 +61,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
     );
   }
 
-
   SubscriptionProduct _resolveSelectedProduct(
     List<SubscriptionProduct> products,
   ) {
@@ -71,6 +70,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
         _matchByPlan(products, _PremiumPlanType.yearly) ??
         products.first;
   }
+
+// 🔥 ADD THESE HELPERS ON TOP
 
   @override
   Widget build(BuildContext context) {
@@ -194,11 +195,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                       margin: const EdgeInsets.only(bottom: 10),
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: Colors.red.withValues(alpha: 0.18),
+                                        color:
+                                            Colors.red.withValues(alpha: 0.18),
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
-                                          color:
-                                              Colors.red.withValues(alpha: 0.45),
+                                          color: Colors.red
+                                              .withValues(alpha: 0.45),
                                         ),
                                       ),
                                       child: Text(
@@ -225,7 +227,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                               monthlyProduct?.description ??
                                                   'Billed every month',
                                           priceLine:
-                                              monthlyProduct?.priceLabel ?? '--',
+                                              monthlyProduct?.priceLabel ??
+                                                  '--',
                                           durationLine: 'per month',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.monthly,
@@ -352,7 +355,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       },
                     ),
                   ),
-                   Padding(
+                  Padding(
                     padding: EdgeInsets.only(bottom: 12),
                     // child: Text(
                     //   'Limited Time Offer -- Cancel Anytime',
@@ -363,7 +366,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     //     fontWeight: FontWeight.w500,
                     //   ),
                     // ),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         GestureDetector(
                           onTap: () => SettingsActions.openTermsAndConditions(

@@ -1,4 +1,4 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
+
 import 'dart:io';
 import 'dart:async';
 
@@ -16,7 +16,6 @@ import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
-import 'package:smartapp/widgets/streaming_mrec_ad.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -100,7 +99,7 @@ class _CastScreenState extends State<CastScreen> {
                     ),
                   );
                 }),
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
                 Obx(
                   () {
                     // final bool isPremium =
@@ -160,7 +159,7 @@ class _CastScreenState extends State<CastScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 5),
                 Obx(
                   () => CastSessionBanner(
                     label: controller.connectedDeviceName.value.isEmpty
@@ -177,8 +176,8 @@ class _CastScreenState extends State<CastScreen> {
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        horizontal: 10,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.24),
@@ -201,9 +200,9 @@ class _CastScreenState extends State<CastScreen> {
                       return GridView.count(
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 0.84,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.95,
                         children: [
                           CastTile(
                             ontap: () => _openStreamingUrl('Browser'),
@@ -331,27 +330,30 @@ class _CastScreenState extends State<CastScreen> {
                     );
                   }),
                 ),
-                const SizedBox(height: 10),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    // MREC inventory uses 300x250; keep the same aspect ratio to
-                    // reserve full space and prevent overlap with content above.
+                const SizedBox(height: 2),
+                // LayoutBuilder(
+                //   builder: (context, constraints) {
+                //     // MREC inventory uses 300x250; keep the same aspect ratio to
+                //     // reserve full space and prevent overlap with content above.
 
-                    return Center(
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 20,
-                        child: const FittedBox(
-                          fit: BoxFit.contain,
-                          child: SizedBox(
-                            width: 300,
-                            height: 20,
-                            child: StreamingMrecAd(),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                //     return Center(
+                //       child: SizedBox(
+                //         width: double.infinity,
+                //         height: 20,
+                //         child: const FittedBox(
+                //           fit: BoxFit.contain,
+                //           child: SizedBox(
+                //             width: 300,
+                //             height: 20,
+                //             child: StreamingMrecAd(),
+                //           ),
+                //         ),
+                //       ),
+                //     );
+                //   },
+                // ),
+                Center(
+                  child: TopBannerAd(),
                 ),
               ],
             ),
@@ -492,14 +494,14 @@ class _MediaPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (item.isVideo) {
       return Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         alignment: Alignment.center,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
               Icons.videocam_rounded,
-              size: 68,
+              size: 56,
               color: Colors.white,
             ),
             const SizedBox(height: 10),
@@ -567,6 +569,7 @@ class CastTile extends StatelessWidget {
       return GestureDetector(
         onTap: ontap,
         child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             color: Colors.black.withValues(alpha: 0.18),
@@ -581,8 +584,8 @@ class CastTile extends StatelessWidget {
                   Center(
                     child: Image.asset(
                       image,
-                      width: 85,
-                      height: 85,
+                      width: 72,
+                      height: 72,
                     ),
                   ),
                   if (isPremiumFeature && !isPremiumUnlocked)
@@ -591,31 +594,31 @@ class CastTile extends StatelessWidget {
                       right: 10,
                       child: Icon(
                         Icons.diamond_outlined,
-                        size: 18,
+                        size: 16,
                         color: Color(0xFFFFD27A),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Text(
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 19,
+                  fontSize: 17,
                   fontWeight: FontWeight.w700,
                   height: 1,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.82),
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                   height: 1.1,
                 ),
               ),
