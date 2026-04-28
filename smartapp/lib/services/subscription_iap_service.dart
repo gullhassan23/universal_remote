@@ -13,6 +13,7 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
 import 'package:smartapp/models/subscription_verification_models.dart';
+import 'package:smartapp/services/adapty_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
@@ -48,7 +49,8 @@ class SubscriptionIAPService extends GetxService {
   bool _initialized = false;
   PremiumActivationHook? _premiumActivationHook;
 
-  Future<void> initialize({PremiumActivationHook? premiumActivationHook}) async {
+  Future<void> initialize(
+      {PremiumActivationHook? premiumActivationHook}) async {
     if (_initialized) return;
     _premiumActivationHook = premiumActivationHook;
     _initialized = true;
@@ -72,8 +74,8 @@ class SubscriptionIAPService extends GetxService {
       );
 
       final Set<String> productIds = _loadProductIdsFromEnv();
-      final ProductDetailsResponse response = await _inAppPurchase
-          .queryProductDetails(productIds);
+      final ProductDetailsResponse response =
+          await _inAppPurchase.queryProductDetails(productIds);
 
       if (response.error != null) {
         lastError.value = response.error!.message;
@@ -97,7 +99,8 @@ class SubscriptionIAPService extends GetxService {
             ),
           )
           .toList()
-        ..sort((SubscriptionProduct a, SubscriptionProduct b) => a.id.compareTo(b.id));
+        ..sort((SubscriptionProduct a, SubscriptionProduct b) =>
+            a.id.compareTo(b.id));
       products.assignAll(loaded);
       if (loaded.isEmpty) {
         lastError.value =
@@ -128,7 +131,8 @@ class SubscriptionIAPService extends GetxService {
     _resetProcessedStateForProduct(product.id);
 
     try {
-      final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
+      final PurchaseParam purchaseParam =
+          PurchaseParam(productDetails: product);
       _log('Starting purchase flow for ${product.id}');
       final bool launched = await _inAppPurchase.buyNonConsumable(
         purchaseParam: purchaseParam,
@@ -161,6 +165,9 @@ class SubscriptionIAPService extends GetxService {
     lastMessage.value = null;
     try {
       await _inAppPurchase.restorePurchases();
+      if (Get.isRegistered<AdaptyService>()) {
+        await Get.find<AdaptyService>().restorePurchases();
+      }
       lastMessage.value = 'Restore request sent. Verifying purchases...';
     } catch (error) {
       lastError.value = error.toString();
@@ -224,7 +231,8 @@ class SubscriptionIAPService extends GetxService {
     required PurchaseDetails purchase,
     required bool isRestore,
   }) async {
-    final SubscriptionVerificationResult verification = await _verifyPurchaseWithBackend(
+    final SubscriptionVerificationResult verification =
+        await _verifyPurchaseWithBackend(
       purchase,
       isRestore: isRestore,
     );
@@ -244,7 +252,8 @@ class SubscriptionIAPService extends GetxService {
       return;
     }
 
-    _log('Verification failed for ${purchase.productID}: ${verification.message}');
+    _log(
+        'Verification failed for ${purchase.productID}: ${verification.message}');
     lastError.value = verification.message ?? 'Purchase verification failed';
     if (verification.isExpired || _isInactiveState(verification.state)) {
       await _downgradePremium(
@@ -263,7 +272,8 @@ class SubscriptionIAPService extends GetxService {
     final String userId = await getOrCreateUserId();
     final String? fcmToken = await getFcmTokenWithRetry();
     final String platform = _platformLabel();
-    final SubscriptionVerificationPayload payload = SubscriptionVerificationPayload(
+    final SubscriptionVerificationPayload payload =
+        SubscriptionVerificationPayload(
       receiptData: purchase.verificationData.serverVerificationData,
       localReceiptData: purchase.verificationData.localVerificationData,
       productId: purchase.productID,
@@ -289,7 +299,8 @@ class SubscriptionIAPService extends GetxService {
 
     final SubscriptionVerificationResult callableResult =
         await _verifyPurchaseViaCallable(payload);
-    if (callableResult.isValid || callableResult.message != 'CALLABLE_FALLBACK') {
+    if (callableResult.isValid ||
+        callableResult.message != 'CALLABLE_FALLBACK') {
       return callableResult;
     }
 
@@ -378,7 +389,8 @@ class SubscriptionIAPService extends GetxService {
         'verifyIapPurchaseCallable',
         options: HttpsCallableOptions(timeout: const Duration(seconds: 15)),
       );
-      final HttpsCallableResult<dynamic> response = await callable.call(payload.toJson());
+      final HttpsCallableResult<dynamic> response =
+          await callable.call(payload.toJson());
       final dynamic data = response.data;
       if (data is! Map) {
         return SubscriptionVerificationResult(
@@ -449,7 +461,8 @@ class SubscriptionIAPService extends GetxService {
             );
           }
         } else {
-          final Map<String, dynamic> body = (jsonDecode(response.body) as Map).cast<String, dynamic>();
+          final Map<String, dynamic> body =
+              (jsonDecode(response.body) as Map).cast<String, dynamic>();
           final SubscriptionVerificationResult result =
               SubscriptionVerificationResult.fromJson(body);
           _log('Verification response isValid=${result.isValid}');
@@ -490,8 +503,7 @@ class SubscriptionIAPService extends GetxService {
       productId: productId,
       autoRenew: _extractAutoRenew(verification),
       expiryDate: _parseExpiryDate(verification.expiryTime),
-      purchaseDate:
-          _parseDate(verification.purchaseDate) ??
+      purchaseDate: _parseDate(verification.purchaseDate) ??
           _parseMillisDate(purchase.transactionDate),
       fcmToken: fcmToken,
     );
@@ -506,6 +518,18 @@ class SubscriptionIAPService extends GetxService {
       title: 'Premium Activated',
       body: 'Your subscription is active. Remote Style is unlocked.',
     );
+
+    if (Get.isRegistered<AdaptyService>()) {
+      final adaptyService = Get.find<AdaptyService>();
+      final String transactionId =
+          purchase.purchaseID ?? _extractAndroidOrderId(purchase) ?? '';
+      await adaptyService.reportTransactionIfNeeded(
+        transactionId: transactionId,
+      );
+      await adaptyService.syncProfileToPremiumState(
+        source: isRestore ? 'iap_restore' : 'iap_purchase',
+      );
+    }
 
     if (_premiumActivationHook != null) {
       await _premiumActivationHook!(productId);
@@ -523,8 +547,7 @@ class SubscriptionIAPService extends GetxService {
       final String userId = await getOrCreateUserId();
       final String platform = _platformLabel();
       final DateTime? expiryDate = _parseExpiryDate(verification.expiryTime);
-      final DateTime? purchaseDate =
-          _parseDate(verification.purchaseDate) ??
+      final DateTime? purchaseDate = _parseDate(verification.purchaseDate) ??
           _parseMillisDate(purchase.transactionDate) ??
           DateTime.now().toUtc();
       final Map<String, dynamic> payload = buildPremiumFirestorePayload(
@@ -567,14 +590,18 @@ class SubscriptionIAPService extends GetxService {
 
   Set<String> _loadProductIdsFromEnv() {
     final bool isIos = !kIsWeb && Platform.isIOS;
-    final String weeklyKey = isIos ? 'IAP_PRODUCT_IOS_WEEKLY' : 'IAP_PRODUCT_WEEKLY';
-    final String monthlyKey = isIos ? 'IAP_PRODUCT_IOS_MONTHLY' : 'IAP_PRODUCT_MONTHLY';
-    final String yearlyKey = isIos ? 'IAP_PRODUCT_IOS_YEARLY' : 'IAP_PRODUCT_YEARLY';
+    final String weeklyKey =
+        isIos ? 'IAP_PRODUCT_IOS_WEEKLY' : 'IAP_PRODUCT_WEEKLY';
+    final String monthlyKey =
+        isIos ? 'IAP_PRODUCT_IOS_MONTHLY' : 'IAP_PRODUCT_MONTHLY';
+    final String yearlyKey =
+        isIos ? 'IAP_PRODUCT_IOS_YEARLY' : 'IAP_PRODUCT_YEARLY';
 
     final String weekly = dotenv.env[weeklyKey]?.trim() ?? '';
     final String monthly = dotenv.env[monthlyKey]?.trim() ?? '';
     final String yearly = dotenv.env[yearlyKey]?.trim() ?? '';
-    final List<String> fallback = isIos ? _fallbackIosProductIds : _fallbackAndroidProductIds;
+    final List<String> fallback =
+        isIos ? _fallbackIosProductIds : _fallbackAndroidProductIds;
     final Set<String> ids = <String>{
       if (weekly.isNotEmpty) weekly,
       if (monthly.isNotEmpty) monthly,
