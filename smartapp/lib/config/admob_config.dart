@@ -5,13 +5,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdMobConfig {
   static const String _iosTestBannerAdUnitId =
-      'ca-app-pub-3940256099942544/2934735716';
+      'ca-app-pub-3605518487927639/1803221192';
   static const String _iosTestInterstitialAdUnitId =
-      'ca-app-pub-3940256099942544/4411468910';
+      'ca-app-pub-3605518487927639/1125309209';
   static const String _iosTestRewardedAdUnitId =
-      'ca-app-pub-3940256099942544/1712485313';
+      'ca-app-pub-3605518487927639/6804266435';
   static const String _iosTestAppOpenAdUnitId =
-      'ca-app-pub-3940256099942544/5575463023';
+      'ca-app-pub-3605518487927639/8293352784';
+  static const String _iosTestMrecAdUnitId =
+      'ca-app-pub-3605518487927639/3591690443';
 
   static String get bannerAdUnitId {
     if (!kIsWeb && Platform.isAndroid) {
@@ -63,7 +65,7 @@ class AdMobConfig {
       );
     }
     if (!kIsWeb && Platform.isIOS) {
-      return _envOrFallback('ADMOB_IOS_MREC_ID', '');
+      return _envOrFallback('ADMOB_IOS_MREC_ID', _iosTestMrecAdUnitId);
     }
     return '';
   }
