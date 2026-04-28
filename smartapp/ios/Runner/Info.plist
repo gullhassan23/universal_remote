@@ -43,7 +43,7 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app uses speech recognition to transcribe your voice for TV search.</string>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-3605518487927639~7530935451</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

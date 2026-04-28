@@ -4,6 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdMobConfig {
+  static const String _androidTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+  static const String _androidTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/1033173712';
+  static const String _androidTestRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const String _androidTestAppOpenAdUnitId =
+      'ca-app-pub-3940256099942544/9257395921';
+  static const String _androidTestMrecAdUnitId = _androidTestBannerAdUnitId;
+
   static const String _iosTestBannerAdUnitId =
       'ca-app-pub-3940256099942544/2934735716';
   static const String _iosTestInterstitialAdUnitId =
@@ -12,8 +22,14 @@ class AdMobConfig {
       'ca-app-pub-3940256099942544/1712485313';
   static const String _iosTestAppOpenAdUnitId =
       'ca-app-pub-3940256099942544/5575463023';
+  static const String _iosTestMrecAdUnitId = _iosTestBannerAdUnitId;
 
   static String get bannerAdUnitId {
+    if (_isTestMode) {
+      if (!kIsWeb && Platform.isAndroid) return _androidTestBannerAdUnitId;
+      if (!kIsWeb && Platform.isIOS) return _iosTestBannerAdUnitId;
+      return '';
+    }
     if (!kIsWeb && Platform.isAndroid) {
       return _envOrFallback(
         'ADMOB_ANDROID_BANNER_ID',
@@ -27,6 +43,13 @@ class AdMobConfig {
   }
 
   static String get interstitialAdUnitId {
+    if (_isTestMode) {
+      if (!kIsWeb && Platform.isAndroid) {
+        return _androidTestInterstitialAdUnitId;
+      }
+      if (!kIsWeb && Platform.isIOS) return _iosTestInterstitialAdUnitId;
+      return '';
+    }
     if (!kIsWeb && Platform.isAndroid) {
       return _envOrFallback(
         'ADMOB_ANDROID_INTERSTITIAL_ID',
@@ -43,6 +66,11 @@ class AdMobConfig {
   }
 
   static String get rewardedAdUnitId {
+    if (_isTestMode) {
+      if (!kIsWeb && Platform.isAndroid) return _androidTestRewardedAdUnitId;
+      if (!kIsWeb && Platform.isIOS) return _iosTestRewardedAdUnitId;
+      return '';
+    }
     if (!kIsWeb && Platform.isAndroid) {
       return _envOrFallback(
         'ADMOB_ANDROID_REWARDED_ID',
@@ -56,6 +84,11 @@ class AdMobConfig {
   }
 
   static String get mrecAdUnitId {
+    if (_isTestMode) {
+      if (!kIsWeb && Platform.isAndroid) return _androidTestMrecAdUnitId;
+      if (!kIsWeb && Platform.isIOS) return _iosTestMrecAdUnitId;
+      return '';
+    }
     if (!kIsWeb && Platform.isAndroid) {
       return _envOrFallback(
         'ADMOB_ANDROID_MREC_ID',
@@ -63,12 +96,17 @@ class AdMobConfig {
       );
     }
     if (!kIsWeb && Platform.isIOS) {
-      return _envOrFallback('ADMOB_IOS_MREC_ID', '');
+      return _envOrFallback('ADMOB_IOS_MREC_ID', _iosTestMrecAdUnitId);
     }
     return '';
   }
 
   static String get appOpenAdUnitId {
+    if (_isTestMode) {
+      if (!kIsWeb && Platform.isAndroid) return _androidTestAppOpenAdUnitId;
+      if (!kIsWeb && Platform.isIOS) return _iosTestAppOpenAdUnitId;
+      return '';
+    }
     if (!kIsWeb && Platform.isAndroid) {
       return _envOrFallback(
         'ADMOB_ANDROID_APP_OPEN_ID',
@@ -87,5 +125,10 @@ class AdMobConfig {
       return value;
     }
     return fallback;
+  }
+
+  static bool get _isTestMode {
+    final String? raw = dotenv.env['ADMOB_TEST_MODE']?.trim().toLowerCase();
+    return raw == 'true' || raw == '1' || raw == 'yes' || raw == 'on';
   }
 }

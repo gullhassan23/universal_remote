@@ -125,6 +125,7 @@ class SubscriptionIAPService extends GetxService {
     isPurchasing.value = true;
     lastError.value = null;
     lastMessage.value = null;
+    _resetProcessedStateForProduct(product.id);
 
     try {
       final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
@@ -153,6 +154,8 @@ class SubscriptionIAPService extends GetxService {
       return;
     }
     _log('restorePurchases requested.');
+    _processedPurchaseKeys.clear();
+    _inFlightPurchaseKeys.clear();
     isRestoring.value = true;
     lastError.value = null;
     lastMessage.value = null;
@@ -290,7 +293,7 @@ class SubscriptionIAPService extends GetxService {
       return callableResult;
     }
 
-    // Android-only mode: avoid HTTP fallback hitting legacy endpoint config.
+    // Temporary fallback modes: avoid HTTP fallback hitting legacy endpoint config.
     if (payload.platform == 'android') {
       _log(
         'Callable fallback on Android. Using temporary local verification '
@@ -312,8 +315,57 @@ class SubscriptionIAPService extends GetxService {
       );
     }
 
+    if (payload.platform == 'ios') {
+      _log(
+        'Callable fallback on iOS. Using temporary local verification '
+        'to keep premium unlock flow working.',
+      );
+      return SubscriptionVerificationResult(
+        isValid: true,
+        message: 'iOS temporary verification enabled (callable fallback)',
+        state: 'IOS_TEMP_ACTIVE',
+        purchaseDate: DateTime.now().toUtc().toIso8601String(),
+        expiryTime: _inferIosExpiryIso(payload.productId),
+        raw: <String, dynamic>{
+          'platform': 'ios',
+          'verificationMode': 'local_callable_fallback',
+          'productId': payload.productId,
+          'transactionId': payload.transactionId,
+        },
+      );
+    }
+
     _log('Callable verification unavailable. Falling back to HTTP endpoint.');
     return _verifyPurchaseViaHttp(payload);
+  }
+
+  String? _inferIosExpiryIso(String productId) {
+    final DateTime now = DateTime.now().toUtc();
+    final String id = productId.toLowerCase();
+    if (id.contains('weekly') || id.contains('weakly')) {
+      return now.add(const Duration(days: 7)).toIso8601String();
+    }
+    if (id.contains('monthly')) {
+      return DateTime.utc(
+        now.year,
+        now.month + 1,
+        now.day,
+        now.hour,
+        now.minute,
+        now.second,
+      ).toIso8601String();
+    }
+    if (id.contains('yearly') || id.contains('annual')) {
+      return DateTime.utc(
+        now.year + 1,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+        now.second,
+      ).toIso8601String();
+    }
+    return null;
   }
 
   Future<SubscriptionVerificationResult> _verifyPurchaseViaCallable(
@@ -556,6 +608,15 @@ class SubscriptionIAPService extends GetxService {
 
   String _buildPurchaseKey(PurchaseDetails purchase) {
     return '${purchase.productID}|${purchase.purchaseID ?? ''}|${purchase.transactionDate ?? ''}';
+  }
+
+  void _resetProcessedStateForProduct(String productId) {
+    _processedPurchaseKeys.removeWhere(
+      (String key) => key.startsWith('$productId|'),
+    );
+    _inFlightPurchaseKeys.removeWhere(
+      (String key) => key.startsWith('$productId|'),
+    );
   }
 
   bool _extractAutoRenew(SubscriptionVerificationResult verification) {
