@@ -82,6 +82,30 @@ async function verifyAppleReceipt(receiptData) {
   return data;
 }
 
+function buildReceiptCandidates(data) {
+  const candidates = [];
+  const primary = typeof data.receiptData === "string" ? data.receiptData.trim() : "";
+  const local = typeof data.localReceiptData === "string" ? data.localReceiptData.trim() : "";
+  if (primary) candidates.push(primary);
+  if (local && local !== primary) candidates.push(local);
+  return candidates;
+}
+
+async function verifyAppleReceiptWithFallback(candidates) {
+  let lastResponse = null;
+  for (const candidate of candidates) {
+    // StoreKit2 JWS token is dot-separated; verifyReceipt expects base64 app receipt.
+    const isLikelyJws = candidate.includes(".");
+    if (isLikelyJws) continue;
+    const response = await verifyAppleReceipt(candidate);
+    lastResponse = response;
+    if (response?.status === 0) return response;
+    // 21002 = malformed/unreadable receipt. Try next candidate.
+    if (response?.status !== 21002) return response;
+  }
+  return lastResponse || {status: 21002};
+}
+
 function buildIosResult(payload, appleResponse) {
   const latestReceiptInfo = Array.isArray(appleResponse.latest_receipt_info) ?
     appleResponse.latest_receipt_info :
@@ -290,7 +314,8 @@ exports.verifyIapPurchaseCallable = onCall(
           return androidResult;
         }
         if (platform === "ios") {
-          const appleResponse = await verifyAppleReceipt(receiptData);
+          const candidates = buildReceiptCandidates(data);
+          const appleResponse = await verifyAppleReceiptWithFallback(candidates);
           if (appleResponse.status !== 0) {
             return {
               isValid: false,

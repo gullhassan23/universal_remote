@@ -262,6 +262,7 @@ class SubscriptionIAPService extends GetxService {
     final String platform = _platformLabel();
     final SubscriptionVerificationPayload payload = SubscriptionVerificationPayload(
       receiptData: purchase.verificationData.serverVerificationData,
+      localReceiptData: purchase.verificationData.localVerificationData,
       productId: purchase.productID,
       userId: userId,
       platform: platform,
@@ -498,6 +499,7 @@ class SubscriptionIAPService extends GetxService {
       _log('Premium subscription metadata saved for user=$userId');
     } catch (error) {
       _log('Failed to persist premium subscription metadata: $error');
+      lastError.value = 'Purchase successful, but Firebase sync failed: $error';
     }
   }
 

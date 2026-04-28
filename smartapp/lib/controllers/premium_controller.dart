@@ -197,8 +197,9 @@ class PremiumController extends GetxController {
             payload,
             SetOptions(merge: true),
           );
-    } catch (_) {
+    } catch (error) {
       // Firestore sync should never break local premium state updates.
+      debugPrint('[PREMIUM] Firestore profile sync failed: $error');
     }
   }
 

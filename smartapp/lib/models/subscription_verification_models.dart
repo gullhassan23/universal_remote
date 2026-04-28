@@ -1,6 +1,7 @@
 class SubscriptionVerificationPayload {
   SubscriptionVerificationPayload({
     required this.receiptData,
+    required this.localReceiptData,
     required this.productId,
     required this.userId,
     required this.platform,
@@ -12,6 +13,7 @@ class SubscriptionVerificationPayload {
   });
 
   final String receiptData;
+  final String? localReceiptData;
   final String productId;
   final String userId;
   final String platform;
@@ -24,6 +26,7 @@ class SubscriptionVerificationPayload {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'receiptData': receiptData,
+      'localReceiptData': localReceiptData,
       'productId': productId,
       'userId': userId,
       'platform': platform,
