@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/services/analytics_service.dart';
@@ -9,6 +11,10 @@ import 'package:url_launcher/url_launcher.dart';
 class SettingsActions {
   static const String defaultTermsConditionsUrl =
       'https://docs.google.com/document/d/12WTnUBG0hlYkg5fRPIwxP4VnNkUhv_gnC19ulCfgHic/edit?tab=t.0';
+  static const String _iosTermsConditionsUrl =
+      'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+  static const String _iosPrivacyPolicyUrl =
+      'https://maxgamesproduction.blogspot.com/2023/01/privacy-policy.html';
 
   static AnalyticsService? _analyticsOrNull() {
     if (Get.isRegistered<AnalyticsService>()) {
@@ -28,7 +34,10 @@ class SettingsActions {
           Future.value(),
     );
 
-    final String? privacyUrl = dotenv.env['PRIVACY_POLICY_URL']?.trim();
+    final bool isIos = !kIsWeb && Platform.isIOS;
+    final String? privacyUrl = isIos
+        ? _iosPrivacyPolicyUrl
+        : dotenv.env['PRIVACY_POLICY_URL']?.trim();
     if (privacyUrl == null || privacyUrl.isEmpty) {
       Get.snackbar('Error', 'Privacy policy URL is missing.');
       return;
@@ -57,10 +66,13 @@ class SettingsActions {
           Future.value(),
     );
 
-    final String termsUrl = (dotenv.env['TERMS_CONDITIONS_URL'] ??
-            dotenv.env['TERMS_AND_CONDITIONS_URL'] ??
-            defaultTermsConditionsUrl)
-        .trim();
+    final bool isIos = !kIsWeb && Platform.isIOS;
+    final String termsUrl = isIos
+        ? _iosTermsConditionsUrl
+        : (dotenv.env['TERMS_CONDITIONS_URL'] ??
+                dotenv.env['TERMS_AND_CONDITIONS_URL'] ??
+                defaultTermsConditionsUrl)
+            .trim();
 
     final uri = Uri.tryParse(termsUrl);
     if (uri == null) {

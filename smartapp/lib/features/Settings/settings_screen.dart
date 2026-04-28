@@ -296,6 +296,13 @@ class SettingsScreen extends StatelessWidget {
                             _openFeedbackEmail(context);
                           },
                         ),
+                          _SettingsTile(
+                          icon: SettingsIcon.term,
+                          title: 'Term & Conditions',
+                          onTap: () => SettingsActions.openTermsAndConditions(
+                            screenName: 'SettingsScreen',
+                          ),
+                        ),
                         _SettingsTile(
                           icon: SettingsIcon.privacy,
                           title: 'Privacy policy',
@@ -303,13 +310,7 @@ class SettingsScreen extends StatelessWidget {
                             screenName: 'SettingsScreen',
                           ),
                         ),
-                        _SettingsTile(
-                          icon: SettingsIcon.term,
-                          title: 'Term & Conditions',
-                          onTap: () => SettingsActions.openTermsAndConditions(
-                            screenName: 'SettingsScreen',
-                          ),
-                        ),
+                      
                         // _SettingsTile(
                         //   icon: SettingsIcon.howtouse,
                         //   title: 'How to use app',
