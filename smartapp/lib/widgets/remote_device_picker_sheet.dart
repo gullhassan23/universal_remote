@@ -37,7 +37,11 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
   @override
   void initState() {
     super.initState();
-    widget.discoveryController.discoverDevices();
+    // Defer Rx updates until after the bottom sheet finishes its first build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.discoveryController.discoverDevices();
+    });
   }
 
   @override
@@ -154,84 +158,88 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                     );
                   }
 
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: devices.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1, color: Colors.white24),
-                          itemBuilder: (context, index) {
-                            final device = devices[index];
-                            final isConnectingThisDevice =
-                                _connectingDeviceId.value == device.id;
-                            final brandLabel = device.brand == TvBrand.androidTv
-                                ? 'Android TV'
-                                : device.brand.name;
-                            return ListTile(
-                              leading: const Icon(Icons.tv,
-                                  color: Colors.white70, size: 28),
-                              title: Text(
-                                device.name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                  return ListView.separated(
+                    itemCount: devices.length + 1,
+                    separatorBuilder: (_, index) {
+                      if (index >= devices.length - 1) {
+                        return const SizedBox.shrink();
+                      }
+                      return const Divider(height: 1, color: Colors.white24);
+                    },
+                    itemBuilder: (context, index) {
+                      if (index >= devices.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _RescanButton(
+                            buttonKey: 'DISCOVERY_RESCAN_LIST',
+                            onTap: () =>
+                                widget.discoveryController.discoverDevices(),
+                            onHandleTap: widget.onHandleTap,
+                          ),
+                        );
+                      }
+
+                      final device = devices[index];
+                      final isConnectingThisDevice =
+                          _connectingDeviceId.value == device.id;
+                      final brandLabel = device.brand == TvBrand.androidTv
+                          ? 'Android TV'
+                          : device.brand.name;
+                      return ListTile(
+                        leading: const Icon(
+                          Icons.tv,
+                          color: Colors.white70,
+                          size: 28,
+                        ),
+                        title: Text(
+                          device.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          brandLabel,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 13,
+                          ),
+                        ),
+                        trailing: isConnectingThisDevice
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Colors.white70,
                                 ),
-                              ),
-                              subtitle: Text(
-                                '$brandLabel',
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              trailing: isConnectingThisDevice
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        color: Colors.white70,
-                                      ),
-                                    )
-                                  : null,
-                              onTap: () {
-                                if (_connectingDeviceId.value != null) return;
-                                _connectingDeviceId.value = device.id;
-                                unawaited(
-                                  widget.onHandleTap(
-                                    buttonKey: 'DEVICE_${device.name}',
-                                    action: 'select_device',
-                                    onTap: () async {
-                                      try {
-                                        final connected = await widget
-                                            .onDeviceSelected(device);
-                                        if (connected && mounted) {
-                                          Navigator.of(context).maybePop();
-                                        }
-                                      } finally {
-                                        if (!mounted) return;
-                                        _connectingDeviceId.value = null;
-                                      }
-                                    },
-                                  ),
-                                );
+                              )
+                            : null,
+                        onTap: () {
+                          if (_connectingDeviceId.value != null) return;
+                          _connectingDeviceId.value = device.id;
+                          unawaited(
+                            widget.onHandleTap(
+                              buttonKey: 'DEVICE_${device.name}',
+                              action: 'select_device',
+                              onTap: () async {
+                                try {
+                                  final connected =
+                                      await widget.onDeviceSelected(device);
+                                  if (connected && mounted) {
+                                    Navigator.of(context).maybePop();
+                                  }
+                                } finally {
+                                  if (!mounted) return;
+                                  _connectingDeviceId.value = null;
+                                }
                               },
-                            );
-                          },
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _RescanButton(
-                          buttonKey: 'DISCOVERY_RESCAN_LIST',
-                          onTap: () =>
-                              widget.discoveryController.discoverDevices(),
-                          onHandleTap: widget.onHandleTap,
-                        ),
-                      ),
-                    ],
+                            ),
+                          );
+                        },
+                      );
+                    },
                   );
                 }),
               ),

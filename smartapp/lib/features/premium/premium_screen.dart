@@ -105,7 +105,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   Align(
                     alignment: Alignment.topRight,
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 4, right: 10),
+                      padding: const EdgeInsets.only(top: 3, right: 10),
                       child: IconButton(
                         visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints.tightFor(
@@ -127,21 +127,21 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           Image.asset(
                             Premium.premium,
                             width: double.infinity,
-                            height: 170,
+                            height: 172,
                             fit: BoxFit.cover,
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           const Text(
                             'Turn Your Phone Into a Smart Remote Instantly',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
-                              fontSize: 28, // FIXED
+                              fontSize: 25, // FIXED
                               height: 1.15,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           const Text(
                             'Control any TV in seconds -- no setup, no frustration',
                             textAlign: TextAlign.center,
@@ -281,7 +281,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.fromLTRB(20, 6, 20, 10 + bottomInset),
+                    padding: EdgeInsets.fromLTRB(20, 6, 20, 16),
                     child: Obx(
                       () {
                         final bool isBusy = iapService.isPurchasing.value ||
