@@ -75,7 +75,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
     final iapService = Get.find<SubscriptionIAPService>();
     final premiumController = Get.find<PremiumController>();
 
