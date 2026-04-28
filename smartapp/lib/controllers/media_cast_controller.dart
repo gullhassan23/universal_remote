@@ -403,14 +403,21 @@ class MediaCastController extends GetxController {
     _manualDisconnectRequested = false;
 
     try {
+      final discoveryTimeout = Platform.isIOS
+          ? const Duration(seconds: 25)
+          : const Duration(seconds: 15);
       final devices = await GoogleCastDiscoveryManager.instance.devicesStream
           .firstWhere((List<GoogleCastDevice> list) => list.isNotEmpty)
           .timeout(
-            const Duration(seconds: 15),
+            discoveryTimeout,
             onTimeout: () => <GoogleCastDevice>[],
           );
       if (devices.isEmpty) {
-        _setError('No cast devices found on this Wi-Fi network.');
+        _setError(
+          Platform.isIOS
+              ? 'No cast devices found. On iPhone, allow Local Network access for this app in iOS Settings, then retry on the same Wi-Fi.'
+              : 'No cast devices found on this Wi-Fi network.',
+        );
         return false;
       }
 

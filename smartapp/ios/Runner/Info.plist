@@ -35,6 +35,8 @@
 	<array>
 		<string>_androidtvremote._tcp</string>
 		<string>_androidtvremote2._tcp</string>
+		<string>_googlecast._tcp</string>
+		<string>_CC1AD845._googlecast._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>This app discovers and controls TVs on your local Wi‑Fi network.</string>
