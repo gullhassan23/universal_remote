@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
@@ -18,10 +22,33 @@ class PremiumScreen extends StatefulWidget {
 class _PremiumScreenState extends State<PremiumScreen> {
   final Rx<_PremiumPlanType> _selectedPlan = _PremiumPlanType.weekly.obs;
 
+  String? _envProductIdForPlan(_PremiumPlanType plan) {
+    final bool isIos = !kIsWeb && Platform.isIOS;
+    return switch (plan) {
+      _PremiumPlanType.weekly => (dotenv.env[
+                isIos ? 'IAP_PRODUCT_IOS_WEEKLY' : 'IAP_PRODUCT_WEEKLY']
+            ?.trim()),
+      _PremiumPlanType.monthly => (dotenv.env[
+                isIos ? 'IAP_PRODUCT_IOS_MONTHLY' : 'IAP_PRODUCT_MONTHLY']
+            ?.trim()),
+      _PremiumPlanType.yearly => (dotenv.env[
+                isIos ? 'IAP_PRODUCT_IOS_YEARLY' : 'IAP_PRODUCT_YEARLY']
+            ?.trim()),
+    };
+  }
+
   SubscriptionProduct? _matchByPlan(
     List<SubscriptionProduct> products,
     _PremiumPlanType plan,
   ) {
+    final String? expectedId = _envProductIdForPlan(plan);
+    if (expectedId != null && expectedId.isNotEmpty) {
+      final SubscriptionProduct? byId = products.firstWhereOrNull(
+        (p) => p.id == expectedId,
+      );
+      if (byId != null) return byId;
+    }
+
     return products.firstWhereOrNull(
       (p) => switch (plan) {
         _PremiumPlanType.weekly => p.title.toLowerCase().contains('week') ||
@@ -143,6 +170,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           Obx(
                             () {
                               final allProducts = iapService.products;
+                              final error = iapService.lastError.value;
+                              final missingIds = iapService.notFoundProductIds;
                               final monthlyProduct = _matchByPlan(
                                 allProducts,
                                 _PremiumPlanType.monthly,
@@ -156,54 +185,89 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 _PremiumPlanType.yearly,
                               );
 
-                              return Row(
+                              return Column(
                                 children: [
-                                  Expanded(
-                                    child: _PlanCard(
-                                      badge: 'POPULAR',
-                                      title: 'Monthly',
-                                      subtitle: monthlyProduct?.description ??
-                                          'Billed every month',
-                                      priceLine:
-                                          monthlyProduct?.priceLabel ?? '--',
-                                      durationLine: 'per month',
-                                      highlighted: _selectedPlan.value ==
-                                          _PremiumPlanType.monthly,
-                                      onTap: () => _selectedPlan.value =
-                                          _PremiumPlanType.monthly,
+                                  if ((error != null && error.isNotEmpty) ||
+                                      missingIds.isNotEmpty)
+                                    Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withValues(alpha: 0.18),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color:
+                                              Colors.red.withValues(alpha: 0.45),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        [
+                                          if (error != null && error.isNotEmpty)
+                                            error,
+                                          if (missingIds.isNotEmpty)
+                                            'Missing IDs: ${missingIds.join(', ')}',
+                                        ].join('\n'),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: _PlanCard(
-                                      badge: '3 DAYS\nFREE TRIAL',
-                                      title: 'Weekly',
-                                      subtitle: weeklyProduct?.description ??
-                                          'Billed every week',
-                                      priceLine:
-                                          weeklyProduct?.priceLabel ?? '--',
-                                      durationLine: 'per week',
-                                      highlighted: _selectedPlan.value ==
-                                          _PremiumPlanType.weekly,
-                                      onTap: () => _selectedPlan.value =
-                                          _PremiumPlanType.weekly,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: _PlanCard(
-                                      badge: 'BEST DEAL',
-                                      title: 'Yearly',
-                                      subtitle: yearlyProduct?.description ??
-                                          'Billed every year',
-                                      priceLine:
-                                          yearlyProduct?.priceLabel ?? '--',
-                                      durationLine: 'per year',
-                                      highlighted: _selectedPlan.value ==
-                                          _PremiumPlanType.yearly,
-                                      onTap: () => _selectedPlan.value =
-                                          _PremiumPlanType.yearly,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _PlanCard(
+                                          badge: 'POPULAR',
+                                          title: 'Monthly',
+                                          subtitle:
+                                              monthlyProduct?.description ??
+                                                  'Billed every month',
+                                          priceLine:
+                                              monthlyProduct?.priceLabel ?? '--',
+                                          durationLine: 'per month',
+                                          highlighted: _selectedPlan.value ==
+                                              _PremiumPlanType.monthly,
+                                          onTap: () => _selectedPlan.value =
+                                              _PremiumPlanType.monthly,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: _PlanCard(
+                                          badge: '3 DAYS\nFREE TRIAL',
+                                          title: 'Weekly',
+                                          subtitle:
+                                              weeklyProduct?.description ??
+                                                  'Billed every week',
+                                          priceLine:
+                                              weeklyProduct?.priceLabel ?? '--',
+                                          durationLine: 'per week',
+                                          highlighted: _selectedPlan.value ==
+                                              _PremiumPlanType.weekly,
+                                          onTap: () => _selectedPlan.value =
+                                              _PremiumPlanType.weekly,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: _PlanCard(
+                                          badge: 'BEST DEAL',
+                                          title: 'Yearly',
+                                          subtitle:
+                                              yearlyProduct?.description ??
+                                                  'Billed every year',
+                                          priceLine:
+                                              yearlyProduct?.priceLabel ?? '--',
+                                          durationLine: 'per year',
+                                          highlighted: _selectedPlan.value ==
+                                              _PremiumPlanType.yearly,
+                                          onTap: () => _selectedPlan.value =
+                                              _PremiumPlanType.yearly,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               );

@@ -21,10 +21,15 @@ typedef PremiumActivationHook = Future<void> Function(String productId);
 
 class SubscriptionIAPService extends GetxService {
   static const String _logTag = '[IAP]';
-  static const List<String> _fallbackProductIds = <String>[
+  static const List<String> _fallbackAndroidProductIds = <String>[
     'tv.remote.control.app.premium.weekly',
     'tv.remote.control.app.premium.monthly',
     'tv.remote.control.app.premium.yearly',
+  ];
+  static const List<String> _fallbackIosProductIds = <String>[
+    'com.mg.smart.tv.remote.control.premium.weakly',
+    'com.mg.smart.tv.remote.control.premium.monthly',
+    'com.mg.smart.tv.remote.control.premium.yearly',
   ];
 
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
@@ -35,6 +40,7 @@ class SubscriptionIAPService extends GetxService {
   final RxnString lastError = RxnString();
   final RxnString lastMessage = RxnString();
   final RxList<SubscriptionProduct> products = <SubscriptionProduct>[].obs;
+  final RxList<String> notFoundProductIds = <String>[].obs;
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
   final Set<String> _processedPurchaseKeys = <String>{};
@@ -74,7 +80,10 @@ class SubscriptionIAPService extends GetxService {
         _log('queryProductDetails error: ${response.error}');
       }
       if (response.notFoundIDs.isNotEmpty) {
+        notFoundProductIds.assignAll(response.notFoundIDs);
         _log('Product IDs not found: ${response.notFoundIDs.join(', ')}');
+      } else {
+        notFoundProductIds.clear();
       }
 
       final List<SubscriptionProduct> loaded = response.productDetails
@@ -90,6 +99,10 @@ class SubscriptionIAPService extends GetxService {
           .toList()
         ..sort((SubscriptionProduct a, SubscriptionProduct b) => a.id.compareTo(b.id));
       products.assignAll(loaded);
+      if (loaded.isEmpty) {
+        lastError.value =
+            'No subscription products returned by the store. Check App Store Connect status, bundle ID, and Sandbox account.';
+      }
       _log('Loaded ${products.length} subscription products.');
     } catch (error) {
       lastError.value = error.toString();
@@ -499,15 +512,22 @@ class SubscriptionIAPService extends GetxService {
   }
 
   Set<String> _loadProductIdsFromEnv() {
-    final String weekly = dotenv.env['IAP_PRODUCT_WEEKLY']?.trim() ?? '';
-    final String monthly = dotenv.env['IAP_PRODUCT_MONTHLY']?.trim() ?? '';
-    final String yearly = dotenv.env['IAP_PRODUCT_YEARLY']?.trim() ?? '';
+    final bool isIos = !kIsWeb && Platform.isIOS;
+    final String weeklyKey = isIos ? 'IAP_PRODUCT_IOS_WEEKLY' : 'IAP_PRODUCT_WEEKLY';
+    final String monthlyKey = isIos ? 'IAP_PRODUCT_IOS_MONTHLY' : 'IAP_PRODUCT_MONTHLY';
+    final String yearlyKey = isIos ? 'IAP_PRODUCT_IOS_YEARLY' : 'IAP_PRODUCT_YEARLY';
+
+    final String weekly = dotenv.env[weeklyKey]?.trim() ?? '';
+    final String monthly = dotenv.env[monthlyKey]?.trim() ?? '';
+    final String yearly = dotenv.env[yearlyKey]?.trim() ?? '';
+    final List<String> fallback = isIos ? _fallbackIosProductIds : _fallbackAndroidProductIds;
     final Set<String> ids = <String>{
       if (weekly.isNotEmpty) weekly,
       if (monthly.isNotEmpty) monthly,
       if (yearly.isNotEmpty) yearly,
-      ..._fallbackProductIds,
+      ...fallback,
     };
+    _log('Using ${isIos ? 'iOS' : 'Android'} product IDs: ${ids.join(', ')}');
     return ids;
   }
 
