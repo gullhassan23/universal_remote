@@ -758,9 +758,11 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
 
     // Send per-key first for typed deltas (more reliable on many OEM TVs).
     final fallback = await _sendPerKeyFallback(inserted);
-    if (fallback.allSent) return true;
+    final needsImeFullSync = !fallback.allSent || _containsLetters(inserted);
+    if (!needsImeFullSync) return true;
 
-    // If some chars were unsupported (or nothing was sent), escalate to IME full sync.
+    // IME full sync is required when fallback is incomplete or text contains letters.
+    // Some OEM TVs ACK letter key events but do not render them in focused fields.
     if (targetText.isNotEmpty) {
       widget.controller.logButtonEvent(
         buttonKey: 'TEXT_DELTA',
@@ -847,6 +849,16 @@ class _TvKeyboardSheetState extends State<_TvKeyboardSheet> {
       sentAny: sentAny,
       allSent: sentAny && allSupportedSent,
     );
+  }
+
+  bool _containsLetters(String value) {
+    for (final rune in value.runes) {
+      final code = rune;
+      if ((code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _showFailureHint(String message) {

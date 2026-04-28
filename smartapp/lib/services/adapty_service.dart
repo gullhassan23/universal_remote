@@ -130,6 +130,20 @@ class AdaptyService extends GetxService {
                 : null);
 
     final bool isPremium = accessLevel?.isActive == true;
+    final bool isAndroid = !kIsWeb && Platform.isAndroid;
+    final bool hasLocalPremium = premiumController.isPremium.value;
+
+    // In Android observer mode, Adapty profile can temporarily report inactive
+    // right after a successful Play Billing purchase. Avoid overriding a
+    // locally verified premium state with this transient false signal.
+    if (isAndroid && !isPremium && hasLocalPremium) {
+      _log(
+        'Profile sync ($source) reported inactive access level on Android; '
+        'keeping existing local premium state to avoid false downgrade.',
+      );
+      return;
+    }
+
     await premiumController.setPremium(
       enabled: isPremium,
       productId: isPremium ? accessLevel?.vendorProductId : null,

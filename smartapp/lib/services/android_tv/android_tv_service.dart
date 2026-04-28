@@ -468,6 +468,7 @@ class AndroidTvService implements ITvService {
   Future<bool> sendTextPrepared(
     String text, {
     bool autoPrepareInputContext = true,
+    bool forcePrepareInputContext = false,
   }) async {
     if (_currentDevice == null || _state != TvConnectionState.connected) {
       return false;
@@ -479,12 +480,14 @@ class AndroidTvService implements ITvService {
     _log(
       'sendTextPrepared textLength=${normalizedText.length} '
       'autoPrepareInputContext=$autoPrepareInputContext '
+      'forcePrepareInputContext=$forcePrepareInputContext '
       'preview="${_previewTextForLog(normalizedText)}"',
     );
     try {
       var sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
         normalizedText,
         autoPrepareInputContext: autoPrepareInputContext,
+        forcePrepareInputContext: forcePrepareInputContext,
       );
       if (sent) {
         _log('sendTextPrepared accepted on first attempt');
@@ -494,6 +497,7 @@ class AndroidTvService implements ITvService {
       sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
         normalizedText,
         autoPrepareInputContext: autoPrepareInputContext,
+        forcePrepareInputContext: forcePrepareInputContext,
       );
       _log('sendTextPrepared retry result=$sent');
       return sent;

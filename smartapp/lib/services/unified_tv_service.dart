@@ -165,12 +165,14 @@ class UnifiedTvService implements ITvService {
   Future<bool> sendTextPrepared(
     String text, {
     bool autoPrepareInputContext = true,
+    bool forcePrepareInputContext = false,
   }) async {
     final service = _activeService;
     if (service == null) return false;
     return service.sendTextPrepared(
       text,
       autoPrepareInputContext: autoPrepareInputContext,
+      forcePrepareInputContext: forcePrepareInputContext,
     );
   }
 

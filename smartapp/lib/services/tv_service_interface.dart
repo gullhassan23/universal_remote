@@ -72,6 +72,7 @@ abstract class ITvService {
   Future<bool> sendTextPrepared(
     String text, {
     bool autoPrepareInputContext = true,
+    bool forcePrepareInputContext = false,
   });
 
   Future<bool> launchApp(String packageName);

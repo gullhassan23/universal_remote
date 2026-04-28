@@ -207,12 +207,14 @@ class RemoteController extends GetxController {
       var ok = await _connectionController.sendTextPrepared(
         normalized,
         autoPrepareInputContext: autoPrepareInputContext,
+        forcePrepareInputContext: source == 'mobile_keyboard',
       );
       if (!ok) {
         await Future<void>.delayed(const Duration(milliseconds: 45));
         ok = await _connectionController.sendTextPrepared(
           normalized,
           autoPrepareInputContext: autoPrepareInputContext,
+          forcePrepareInputContext: source == 'mobile_keyboard',
         );
       }
       if (ok) return true;
@@ -224,6 +226,7 @@ class RemoteController extends GetxController {
           final resent = await _connectionController.sendTextPrepared(
             normalized,
             autoPrepareInputContext: autoPrepareInputContext,
+            forcePrepareInputContext: source == 'mobile_keyboard',
           );
           if (resent) return true;
         }
@@ -236,6 +239,7 @@ class RemoteController extends GetxController {
       final resentAfterRestore = await _connectionController.sendTextPrepared(
         normalized,
         autoPrepareInputContext: autoPrepareInputContext,
+        forcePrepareInputContext: source == 'mobile_keyboard',
       );
       if (resentAfterRestore) return true;
     }

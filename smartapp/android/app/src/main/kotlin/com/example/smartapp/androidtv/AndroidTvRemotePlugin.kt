@@ -444,6 +444,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private suspend fun sendTextPrepared(arguments: Map<*, *>, result: MethodChannel.Result) {
         val text = arguments["text"] as? String
         val autoPrepareInputContext = arguments["autoPrepareInputContext"] as? Boolean ?: true
+        val forcePrepareInputContext = arguments["forcePrepareInputContext"] as? Boolean ?: false
         if (text.isNullOrBlank()) {
             mainHandler.post { result.success(false) }
             return
@@ -464,12 +465,16 @@ class AndroidTvRemotePlugin(private val context: Context) {
         Logger.d(
             "sendTextPrepared: start length=${text.length} " +
                 "autoPrepare=$autoPrepareInputContext " +
+                "forcePrepare=$forcePrepareInputContext " +
                 "imeCounter=${imeCounter.get()} fieldCounter=${imeFieldCounter.get()} " +
                 "imeFresh=${isImeContextFresh()}",
         )
 
-        if (autoPrepareInputContext && !isImeContextFresh()) {
-            Logger.d("sendTextPrepared: stale IME context, preparing before first send")
+        if (autoPrepareInputContext && (forcePrepareInputContext || !isImeContextFresh())) {
+            Logger.d(
+                "sendTextPrepared: preparing IME context before first send " +
+                    "force=$forcePrepareInputContext",
+            )
             ensureInputContext(remote)
         }
 

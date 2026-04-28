@@ -111,17 +111,20 @@ class AndroidTvRemotePlatform {
   Future<bool> sendTextPrepared(
     String text, {
     bool autoPrepareInputContext = true,
+    bool forcePrepareInputContext = false,
   }) async {
     ensureInitialized();
     _log(
       'sendTextPrepared call args={textLength:${text.length},'
-      'textPreview:"${_previewText(text)}",autoPrepareInputContext:$autoPrepareInputContext}',
+      'textPreview:"${_previewText(text)}",autoPrepareInputContext:$autoPrepareInputContext,'
+      'forcePrepareInputContext:$forcePrepareInputContext}',
     );
     final ok = await _channel.invokeMethod<bool>(
       'sendTextPrepared',
       <String, dynamic>{
         'text': text,
         'autoPrepareInputContext': autoPrepareInputContext,
+        'forcePrepareInputContext': forcePrepareInputContext,
       },
     );
     _log('sendTextPrepared result=${ok == true} rawResult=$ok');

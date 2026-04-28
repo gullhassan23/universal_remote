@@ -498,13 +498,19 @@ class SubscriptionIAPService extends GetxService {
       return;
     }
     final String? fcmToken = await getFcmTokenWithRetry();
+    final DateTime? purchaseDate = _parseDate(verification.purchaseDate) ??
+        _parseMillisDate(purchase.transactionDate);
+    final DateTime? resolvedExpiryDate = _resolveExpiryDate(
+      verification: verification,
+      productId: productId,
+      purchaseDate: purchaseDate,
+    );
     await Get.find<PremiumController>().setPremium(
       enabled: true,
       productId: productId,
       autoRenew: _extractAutoRenew(verification),
-      expiryDate: _parseExpiryDate(verification.expiryTime),
-      purchaseDate: _parseDate(verification.purchaseDate) ??
-          _parseMillisDate(purchase.transactionDate),
+      expiryDate: resolvedExpiryDate,
+      purchaseDate: purchaseDate,
       fcmToken: fcmToken,
     );
     await _persistPremiumSubscriptionMetadata(
@@ -546,10 +552,14 @@ class SubscriptionIAPService extends GetxService {
     try {
       final String userId = await getOrCreateUserId();
       final String platform = _platformLabel();
-      final DateTime? expiryDate = _parseExpiryDate(verification.expiryTime);
       final DateTime? purchaseDate = _parseDate(verification.purchaseDate) ??
           _parseMillisDate(purchase.transactionDate) ??
           DateTime.now().toUtc();
+      final DateTime? expiryDate = _resolveExpiryDate(
+        verification: verification,
+        productId: productId,
+        purchaseDate: purchaseDate,
+      );
       final Map<String, dynamic> payload = buildPremiumFirestorePayload(
         userId: userId,
         isPremium: true,
@@ -667,6 +677,48 @@ class SubscriptionIAPService extends GetxService {
   DateTime? _parseDate(String? value) {
     if (value == null || value.isEmpty) return null;
     return DateTime.tryParse(value)?.toUtc();
+  }
+
+  DateTime? _resolveExpiryDate({
+    required SubscriptionVerificationResult verification,
+    required String productId,
+    DateTime? purchaseDate,
+  }) {
+    final DateTime? backendExpiry = _parseExpiryDate(verification.expiryTime);
+    if (backendExpiry != null) return backendExpiry;
+    return _inferPlanExpiry(productId, purchaseDate: purchaseDate);
+  }
+
+  DateTime? _inferPlanExpiry(
+    String productId, {
+    DateTime? purchaseDate,
+  }) {
+    final DateTime base = (purchaseDate ?? DateTime.now().toUtc()).toUtc();
+    final String id = productId.toLowerCase();
+    if (id.contains('weekly') || id.contains('weakly')) {
+      return base.add(const Duration(days: 7));
+    }
+    if (id.contains('monthly')) {
+      return DateTime.utc(
+        base.year,
+        base.month + 1,
+        base.day,
+        base.hour,
+        base.minute,
+        base.second,
+      );
+    }
+    if (id.contains('yearly') || id.contains('annual')) {
+      return DateTime.utc(
+        base.year + 1,
+        base.month,
+        base.day,
+        base.hour,
+        base.minute,
+        base.second,
+      );
+    }
+    return null;
   }
 
   DateTime? _parseMillisDate(String? millis) {

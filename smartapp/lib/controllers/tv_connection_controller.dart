@@ -368,6 +368,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   Future<bool> sendTextPrepared(
     String text, {
     bool autoPrepareInputContext = true,
+    bool forcePrepareInputContext = false,
   }) async {
     final state = connectionState.value;
     final deviceName = currentDevice.value?.name ?? 'unknown-device';
@@ -378,6 +379,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     final sent = await _tvService.sendTextPrepared(
       text,
       autoPrepareInputContext: autoPrepareInputContext,
+      forcePrepareInputContext: forcePrepareInputContext,
     );
     if (sent) {
       _log(
