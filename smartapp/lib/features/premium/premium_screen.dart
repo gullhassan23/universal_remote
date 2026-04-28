@@ -8,6 +8,7 @@ import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 import 'package:smartapp/utils/constant.dart';
+import 'package:smartapp/utils/settings_actions.dart';
 
 enum _PremiumPlanType { monthly, weekly, yearly }
 
@@ -59,6 +60,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       },
     );
   }
+
 
   SubscriptionProduct _resolveSelectedProduct(
     List<SubscriptionProduct> products,
@@ -121,16 +123,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: Column(
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
-                            child: Image.asset(
-                              Premium.premium,
-                              width: double.infinity,
-                              height: 120,
-                              fit: BoxFit.cover,
-                            ),
+                          Image.asset(
+                            Premium.premium,
+                            width: double.infinity,
+                            height: 170,
+                            fit: BoxFit.cover,
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 10),
                           const Text(
                             'Turn Your Phone Into a Smart Remote Instantly',
                             textAlign: TextAlign.center,
@@ -157,8 +156,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             icon: Icons.control_camera,
                             text: 'Control Any TV Instantly',
                           ),
-                          
-                         
                           const SizedBox(height: 14),
                           const _FeatureItem(
                             icon: Icons.gamepad_outlined,
@@ -355,16 +352,63 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       },
                     ),
                   ),
-                  const Padding(
+                   Padding(
                     padding: EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'Limited Time Offer -- Cancel Anytime',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    // child: Text(
+                    //   'Limited Time Offer -- Cancel Anytime',
+                    //   textAlign: TextAlign.center,
+                    //   style: TextStyle(
+                    //     color: Colors.white70,
+                    //     fontSize: 13,
+                    //     fontWeight: FontWeight.w500,
+                    //   ),
+                    // ),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        GestureDetector(
+                          onTap: () => SettingsActions.openTermsAndConditions(
+                            screenName: 'PremiumScreen',
+                          ),
+                          child: Text(
+                            "Term",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => SettingsActions.restorePurchases(
+                            iapService: iapService,
+                            screenName: 'PremiumScreen',
+                          ),
+                          child: Text(
+                            "Restore",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => SettingsActions.openPrivacyPolicy(
+                            screenName: 'PremiumScreen',
+                          ),
+                          child: Text(
+                            "Privacy",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -432,90 +476,105 @@ class _PlanCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Ink(
-          height: 185, // reduced
-          decoration: BoxDecoration(
-            color:
-                highlighted ? const Color(0xFF57BFFF) : const Color(0xFF3A3F4A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: highlighted ? Colors.white : Colors.white24,
-              width: highlighted ? 2 : 1,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          margin: EdgeInsets.only(top: highlighted ? 0 : 10),
+          child: Ink(
+            height: highlighted ? 183 : 172,
+            decoration: BoxDecoration(
+              color: highlighted
+                  ? const Color(0xFF57BFFF)
+                  : const Color(0xFF3A3F4A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: highlighted ? Colors.white : Colors.white24,
+                width: highlighted ? 2 : 1,
+              ),
+              boxShadow: highlighted
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x66000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 10),
+                      ),
+                    ]
+                  : const [],
             ),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
 
-              // Badge
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: highlighted ? const Color(0xFFD6F1FF) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badge,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: highlighted
-                        ? const Color(0xFF1E88E5)
-                        : Colors.grey[700],
+                // Badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: highlighted ? const Color(0xFFD6F1FF) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badge,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: highlighted
+                          ? const Color(0xFF1E88E5)
+                          : Colors.grey[700],
+                    ),
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18, // FIXED
-                  fontWeight: FontWeight.w600,
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18, // FIXED
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 6),
+                const SizedBox(height: 6),
 
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 11,
+                Text(
+                  priceLine,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 11,
+                  ),
                 ),
-              ),
 
-              const Spacer(),
-              const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 18),
+                const Divider(color: Colors.white24, height: 1),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  children: [
-                    Text(
-                      priceLine,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    children: [
+                      Text(
+                        priceLine,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      durationLine,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 11,
+                      Text(
+                        durationLine,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              )
-            ],
+                    ],
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ),

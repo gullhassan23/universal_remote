@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
@@ -9,12 +8,13 @@ import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/features/Settings/faq_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
-import 'package:smartapp/features/onboarding/onboarding_screen.dart';
+
 import 'package:smartapp/models/tv_device.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/haptic_action.dart';
+import 'package:smartapp/utils/settings_actions.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 import 'package:smartapp/services/tv_service_interface.dart';
 import 'package:smartapp/widgets/top_banner_ad.dart';
@@ -25,8 +25,6 @@ import 'package:url_launcher/url_launcher.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   static const String _supportEmail = 'admin@maxgamesproduction.com';
-  static const String _defaultTermsConditionsUrl =
-      'https://docs.google.com/document/d/12WTnUBG0hlYkg5fRPIwxP4VnNkUhv_gnC19ulCfgHic/edit?tab=t.0';
 
   // bool _isHapticEnabled = true;
   PremiumController get premiumController => Get.find<PremiumController>();
@@ -38,50 +36,6 @@ class SettingsScreen extends StatelessWidget {
       Get.find<DeviceDiscoveryController>();
   SubscriptionIAPService get _iapService => Get.find<SubscriptionIAPService>();
   AnalyticsService get _analyticsService => Get.find<AnalyticsService>();
-
-  Future<void> _openPrivacyPolicy() async {
-    unawaited(
-      _analyticsService.trackClick(
-        'PrivacyPolicy',
-        screenName: 'SettingsScreen',
-      ),
-    );
-    final String privacyUrl = dotenv.env['PRIVACY_POLICY_URL']!.trim();
-
-    final uri = Uri.tryParse(privacyUrl);
-    if (uri == null) {
-      Get.snackbar('Error', 'Privacy policy URL is invalid.');
-      return;
-    }
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched) {
-      Get.snackbar('Error', 'Unable to open privacy policy.');
-    }
-  }
-
-  Future<void> _openTermsAndConditions() async {
-    unawaited(
-      _analyticsService.trackClick(
-        'TermsAndConditions',
-        screenName: 'SettingsScreen',
-      ),
-    );
-    final String termsUrl = (dotenv.env['TERMS_CONDITIONS_URL'] ??
-            dotenv.env['TERMS_AND_CONDITIONS_URL'] ??
-            _defaultTermsConditionsUrl)
-        .trim();
-
-    final uri = Uri.tryParse(termsUrl);
-    if (uri == null) {
-      Get.snackbar('Error', 'Terms & Conditions URL is invalid.');
-      return;
-    }
-
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched) {
-      Get.snackbar('Error', 'Unable to open Terms & Conditions.');
-    }
-  }
 
   Future<void> _openFeedbackEmail(BuildContext context) async {
     unawaited(
@@ -217,20 +171,9 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _restorePurchases() async {
-    unawaited(
-      _analyticsService.trackClick(
-        'RestorePurchases',
-        screenName: 'SettingsScreen',
-      ),
-    );
-    await _iapService.restorePurchases();
-    if (_iapService.lastError.value != null) {
-      Get.snackbar('Restore purchases', _iapService.lastError.value!);
-      return;
-    }
-    Get.snackbar(
-      'Restore purchases',
-      'Restore started. We will unlock premium after verification.',
+    await SettingsActions.restorePurchases(
+      iapService: _iapService,
+      screenName: 'SettingsScreen',
     );
   }
 
@@ -347,35 +290,39 @@ class SettingsScreen extends StatelessWidget {
                           onTap: _restorePurchases,
                         ),
                         _SettingsTile(
-                          icon: SettingsIcon.privacy,
-                          title: 'Privacy policy',
-                          onTap: _openPrivacyPolicy,
-                        ),
-                        _SettingsTile(
-                          icon: SettingsIcon.howtouse,
-                          title: 'How to use app',
-                          onTap: () {
-                            unawaited(
-                              _analyticsService.trackClick(
-                                'HowToUseApp',
-                                screenName: 'SettingsScreen',
-                              ),
-                            );
-                            Get.to(() => const InstructionOnboardingScreen());
-                          },
-                        ),
-                        _SettingsTile(
-                          icon: SettingsIcon.term,
-                          title: 'Term & Conditions',
-                          onTap: _openTermsAndConditions,
-                        ),
-                        _SettingsTile(
                           icon: SettingsIcon.notebook,
                           title: 'Send us a note',
                           onTap: () {
                             _openFeedbackEmail(context);
                           },
                         ),
+                        _SettingsTile(
+                          icon: SettingsIcon.privacy,
+                          title: 'Privacy policy',
+                          onTap: () => SettingsActions.openPrivacyPolicy(
+                            screenName: 'SettingsScreen',
+                          ),
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.term,
+                          title: 'Term & Conditions',
+                          onTap: () => SettingsActions.openTermsAndConditions(
+                            screenName: 'SettingsScreen',
+                          ),
+                        ),
+                        // _SettingsTile(
+                        //   icon: SettingsIcon.howtouse,
+                        //   title: 'How to use app',
+                        //   onTap: () {
+                        //     unawaited(
+                        //       _analyticsService.trackClick(
+                        //         'HowToUseApp',
+                        //         screenName: 'SettingsScreen',
+                        //       ),
+                        //     );
+                        //     Get.to(() => const InstructionOnboardingScreen());
+                        //   },
+                        // ),
                       ],
                     ),
                   ),

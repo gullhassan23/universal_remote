@@ -68,3 +68,4 @@ class NavIcon {
   static const String castIcon = 'assets/images/bottomnav/Cast.png';
   static const String settingsIcon = 'assets/images/bottomnav/Setting.png';
 }
+

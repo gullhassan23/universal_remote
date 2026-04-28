@@ -91,14 +91,11 @@ class _CastScreenState extends State<CastScreen> {
                         );
                         openPremiumStatusScreen();
                       },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.asset(
-                          Premium.premium,
-                          width: double.infinity,
-                          height: 94,
-                          fit: BoxFit.cover,
-                        ),
+                      child: Image.asset(
+                        Premium.premium,
+                        width: double.infinity,
+                        height: 170,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   );
@@ -287,7 +284,8 @@ class _CastScreenState extends State<CastScreen> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: currentIndex > 0
-                                    ? () => _moveToPage(currentIndex - 1, 'Previous')
+                                    ? () => _moveToPage(
+                                        currentIndex - 1, 'Previous')
                                     : null,
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
@@ -303,7 +301,8 @@ class _CastScreenState extends State<CastScreen> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: currentIndex < queue.length - 1
-                                    ? () => _moveToPage(currentIndex + 1, 'Next')
+                                    ? () =>
+                                        _moveToPage(currentIndex + 1, 'Next')
                                     : null,
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
@@ -321,7 +320,8 @@ class _CastScreenState extends State<CastScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => _handleMediaCastTap('ReplaceMedia'),
+                            onPressed: () =>
+                                _handleMediaCastTap('ReplaceMedia'),
                             icon:
                                 const Icon(Icons.add_photo_alternate_outlined),
                             label: const Text('Replace Media'),
@@ -334,10 +334,8 @@ class _CastScreenState extends State<CastScreen> {
                 const SizedBox(height: 10),
                 LayoutBuilder(
                   builder: (context, constraints) {
-               
                     // MREC inventory uses 300x250; keep the same aspect ratio to
                     // reserve full space and prevent overlap with content above.
-                    
 
                     return Center(
                       child: SizedBox(
