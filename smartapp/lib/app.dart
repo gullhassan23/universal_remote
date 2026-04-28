@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/bindings/home_binding.dart';
 import 'package:smartapp/features/get_started.dart';
 import 'package:smartapp/features/splash/splash_screen.dart';
 import 'package:smartapp/widgets/bottom_nav.dart';
@@ -28,7 +29,11 @@ class MyApp extends StatelessWidget {
           name: '/instructions',
           page: () => const InstructionOnboardingScreen(),
         ),
-        GetPage(name: '/home', page: () => const BottomNav()),
+        GetPage(
+          name: '/home',
+          page: () => const BottomNav(),
+          binding: HomeBinding(),
+        ),
       ],
     );
   }
