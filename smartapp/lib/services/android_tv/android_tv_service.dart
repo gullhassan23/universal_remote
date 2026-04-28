@@ -158,12 +158,14 @@ class AndroidTvService implements ITvService {
     MDnsClient? mdns;
     var hasMulticastLock = false;
     try {
-      hasMulticastLock =
-          await AndroidTvRemotePlatform.instance.acquireMulticastLock();
-      if (!hasMulticastLock && kDebugMode) {
-        // ignore: avoid_print
-        print(
-            'AndroidTvService._discoverMdns: failed to acquire multicast lock');
+      if (!kIsWeb && Platform.isAndroid) {
+        hasMulticastLock =
+            await AndroidTvRemotePlatform.instance.acquireMulticastLock();
+        if (!hasMulticastLock && kDebugMode) {
+          // ignore: avoid_print
+          print(
+              'AndroidTvService._discoverMdns: failed to acquire multicast lock');
+        }
       }
       mdns = MDnsClient();
       await mdns.start();
@@ -228,7 +230,7 @@ class AndroidTvService implements ITvService {
       }
     } finally {
       mdns?.stop();
-      if (hasMulticastLock) {
+      if (!kIsWeb && Platform.isAndroid && hasMulticastLock) {
         await AndroidTvRemotePlatform.instance.releaseMulticastLock();
       }
     }
