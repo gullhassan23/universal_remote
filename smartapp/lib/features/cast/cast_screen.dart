@@ -331,21 +331,23 @@ class _CastScreenState extends State<CastScreen> {
                     );
                   }),
                 ),
-                // const SizedBox(height: 10),
+                const SizedBox(height: 10),
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final adWidth = constraints.maxWidth.clamp(0.0, 300.0);
-                    final adHeight = adWidth * (140 / 300);
+               
+                    // MREC inventory uses 300x250; keep the same aspect ratio to
+                    // reserve full space and prevent overlap with content above.
+                    
 
                     return Center(
                       child: SizedBox(
-                        width: adWidth,
-                        height: adHeight,
-                        child: FittedBox(
+                        width: double.infinity,
+                        height: 20,
+                        child: const FittedBox(
                           fit: BoxFit.contain,
-                          child: const SizedBox(
+                          child: SizedBox(
                             width: 300,
-                            height: 200,
+                            height: 20,
                             child: StreamingMrecAd(),
                           ),
                         ),
