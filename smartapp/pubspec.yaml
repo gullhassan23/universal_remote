@@ -2,7 +2,10 @@ name: smartapp
 description: Flutter Universal TV Remote App (Samsung first, extensible to other brands).
 publish_to: "none"
 
-version: 1.0.0+1
+# Android version
+version: 1.0.1+2
+# IOS version
+# version: 1.0.0+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
