@@ -44,6 +44,10 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   final Rxn<CastSessionSnapshot> activeCastSession = Rxn<CastSessionSnapshot>();
   final RxString castConnectionLabel = ''.obs;
 
+  bool get hasActiveDeviceConnection =>
+      connectionState.value == TvConnectionState.connected &&
+      (currentDevice.value != null || activeCastSession.value != null);
+
   void _log(String message) {
     if (kDebugMode) {
       // ignore: avoid_print

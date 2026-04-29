@@ -60,9 +60,8 @@ class _InstructionOnboardingScreenState
   }
 
   Future<void> _completeAndGoHome() async {
-    await markInstructionOnboardingCompleted();
-    if (!mounted) return;
     Get.offAllNamed('/home');
+    unawaited(markInstructionOnboardingCompleted());
   }
 
   void _goNext() {

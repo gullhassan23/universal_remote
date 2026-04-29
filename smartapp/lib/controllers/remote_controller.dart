@@ -22,13 +22,13 @@ class RemoteController extends GetxController {
     DeviceDiscoveryController? discoveryController,
     MediaCastController? mediaCastController,
     CompanionTvService? companionTvService,
-  }) : _connectionController =
-           connectionController ?? Get.find<TvConnectionController>(),
-       _discoveryController =
-           discoveryController ?? Get.find<DeviceDiscoveryController>(),
-       _mediaCastController =
-           mediaCastController ?? Get.find<MediaCastController>(),
-       _companionTvService = companionTvService ?? CompanionTvService();
+  })  : _connectionController =
+            connectionController ?? Get.find<TvConnectionController>(),
+        _discoveryController =
+            discoveryController ?? Get.find<DeviceDiscoveryController>(),
+        _mediaCastController =
+            mediaCastController ?? Get.find<MediaCastController>(),
+        _companionTvService = companionTvService ?? CompanionTvService();
 
   final TvConnectionController _connectionController;
   final DeviceDiscoveryController _discoveryController;
@@ -182,12 +182,26 @@ class RemoteController extends GetxController {
   }) async {
     final normalized = text.trim();
     if (normalized.isEmpty) return false;
-    if (_companionTvService.isFeatureEnabled) {
+    debugPrint(
+      '[remote_controller] send_prepared_text_start '
+      'source=$source length=${normalized.length} '
+      'autoPrepareInputContext=$autoPrepareInputContext '
+      'preview="${_previewPayload(normalized)}"',
+    );
+    if (source != 'mobile_keyboard' && _companionTvService.isFeatureEnabled) {
       final reachable = await _companionTvService.isReachable();
+      debugPrint(
+        '[remote_controller] companion_route_check '
+        'source=$source reachable=$reachable',
+      );
       if (reachable) {
         final sentViaCompanion = await _companionTvService.sendVoiceText(
           text: normalized,
           source: source,
+        );
+        debugPrint(
+          '[remote_controller] companion_route_result '
+          'source=$source sent=$sentViaCompanion',
         );
         if (sentViaCompanion) {
           return true;
@@ -203,11 +217,16 @@ class RemoteController extends GetxController {
       return false;
     }
 
-    if (_connectionController.connectionState.value == TvConnectionState.connected) {
+    if (_connectionController.connectionState.value ==
+        TvConnectionState.connected) {
       var ok = await _connectionController.sendTextPrepared(
         normalized,
         autoPrepareInputContext: autoPrepareInputContext,
         forcePrepareInputContext: source == 'mobile_keyboard',
+      );
+      debugPrint(
+        '[remote_controller] prepared_text_attempt_1 '
+        'source=$source sent=$ok',
       );
       if (!ok) {
         await Future<void>.delayed(const Duration(milliseconds: 45));
@@ -216,17 +235,29 @@ class RemoteController extends GetxController {
           autoPrepareInputContext: autoPrepareInputContext,
           forcePrepareInputContext: source == 'mobile_keyboard',
         );
+        debugPrint(
+          '[remote_controller] prepared_text_attempt_2 '
+          'source=$source sent=$ok',
+        );
       }
       if (ok) return true;
 
       final device = _connectionController.currentDevice.value;
       if (device != null) {
         final reconnected = await _connectionController.connectTo(device);
+        debugPrint(
+          '[remote_controller] prepared_text_reconnect_for_resend '
+          'source=$source reconnected=$reconnected',
+        );
         if (reconnected) {
           final resent = await _connectionController.sendTextPrepared(
             normalized,
             autoPrepareInputContext: autoPrepareInputContext,
             forcePrepareInputContext: source == 'mobile_keyboard',
+          );
+          debugPrint(
+            '[remote_controller] prepared_text_resend_after_reconnect '
+            'source=$source sent=$resent',
           );
           if (resent) return true;
         }
@@ -235,11 +266,19 @@ class RemoteController extends GetxController {
 
     final restored =
         await _connectionController.tryRestoreLastConnectedDeviceOnDemand();
+    debugPrint(
+      '[remote_controller] prepared_text_restore_last_device '
+      'source=$source restored=$restored',
+    );
     if (restored) {
       final resentAfterRestore = await _connectionController.sendTextPrepared(
         normalized,
         autoPrepareInputContext: autoPrepareInputContext,
         forcePrepareInputContext: source == 'mobile_keyboard',
+      );
+      debugPrint(
+        '[remote_controller] prepared_text_resend_after_restore '
+        'source=$source sent=$resentAfterRestore',
       );
       if (resentAfterRestore) return true;
     }
@@ -249,6 +288,10 @@ class RemoteController extends GetxController {
       _pendingKey = '__TEXT__:$normalized';
       _openPickerIfNeeded();
     }
+    debugPrint(
+      '[remote_controller] send_prepared_text_failed '
+      'source=$source preview="${_previewPayload(normalized)}"',
+    );
     return false;
   }
 
@@ -300,7 +343,8 @@ class RemoteController extends GetxController {
     debugPrint('[remote_controller] restore_last_device ok=$restored');
     if (restored) {
       final resentAfterRestore = await _connectionController.sendKey(payload);
-      debugPrint('[remote_controller] resend_after_restore ok=$resentAfterRestore');
+      debugPrint(
+          '[remote_controller] resend_after_restore ok=$resentAfterRestore');
       if (resentAfterRestore) return true;
     }
 
@@ -408,8 +452,8 @@ class RemoteController extends GetxController {
     final schedulerPhase = SchedulerBinding.instance.schedulerPhase;
     final isBuildingFrame =
         schedulerPhase == SchedulerPhase.transientCallbacks ||
-        schedulerPhase == SchedulerPhase.persistentCallbacks ||
-        schedulerPhase == SchedulerPhase.midFrameMicrotasks;
+            schedulerPhase == SchedulerPhase.persistentCallbacks ||
+            schedulerPhase == SchedulerPhase.midFrameMicrotasks;
     if (isBuildingFrame) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (showDevicePicker.value != value) {

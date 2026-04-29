@@ -37,6 +37,7 @@ class AndroidTvService implements ITvService {
   TvDevice? _currentDevice;
   String? _lastError;
   String? _lastCertificateError;
+  bool _sessionEndCheckInProgress = false;
 
   String? get lastError => _lastError;
 
@@ -68,8 +69,39 @@ class AndroidTvService implements ITvService {
 
   void _onNativeRemoteSessionEnded(String reason) {
     if (_state == TvConnectionState.disconnected) return;
-    _log('native session ended reason=$reason');
-    _syncState(TvConnectionState.disconnected);
+    _log('native session ended signal reason=$reason');
+    unawaited(_verifyAndHandleNativeSessionEnded(reason));
+  }
+
+  Future<void> _verifyAndHandleNativeSessionEnded(String reason) async {
+    if (_sessionEndCheckInProgress) return;
+    _sessionEndCheckInProgress = true;
+    try {
+      if (!Platform.isAndroid) {
+        _syncState(TvConnectionState.disconnected);
+        return;
+      }
+      final aliveNow =
+          await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+      if (aliveNow) {
+        _log('ignored native session ended (session still alive)');
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 550));
+      final aliveAfterDelay =
+          await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+      if (aliveAfterDelay) {
+        _log('ignored native session ended after delayed recheck');
+        return;
+      }
+      _log('native session confirmed ended reason=$reason');
+      _syncState(TvConnectionState.disconnected);
+    } catch (e) {
+      _log('native session end verification failed, marking disconnected: $e');
+      _syncState(TvConnectionState.disconnected);
+    } finally {
+      _sessionEndCheckInProgress = false;
+    }
   }
 
   @override
@@ -86,11 +118,17 @@ class AndroidTvService implements ITvService {
     if (!Platform.isAndroid) {
       return true;
     }
-    final alive = await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
-    if (!alive) {
-      _syncState(TvConnectionState.disconnected);
+    try {
+      final alive =
+          await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+      if (!alive) {
+        _syncState(TvConnectionState.disconnected);
+      }
+      return alive;
+    } catch (e) {
+      _log('verifyConnectedSessionAlive failed: $e');
+      return false;
     }
-    return alive;
   }
 
   @override
@@ -346,6 +384,17 @@ class AndroidTvService implements ITvService {
       return false;
     }
 
+    if (_state == TvConnectionState.connected &&
+        _currentDevice?.ip == device.ip &&
+        Platform.isAndroid) {
+      final alive = await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+      if (alive) {
+        _lastError = null;
+        _log('connect skipped: already connected to ${device.ip}');
+        return true;
+      }
+    }
+
     await disconnect();
     _syncState(TvConnectionState.connecting);
     _currentDevice = device;
@@ -459,7 +508,16 @@ class AndroidTvService implements ITvService {
         // ignore: avoid_print
         print('AndroidTvService.sendKey: $e');
       }
-      _syncState(TvConnectionState.error);
+      try {
+        final alive = await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+        if (!alive) {
+          _syncState(TvConnectionState.disconnected);
+        } else {
+          _log('sendKey threw but session still alive, preserving connected state');
+        }
+      } catch (_) {
+        _syncState(TvConnectionState.error);
+      }
       return false;
     }
   }
