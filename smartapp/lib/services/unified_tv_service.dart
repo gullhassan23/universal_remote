@@ -166,6 +166,7 @@ class UnifiedTvService implements ITvService {
     String text, {
     bool autoPrepareInputContext = true,
     bool forcePrepareInputContext = false,
+    bool liveTyping = false,
   }) async {
     final service = _activeService;
     if (service == null) return false;
@@ -173,6 +174,7 @@ class UnifiedTvService implements ITvService {
       text,
       autoPrepareInputContext: autoPrepareInputContext,
       forcePrepareInputContext: forcePrepareInputContext,
+      liveTyping: liveTyping,
     );
   }
 

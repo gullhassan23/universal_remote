@@ -35,6 +35,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   Timer? _resumeDebounceTimer;
   Timer? _connectionHealthTimer;
   int _resumeToken = 0;
+  VoidCallback? _onKeyboardConnectionRequired;
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
   final Rx<TvConnectionState> connectionState =
@@ -53,6 +54,14 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       // ignore: avoid_print
       print('TvConnectionController: $message');
     }
+  }
+
+  void registerKeyboardConnectionRequiredCallback(VoidCallback callback) {
+    _onKeyboardConnectionRequired = callback;
+  }
+
+  void unregisterKeyboardConnectionRequiredCallback() {
+    _onKeyboardConnectionRequired = null;
   }
 
   @override
@@ -373,10 +382,16 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     String text, {
     bool autoPrepareInputContext = true,
     bool forcePrepareInputContext = false,
+    bool liveTyping = false,
+    bool openPickerOnFailure = false,
   }) async {
+    final ready = await ensureConnectedForKeyboardInput(
+      openPickerOnFailure: openPickerOnFailure,
+    );
     final state = connectionState.value;
     final deviceName = currentDevice.value?.name ?? 'unknown-device';
-    if (state != TvConnectionState.connected) {
+    if (!ready || state != TvConnectionState.connected) {
+      _log('[Error] Session inactive');
       _log('sendTextPrepared failed reason=not_connected state=$state');
       return false;
     }
@@ -384,17 +399,46 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       text,
       autoPrepareInputContext: autoPrepareInputContext,
       forcePrepareInputContext: forcePrepareInputContext,
+      liveTyping: liveTyping,
     );
     if (sent) {
       _log(
-        'sendTextPrepared success length=${text.length} device=$deviceName autoPrepare=$autoPrepareInputContext',
+        'sendTextPrepared success length=${text.length} device=$deviceName '
+        'autoPrepare=$autoPrepareInputContext liveTyping=$liveTyping',
       );
     } else {
       _log(
-        'sendTextPrepared failed length=${text.length} device=$deviceName autoPrepare=$autoPrepareInputContext',
+        'sendTextPrepared failed length=${text.length} device=$deviceName '
+        'autoPrepare=$autoPrepareInputContext liveTyping=$liveTyping',
       );
     }
     return sent;
+  }
+
+  Future<bool> ensureConnectedForKeyboardInput({
+    bool openPickerOnFailure = false,
+  }) async {
+    final state = connectionState.value;
+    if (state == TvConnectionState.connected) {
+      final alive = await _tvService.verifyConnectedSessionAlive();
+      if (alive) {
+        _log('[Connection] Session Active ✅');
+        return true;
+      }
+    }
+    _log('[Error] Session inactive');
+    final restored = await _restoreLastConnectedDevice();
+    if (restored) {
+      final aliveAfterReconnect = await _tvService.verifyConnectedSessionAlive();
+      if (aliveAfterReconnect) {
+        _log('[Connection] Session Active ✅');
+        return true;
+      }
+    }
+    if (openPickerOnFailure) {
+      _onKeyboardConnectionRequired?.call();
+    }
+    return false;
   }
 
   Future<bool> launchApp(String packageName) {

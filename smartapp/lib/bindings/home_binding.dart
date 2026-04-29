@@ -10,6 +10,7 @@
 import 'package:get/get.dart';
 import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/ad_controller.dart';
+import 'package:smartapp/controllers/keyboard_controller.dart';
 import 'package:smartapp/controllers/media_cast_controller.dart';
 import 'package:smartapp/controllers/remote_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
@@ -37,6 +38,14 @@ class HomeBinding extends Bindings {
           connectionController: Get.find<TvConnectionController>(),
           discoveryController: Get.find<DeviceDiscoveryController>(),
           mediaCastController: Get.find<MediaCastController>(),
+        ),
+        fenix: true,
+      );
+    }
+    if (!Get.isRegistered<KeyboardController>()) {
+      Get.lazyPut<KeyboardController>(
+        () => KeyboardController(
+          connectionController: Get.find<TvConnectionController>(),
         ),
         fenix: true,
       );

@@ -69,10 +69,16 @@ abstract class ITvService {
   ///
   /// Implementations should try direct IME commit first when possible and
   /// optionally prepare an input context (search/assistant) when needed.
+  ///
+  /// When [liveTyping] is true the implementation should use the lowest-latency
+  /// path possible (no HOME -> SEARCH/ASSIST nudging, no whitespace trimming) so
+  /// per-keystroke calls feel instant; the caller is expected to push the full
+  /// cumulative buffer on every keystroke for self-healing on packet loss.
   Future<bool> sendTextPrepared(
     String text, {
     bool autoPrepareInputContext = true,
     bool forcePrepareInputContext = false,
+    bool liveTyping = false,
   });
 
   Future<bool> launchApp(String packageName);

@@ -112,12 +112,13 @@ class AndroidTvRemotePlatform {
     String text, {
     bool autoPrepareInputContext = true,
     bool forcePrepareInputContext = false,
+    bool liveTyping = false,
   }) async {
     ensureInitialized();
     _log(
       'sendTextPrepared call args={textLength:${text.length},'
       'textPreview:"${_previewText(text)}",autoPrepareInputContext:$autoPrepareInputContext,'
-      'forcePrepareInputContext:$forcePrepareInputContext}',
+      'forcePrepareInputContext:$forcePrepareInputContext,liveTyping:$liveTyping}',
     );
     final ok = await _channel.invokeMethod<bool>(
       'sendTextPrepared',
@@ -125,10 +126,40 @@ class AndroidTvRemotePlatform {
         'text': text,
         'autoPrepareInputContext': autoPrepareInputContext,
         'forcePrepareInputContext': forcePrepareInputContext,
+        'liveTyping': liveTyping,
       },
     );
     _log('sendTextPrepared result=${ok == true} rawResult=$ok');
     return ok == true;
+  }
+
+  /// Returns the latest IME counter pair the TV has reported, or zeros if no
+  /// counters have been received yet. Used by the keyboard debug log to detect
+  /// per-keystroke acknowledgement (counter advance after a send).
+  Future<Map<String, int>> getImeCounters() async {
+    ensureInitialized();
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('getImeCounters');
+      if (raw is! Map) {
+        return const <String, int>{'ime': 0, 'field': 0, 'lastUpdateAtMs': 0};
+      }
+      final result = <String, int>{};
+      raw.forEach((key, value) {
+        final v = value;
+        if (v is int) {
+          result[key.toString()] = v;
+        } else if (v is num) {
+          result[key.toString()] = v.toInt();
+        }
+      });
+      return result;
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvRemotePlatform.getImeCounters: $e $st');
+      }
+      return const <String, int>{'ime': 0, 'field': 0, 'lastUpdateAtMs': 0};
+    }
   }
 
   Future<bool> launchApp(String packageName) async {

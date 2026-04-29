@@ -92,6 +92,15 @@ class AndroidTvRemotePlugin(private val context: Context) {
                         result,
                     )
                 }
+                "getImeCounters" -> mainHandler.post {
+                    result.success(
+                        mapOf(
+                            "ime" to imeCounter.get(),
+                            "field" to imeFieldCounter.get(),
+                            "lastUpdateAtMs" to lastImeUpdateAtMs.get(),
+                        ),
+                    )
+                }
                 "launchApp" -> scope.launch {
                     launchApp(
                         call.arguments as? Map<*, *> ?: emptyMap<String, Any?>(),
@@ -358,6 +367,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
             mainHandler.post { result.success(false) }
             return
         }
+        Logger.d("[Connection] Paired ✅")
 
         tlsRemote = TLSManager(sslContext)
         if (tlsRemote!!.connect(host, remotePort) != true) {
@@ -366,6 +376,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
             mainHandler.post { result.success(false) }
             return
         }
+        Logger.d("[Connection] TLS Connected ✅")
 
         remoteController = RemoteController(tlsRemote!!)
         startRemoteReaderLoop()
@@ -376,6 +387,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
             mainHandler.post { result.success(false) }
             return
         }
+        Logger.d("[Connection] Session Active ✅")
         Logger.d("connectAndPair: remote channel ready host=$host port=$remotePort")
         mainHandler.post { result.success(true) }
     }
@@ -445,7 +457,8 @@ class AndroidTvRemotePlugin(private val context: Context) {
         val text = arguments["text"] as? String
         val autoPrepareInputContext = arguments["autoPrepareInputContext"] as? Boolean ?: true
         val forcePrepareInputContext = arguments["forcePrepareInputContext"] as? Boolean ?: false
-        if (text.isNullOrBlank()) {
+        val liveTyping = arguments["liveTyping"] as? Boolean ?: false
+        if (text.isNullOrEmpty()) {
             mainHandler.post { result.success(false) }
             return
         }
@@ -455,10 +468,37 @@ class AndroidTvRemotePlugin(private val context: Context) {
         val remote = remoteController
         if (remote == null || !remoteReady.get()) {
             Logger.e(
+                "[Error] Session inactive; " +
                 "sendTextPrepared: remote unavailable " +
-                    "remoteNull=${remote == null} remoteReady=${remoteReady.get()}",
+                    "remoteNull=${remote == null} remoteReady=${remoteReady.get()} " +
+                    "liveTyping=$liveTyping",
             )
             mainHandler.post { result.success(false) }
+            return
+        }
+
+        if (liveTyping) {
+            // Live keystroke fast-path: never nudge through HOME -> SEARCH/ASSIST,
+            // never run the heavy 7-attempt fallback. The TV is assumed to already
+            // be on a focused input field; we just push the cumulative buffer.
+            if (!isImeContextFresh() && autoPrepareInputContext) {
+                val prepared = ensureInputContext(remote)
+                if (!prepared) {
+                    Logger.e("[Error] Session inactive")
+                    mainHandler.post { result.success(false) }
+                    return
+                }
+            }
+            Logger.d("[Protocol] Sending: $text")
+            val sentLive = sendTextLive(text)
+            Logger.d(
+                "sendTextPrepared: live length=${text.length} sent=$sentLive " +
+                    "ime=${imeCounter.get()} field=${imeFieldCounter.get()}",
+            )
+            if (!sentLive) {
+                Logger.e("[Error] Message failed")
+            }
+            mainHandler.post { result.success(sentLive) }
             return
         }
 
@@ -485,6 +525,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
             return
         }
         if (!autoPrepareInputContext) {
+            Logger.e("[Error] Message failed")
             mainHandler.post { result.success(false) }
             return
         }
@@ -492,6 +533,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         val prepared = ensureInputContext(remote)
         Logger.d("sendTextPrepared: ensureInputContext prepared=$prepared")
         if (!prepared) {
+            Logger.e("[Error] Session inactive")
             mainHandler.post { result.success(false) }
             return
         }
@@ -507,7 +549,49 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 return
             }
         }
+        Logger.e("[Error] Message failed")
         mainHandler.post { result.success(false) }
+    }
+
+    /**
+     * Live-typing fast-path: push cumulative text with low-latency counter
+     * permutations. Some OEM IMEs advance/shift field counters while their
+     * on-screen keyboard is active, so `(ime,field)` alone is not enough.
+     *
+     * We keep this path lightweight (no HOME/SEARCH nudging and no long retry
+     * loops) but try a compact matrix to avoid "text appears only after IME
+     * closes" behavior when field counter drifts mid-session.
+     */
+    private fun sendTextLive(text: String): Boolean {
+        val remote = remoteController ?: return false
+        val currentIme = imeCounter.get()
+        val currentField = imeFieldCounter.get()
+        val attempts =
+            listOf(
+                currentIme to currentField,
+                (currentIme + 1) to currentField,
+                currentIme to (currentField + 1),
+                (currentIme + 1) to (currentField + 1),
+            ).distinct()
+
+        for ((index, pair) in attempts.withIndex()) {
+            if (!remoteReady.get()) return false
+            val ime = pair.first
+            val field = pair.second
+            val sent = remote.sendText(text = text, imeCounter = ime, fieldCounter = field)
+            Logger.d(
+                "sendTextLive: attempt=$index ime=$ime field=$field " +
+                    "length=${text.length} sent=$sent",
+            )
+            if (sent) {
+                imeCounter.set(ime + 1)
+                imeFieldCounter.set(field)
+                Logger.d("[TV] Received: $text")
+                return true
+            }
+        }
+
+        return false
     }
 
     private fun sendTextWithCounterFallback(text: String): Boolean {
@@ -538,6 +622,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 // Reader loop updates from TV still take precedence when available.
                 imeCounter.set(ime + 1)
                 imeFieldCounter.set(field)
+                Logger.d("[TV] Received: $text")
                 return true
             }
             if (!remoteReady.get()) {

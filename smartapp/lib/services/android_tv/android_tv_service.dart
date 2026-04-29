@@ -431,6 +431,9 @@ class AndroidTvService implements ITvService {
         if (ok) {
           _lastError = null;
           _syncState(TvConnectionState.connected);
+          _log('[Connection] Paired ✅');
+          _log('[Connection] TLS Connected ✅');
+          _log('[Connection] Session Active ✅');
           _log('connect success ip=${device.ip}');
           return true;
         }
@@ -527,21 +530,48 @@ class AndroidTvService implements ITvService {
     String text, {
     bool autoPrepareInputContext = true,
     bool forcePrepareInputContext = false,
+    bool liveTyping = false,
   }) async {
     if (_currentDevice == null || _state != TvConnectionState.connected) {
       return false;
     }
     if (!Platform.isAndroid) return false;
-    final normalizedText = text.trim();
+    // Live-typing keystrokes must preserve whitespace verbatim (e.g. " ", " a")
+    // because the cumulative buffer is the source of truth on the TV side.
+    final normalizedText = liveTyping ? text : text.trim();
     if (normalizedText.isEmpty) return false;
+    final aliveBeforeSend =
+        await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
+    if (!aliveBeforeSend) {
+      _log('[Error] Session inactive');
+      _syncState(TvConnectionState.disconnected);
+      return false;
+    }
 
     _log(
       'sendTextPrepared textLength=${normalizedText.length} '
       'autoPrepareInputContext=$autoPrepareInputContext '
       'forcePrepareInputContext=$forcePrepareInputContext '
+      'liveTyping=$liveTyping '
       'preview="${_previewTextForLog(normalizedText)}"',
     );
     try {
+      if (liveTyping) {
+        // Single fast call; native handles its own (limited) retry.
+        _log('[Protocol] Sending: ${_previewTextForLog(normalizedText)}');
+        final sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
+          normalizedText,
+          autoPrepareInputContext: autoPrepareInputContext,
+          forcePrepareInputContext: forcePrepareInputContext,
+          liveTyping: true,
+        );
+        _log('sendTextPrepared liveTyping result=$sent');
+        if (!sent) {
+          _log('[Error] Message failed');
+        }
+        return sent;
+      }
+      _log('[Protocol] Sending: ${_previewTextForLog(normalizedText)}');
       var sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
         normalizedText,
         autoPrepareInputContext: autoPrepareInputContext,
@@ -558,12 +588,16 @@ class AndroidTvService implements ITvService {
         forcePrepareInputContext: forcePrepareInputContext,
       );
       _log('sendTextPrepared retry result=$sent');
+      if (!sent) {
+        _log('[Error] Message failed');
+      }
       return sent;
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print
         print('AndroidTvService.sendTextPrepared failed: $e');
       }
+      _log('[Error] Message failed');
       return false;
     }
   }

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import 'tv_connection_controller.dart';
 import 'media_cast_controller.dart';
+import 'keyboard_controller.dart';
 import 'vibratiion_controller.dart';
 import '../models/tv_device.dart';
 import '../services/companion/companion_tv_service.dart';
@@ -13,6 +14,7 @@ import '../services/analytics_service.dart';
 import '../services/tv_service_interface.dart';
 import '../features/device_discovery/device_discovery_controller.dart';
 import '../widgets/remote_device_picker_sheet.dart';
+import '../widgets/remote_keyboard_sheet.dart';
 
 enum _RemoteSheetType { picker, keyboard }
 
@@ -39,6 +41,7 @@ class RemoteController extends GetxController {
   var selectedTab = 0.obs;
   final RxBool showDevicePicker = false.obs;
   String? _pendingKey;
+  bool _pendingOpenKeyboardAfterConnect = false;
   bool _pickerSheetVisible = false;
   _RemoteSheetType? _activeSheetType;
   VoidCallback? _keyboardSheetCloser;
@@ -95,6 +98,7 @@ class RemoteController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _connectionController.registerKeyboardConnectionRequiredCallback(_openPickerIfNeeded);
     ever(showDevicePicker, (show) {
       if (show && !_pickerSheetVisible) {
         _pickerSheetVisible = true;
@@ -105,7 +109,20 @@ class RemoteController extends GetxController {
       _connectionController.connectionState,
       (state) {
         if (state == TvConnectionState.connected) {
+          if (_pendingOpenKeyboardAfterConnect) {
+            _pendingOpenKeyboardAfterConnect = false;
+            _dismissPickerSheetIfVisible();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showKeyboardSheet();
+            });
+            return;
+          }
           _dismissActiveSheetIfVisible();
+        } else if (state == TvConnectionState.disconnected ||
+            state == TvConnectionState.error) {
+          // Connection dropped: close the keyboard sheet if it was open and
+          // clear any pending open-after-connect intent.
+          _dismissKeyboardSheetIfVisible();
         }
       },
     );
@@ -113,6 +130,7 @@ class RemoteController extends GetxController {
 
   @override
   void onClose() {
+    _connectionController.unregisterKeyboardConnectionRequiredCallback();
     _connectionStateWorker?.dispose();
     super.onClose();
   }
@@ -500,6 +518,60 @@ class RemoteController extends GetxController {
       if (showDevicePicker.value) {
         _setShowDevicePickerSafely(false);
       }
+      // If the picker is dismissed without connecting, abandon any pending
+      // intent to open the keyboard so a later reconnect doesn't surprise
+      // the user with an out-of-context sheet.
+      _pendingOpenKeyboardAfterConnect = false;
+    });
+  }
+
+  /// Public entry point: ensures the TV is connected, then opens the keyboard
+  /// sheet. If not connected, opens the device picker first; the keyboard
+  /// sheet auto-launches after a successful connection.
+  Future<void> openKeyboard() async {
+    if (_connectionController.connectionState.value ==
+        TvConnectionState.connected) {
+      _pendingOpenKeyboardAfterConnect = false;
+      _showKeyboardSheet();
+      return;
+    }
+    _pendingOpenKeyboardAfterConnect = true;
+    _showReconnectNoticeIfAny();
+    _openPickerIfNeeded();
+  }
+
+  void _showKeyboardSheet() {
+    if (_activeSheetType == _RemoteSheetType.keyboard) return;
+    _dismissPickerSheetIfVisible();
+    KeyboardController kbController;
+    try {
+      kbController = Get.find<KeyboardController>();
+    } catch (_) {
+      Get.lazyPut<KeyboardController>(
+        () => KeyboardController(connectionController: _connectionController),
+        fenix: true,
+      );
+      kbController = Get.find<KeyboardController>();
+    }
+    _activeSheetType = _RemoteSheetType.keyboard;
+    Get.bottomSheet(
+      RemoteKeyboardSheet(
+        keyboardController: kbController,
+        connectionController: _connectionController,
+        onHandleTap: handleButtonTap,
+        registerCloser: registerKeyboardSheetCloser,
+        unregisterCloser: unregisterKeyboardSheetCloser,
+      ),
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+    ).whenComplete(() {
+      if (_activeSheetType == _RemoteSheetType.keyboard) {
+        _activeSheetType = null;
+      }
+      _keyboardSheetCloser = null;
     });
   }
 }

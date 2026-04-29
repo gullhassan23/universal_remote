@@ -1,17 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 
 import '../../services/analytics_service.dart';
 
+import '../../controllers/keyboard_controller.dart';
 import '../../controllers/remote_controller.dart';
 import '../../controllers/remote_style_controller.dart';
 import '../../controllers/voice_controller.dart';
 import '../../services/tv_service_interface.dart';
 import '../cast/cast_session_banner.dart';
 import '../../widgets/top_banner_ad.dart';
+import 'keyboard_debug_log_screen.dart';
 
 class RemoteScreen extends GetView<RemoteController> {
   const RemoteScreen({super.key});
@@ -297,7 +300,8 @@ class RemoteScreen extends GetView<RemoteController> {
               //   icon: Icons.exit_to_app,
               //   onTap: _sendKeyTap('KEY_RETURN'),
               // ),
-              SizedBox(height: 19),
+              _keyboardActionButton(),
+
               Obx(() {
                 final isListening = voiceController.isListening.value;
                 final isPremium = isPremiumUnlocked();
@@ -602,16 +606,55 @@ class RemoteScreen extends GetView<RemoteController> {
         _roundedActionButton(
           icon: Icons.arrow_back,
           onTap: _sendKeyTap('KEY_RETURN'),
-          width: 84,
+          width: 78,
           height: 50,
         ),
         _roundedActionButton(
           icon: Icons.home,
           onTap: _sendKeyTap('KEY_HOME'),
-          width: 84,
+          width: 78,
           height: 50,
         ),
       ],
+    );
+  }
+
+  Widget _keyboardActionButton() {
+    final onTap = _loggedTap(
+      'KEY_KEYBOARD',
+      () async {
+        await controller.openKeyboard();
+      },
+      action: 'open_keyboard',
+    );
+    return GestureDetector(
+      onLongPress: kDebugMode
+          ? () {
+              KeyboardController kbController;
+              if (Get.isRegistered<KeyboardController>()) {
+                kbController = Get.find<KeyboardController>();
+              } else {
+                Get.lazyPut<KeyboardController>(
+                  () => KeyboardController(
+                    connectionController: controller.connectionController,
+                  ),
+                  fenix: true,
+                );
+                kbController = Get.find<KeyboardController>();
+              }
+              Get.to(
+                () => KeyboardDebugLogScreen(
+                  keyboardController: kbController,
+                ),
+              );
+            }
+          : null,
+      child: _roundedActionButton(
+        icon: Icons.keyboard_alt_outlined,
+        onTap: onTap,
+        width: 78,
+        height: 50,
+      ),
     );
   }
 }

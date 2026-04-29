@@ -1,5 +1,6 @@
 package com.FutureDialLabs.tv.remote.universal.control.androidtv.protocol
 
+import com.FutureDialLabs.tv.remote.universal.control.androidtv.util.Logger
 import java.io.ByteArrayInputStream
 
 object MessageParser {
@@ -54,7 +55,8 @@ object MessageParser {
                 }
             }
             RemoteMessageType.OTHER
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Logger.e("[Error] Invalid protobuf format: ${e.message}", e)
             RemoteMessageType.OTHER
         }
     }
@@ -75,7 +77,8 @@ object MessageParser {
                 skipField(input, wireType)
             }
             null
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Logger.e("[Error] Invalid protobuf format: ${e.message}", e)
             null
         }
     }
