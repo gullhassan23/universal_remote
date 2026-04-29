@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/ad_controller.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/services/analytics_service.dart';
 
 class PremiumAwareBannerAd extends StatefulWidget {
   const PremiumAwareBannerAd({super.key, this.padding});
@@ -16,6 +19,7 @@ class PremiumAwareBannerAd extends StatefulWidget {
 class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
   late final PremiumController _premiumController;
   late final AdController _adController;
+  late final AnalyticsService _analyticsService;
   Worker? _premiumWorker;
   BannerAd? _ad;
   bool _isLoaded = false;
@@ -26,6 +30,7 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
     super.initState();
     _premiumController = Get.find<PremiumController>();
     _adController = Get.find<AdController>();
+    _analyticsService = Get.find<AnalyticsService>();
     _premiumWorker = ever<bool>(_premiumController.isPremium, _handlePremium);
     _handlePremium(_premiumController.isPremium.value);
   }
@@ -59,6 +64,12 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
             _isLoaded = true;
             _isLoading = false;
           });
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_banner_loaded',
+              params: {'screen_name': 'PremiumAwareBannerAd', 'ad_unit': 'banner'},
+            ),
+          );
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
           ad.dispose();
@@ -70,7 +81,30 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
             _isLoaded = false;
             _isLoading = false;
           });
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_banner_failed_load',
+              params: {
+                'screen_name': 'PremiumAwareBannerAd',
+                'ad_unit': 'banner',
+                'error_code': error.code,
+                'error_domain': error.domain,
+              },
+            ),
+          );
         },
+        onAdImpression: (_) => unawaited(
+          _analyticsService.logEvent(
+            'admob_banner_impression',
+            params: {'screen_name': 'PremiumAwareBannerAd', 'ad_unit': 'banner'},
+          ),
+        ),
+        onAdClicked: (_) => unawaited(
+          _analyticsService.logEvent(
+            'admob_banner_clicked',
+            params: {'screen_name': 'PremiumAwareBannerAd', 'ad_unit': 'banner'},
+          ),
+        ),
       ),
     );
     pendingAd.load();

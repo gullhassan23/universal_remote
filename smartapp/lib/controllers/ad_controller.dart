@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/tv_service_interface.dart';
 
 class AdController extends GetxController {
@@ -31,6 +32,7 @@ class AdController extends GetxController {
 
   late final PremiumController _premiumController;
   late final TvConnectionController _connectionController;
+  late final AnalyticsService _analyticsService;
   Worker? _premiumWorker;
   Worker? _connectionWorker;
   bool _isLoading = false;
@@ -47,6 +49,7 @@ class AdController extends GetxController {
     super.onInit();
     _premiumController = Get.find<PremiumController>();
     _connectionController = Get.find<TvConnectionController>();
+    _analyticsService = Get.find<AnalyticsService>();
     _premiumWorker = ever<bool>(
       _premiumController.isPremium,
       (_) => syncWithPremiumStatus(),
@@ -135,6 +138,7 @@ class AdController extends GetxController {
           bannerAd.value = loadedAd;
           isAdLoaded.value = true;
           _cancelRetry();
+          _trackAdEvent('admob_banner_loaded');
           _log('Banner loaded successfully.');
         },
         onAdFailedToLoad: (Ad failedAd, LoadAdError error) {
@@ -149,11 +153,22 @@ class AdController extends GetxController {
           }
           bannerAd.value = null;
           isAdLoaded.value = false;
+          _trackAdEvent(
+            'admob_banner_failed_load',
+            extra: <String, Object?>{
+              'error_code': error.code,
+              'error_domain': error.domain,
+            },
+          );
           _log(
             'Banner failed to load: code=${error.code}, domain=${error.domain}, message=${error.message}',
           );
           _scheduleRetry(reason: 'load_failed');
         },
+        onAdOpened: (_) => _trackAdEvent('admob_banner_opened'),
+        onAdClosed: (_) => _trackAdEvent('admob_banner_closed'),
+        onAdImpression: (_) => _trackAdEvent('admob_banner_impression'),
+        onAdClicked: (_) => _trackAdEvent('admob_banner_clicked'),
       ),
     );
 
@@ -194,11 +209,19 @@ class AdController extends GetxController {
           _interstitialAd?.dispose();
           _interstitialAd = ad;
           isInterstitialReady.value = true;
+          _trackAdEvent('admob_interstitial_loaded');
           _log('Interstitial loaded successfully.');
         },
         onAdFailedToLoad: (LoadAdError error) {
           _isInterstitialLoading = false;
           isInterstitialReady.value = false;
+          _trackAdEvent(
+            'admob_interstitial_failed_load',
+            extra: <String, Object?>{
+              'error_code': error.code,
+              'error_domain': error.domain,
+            },
+          );
           _log(
             'Interstitial failed to load: code=${error.code}, domain=${error.domain}, message=${error.message}',
           );
@@ -227,9 +250,13 @@ class AdController extends GetxController {
     _interstitialAd = null;
     isInterstitialReady.value = false;
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (InterstitialAd shownAd) {
+        _trackAdEvent('admob_interstitial_shown');
+      },
       onAdDismissedFullScreenContent: (InterstitialAd shownAd) {
         shownAd.dispose();
         _isInterstitialShowing = false;
+        _trackAdEvent('admob_interstitial_dismissed');
         onCompleted?.call();
         unawaited(loadInterstitialAd());
       },
@@ -238,10 +265,22 @@ class AdController extends GetxController {
         AdError error,
       ) {
         shownAd.dispose();
+        _trackAdEvent(
+          'admob_interstitial_failed_show',
+          extra: <String, Object?>{
+            'error_code': error.code,
+          },
+        );
         _log('Interstitial failed to show: ${error.message}');
         _isInterstitialShowing = false;
         onCompleted?.call();
         unawaited(loadInterstitialAd());
+      },
+      onAdImpression: (InterstitialAd shownAd) {
+        _trackAdEvent('admob_interstitial_impression');
+      },
+      onAdClicked: (InterstitialAd shownAd) {
+        _trackAdEvent('admob_interstitial_clicked');
       },
     );
     ad.show();
@@ -367,5 +406,18 @@ class AdController extends GetxController {
 
   void _log(String message) {
     debugPrint('$_logTag $message');
+  }
+
+  void _trackAdEvent(String name, {Map<String, Object?>? extra}) {
+    unawaited(
+      _analyticsService.logEvent(
+        name,
+        params: <String, Object?>{
+          'screen_name': 'AdController',
+          'ad_unit': 'admob',
+          ...?extra,
+        },
+      ),
+    );
   }
 }

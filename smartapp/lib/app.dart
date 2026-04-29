@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/bindings/home_binding.dart';
 import 'package:smartapp/features/get_started.dart';
@@ -18,9 +17,6 @@ class MyApp extends StatelessWidget {
       title: 'Universal TV Remote',
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
-      navigatorObservers: [
-        FirebaseAnalyticsObserver(analytics: analyticsService.analytics),
-      ],
       routingCallback: analyticsService.trackRouteFromGetX,
       getPages: [
         GetPage(name: '/', page: () => const SplashScreen()),

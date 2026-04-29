@@ -25,13 +25,8 @@ class AnalyticsService extends GetxService {
     }
     _lastScreenKey = key;
 
-    await _analytics.logScreenView(
-      screenName: screenName,
-      screenClass: screenClass,
-    );
-
-    // Also emit a custom per-screen event so screens appear
-    // in Firebase "Event count by event name".
+    // Emit per-screen custom event so screens appear directly in
+    // Firebase "Event count by event name" list.
     final screenEventName = 'screen_${_sanitizeToken(screenName).toLowerCase()}';
     await logEvent(
       screenEventName,
@@ -94,6 +89,7 @@ class AnalyticsService extends GetxService {
     String name, {
     Map<String, Object?>? params,
   }) async {
+    final normalizedName = _normalizeEventName(name);
     final sanitizedParams = params == null
         ? null
         : Map<String, Object>.fromEntries(
@@ -102,7 +98,7 @@ class AnalyticsService extends GetxService {
                 ),
           );
 
-    await _analytics.logEvent(name: name, parameters: sanitizedParams);
+    await _analytics.logEvent(name: normalizedName, parameters: sanitizedParams);
   }
 
   void trackRouteFromGetX(Routing? routing) {
@@ -159,5 +155,28 @@ class AnalyticsService extends GetxService {
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '');
     return compact;
+  }
+
+  String _normalizeEventName(String value) {
+    final token = _sanitizeToken(value).toLowerCase();
+    var normalized = token;
+    if (normalized.isEmpty) {
+      normalized = 'app_event';
+    }
+    if (RegExp(r'^[0-9]').hasMatch(normalized)) {
+      normalized = 'e_$normalized';
+    }
+    if (normalized.startsWith('firebase_') ||
+        normalized.startsWith('google_') ||
+        normalized.startsWith('ga_')) {
+      normalized = 'app_$normalized';
+    }
+    if (normalized.length > 40) {
+      normalized = normalized.substring(0, 40).replaceAll(RegExp(r'_+$'), '');
+      if (normalized.isEmpty) {
+        normalized = 'app_event';
+      }
+    }
+    return normalized;
   }
 }

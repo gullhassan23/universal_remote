@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/ad_controller.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/services/analytics_service.dart';
 
 class TopBannerAd extends StatefulWidget {
   const TopBannerAd({super.key});
@@ -14,6 +17,7 @@ class TopBannerAd extends StatefulWidget {
 class _TopBannerAdState extends State<TopBannerAd> {
   late final PremiumController _premiumController;
   late final AdController _adController;
+  late final AnalyticsService _analyticsService;
   Worker? _premiumWorker;
   BannerAd? _ad;
   bool _isLoaded = false;
@@ -24,6 +28,7 @@ class _TopBannerAdState extends State<TopBannerAd> {
     super.initState();
     _premiumController = Get.find<PremiumController>();
     _adController = Get.find<AdController>();
+    _analyticsService = Get.find<AnalyticsService>();
     _premiumWorker = ever<bool>(_premiumController.isPremium, _handlePremium);
     _handlePremium(_premiumController.isPremium.value);
   }
@@ -57,6 +62,12 @@ class _TopBannerAdState extends State<TopBannerAd> {
             _isLoaded = true;
             _isLoading = false;
           });
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_banner_top_loaded',
+              params: {'screen_name': 'TopBannerAd', 'ad_unit': 'banner_top'},
+            ),
+          );
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
           ad.dispose();
@@ -68,7 +79,30 @@ class _TopBannerAdState extends State<TopBannerAd> {
             _isLoaded = false;
             _isLoading = false;
           });
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_banner_top_failed_load',
+              params: {
+                'screen_name': 'TopBannerAd',
+                'ad_unit': 'banner_top',
+                'error_code': error.code,
+                'error_domain': error.domain,
+              },
+            ),
+          );
         },
+        onAdImpression: (_) => unawaited(
+          _analyticsService.logEvent(
+            'admob_banner_top_impression',
+            params: {'screen_name': 'TopBannerAd', 'ad_unit': 'banner_top'},
+          ),
+        ),
+        onAdClicked: (_) => unawaited(
+          _analyticsService.logEvent(
+            'admob_banner_top_clicked',
+            params: {'screen_name': 'TopBannerAd', 'ad_unit': 'banner_top'},
+          ),
+        ),
       ),
     );
     pendingAd.load();

@@ -90,13 +90,33 @@ class _SplashScreenState extends State<SplashScreen>
             ad.dispose();
             return;
           }
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_appopen_loaded',
+              params: {
+                'screen_name': 'SplashScreen',
+                'ad_unit': 'app_open',
+              },
+            ),
+          );
           _appOpenAd?.dispose();
           _appOpenAd = ad;
           if (_hasTriggeredAdAtHalf && !_isAdShowing) {
             _showLoadedAppOpenAd();
           }
         },
-        onAdFailedToLoad: (_) {
+        onAdFailedToLoad: (error) {
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_appopen_failed_load',
+              params: {
+                'screen_name': 'SplashScreen',
+                'ad_unit': 'app_open',
+                'error_code': error.code,
+                'error_domain': error.domain,
+              },
+            ),
+          );
           _isAdFlowComplete = true;
           _goToGetStartedWhenReady();
         },
@@ -144,17 +164,69 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _appOpenAd = null;
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (AppOpenAd shownAd) {
+        unawaited(
+          _analyticsService.logEvent(
+            'admob_appopen_shown',
+            params: {
+              'screen_name': 'SplashScreen',
+              'ad_unit': 'app_open',
+            },
+          ),
+        );
+      },
       onAdDismissedFullScreenContent: (AppOpenAd shownAd) {
         shownAd.dispose();
         _isAdShowing = false;
         _isAdFlowComplete = true;
+        unawaited(
+          _analyticsService.logEvent(
+            'admob_appopen_dismissed',
+            params: {
+              'screen_name': 'SplashScreen',
+              'ad_unit': 'app_open',
+            },
+          ),
+        );
         _goToGetStartedWhenReady();
       },
       onAdFailedToShowFullScreenContent: (AppOpenAd shownAd, AdError error) {
         shownAd.dispose();
         _isAdShowing = false;
         _isAdFlowComplete = true;
+        unawaited(
+          _analyticsService.logEvent(
+            'admob_appopen_failed_show',
+            params: {
+              'screen_name': 'SplashScreen',
+              'ad_unit': 'app_open',
+              'error_code': error.code,
+            },
+          ),
+        );
         _goToGetStartedWhenReady();
+      },
+      onAdImpression: (AppOpenAd shownAd) {
+        unawaited(
+          _analyticsService.logEvent(
+            'admob_appopen_impression',
+            params: {
+              'screen_name': 'SplashScreen',
+              'ad_unit': 'app_open',
+            },
+          ),
+        );
+      },
+      onAdClicked: (AppOpenAd shownAd) {
+        unawaited(
+          _analyticsService.logEvent(
+            'admob_appopen_clicked',
+            params: {
+              'screen_name': 'SplashScreen',
+              'ad_unit': 'app_open',
+            },
+          ),
+        );
       },
     );
     ad.show();

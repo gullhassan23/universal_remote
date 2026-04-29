@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/ad_controller.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/services/analytics_service.dart';
 
 class StreamingMrecAd extends StatefulWidget {
   const StreamingMrecAd({super.key});
@@ -15,6 +18,7 @@ class StreamingMrecAd extends StatefulWidget {
 class _StreamingMrecAdState extends State<StreamingMrecAd> {
   late final PremiumController _premiumController;
   late final AdController _adController;
+  late final AnalyticsService _analyticsService;
   Worker? _premiumWorker;
   BannerAd? _ad;
   bool _isLoaded = false;
@@ -25,6 +29,7 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
     super.initState();
     _premiumController = Get.find<PremiumController>();
     _adController = Get.find<AdController>();
+    _analyticsService = Get.find<AnalyticsService>();
     _premiumWorker = ever<bool>(_premiumController.isPremium, _handlePremium);
     _handlePremium(_premiumController.isPremium.value);
   }
@@ -59,6 +64,12 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
             _isLoaded = true;
             _isLoading = false;
           });
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_mrec_loaded',
+              params: {'screen_name': 'StreamingMrecAd', 'ad_unit': 'mrec'},
+            ),
+          );
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
           ad.dispose();
@@ -70,7 +81,30 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
             _isLoaded = false;
             _isLoading = false;
           });
+          unawaited(
+            _analyticsService.logEvent(
+              'admob_mrec_failed_load',
+              params: {
+                'screen_name': 'StreamingMrecAd',
+                'ad_unit': 'mrec',
+                'error_code': error.code,
+                'error_domain': error.domain,
+              },
+            ),
+          );
         },
+        onAdImpression: (_) => unawaited(
+          _analyticsService.logEvent(
+            'admob_mrec_impression',
+            params: {'screen_name': 'StreamingMrecAd', 'ad_unit': 'mrec'},
+          ),
+        ),
+        onAdClicked: (_) => unawaited(
+          _analyticsService.logEvent(
+            'admob_mrec_clicked',
+            params: {'screen_name': 'StreamingMrecAd', 'ad_unit': 'mrec'},
+          ),
+        ),
       ),
     );
     pendingAd.load();
