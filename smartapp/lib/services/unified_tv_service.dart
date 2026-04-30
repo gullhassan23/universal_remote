@@ -24,6 +24,11 @@ class UnifiedTvService implements ITvService {
   StreamSubscription<CastSessionUpdate>? _castSubscription;
   String? _lastError;
 
+  void _log(String message) {
+    // ignore: avoid_print
+    print('UnifiedTvService: $message');
+  }
+
   UnifiedTvService() {
     _connectionStateController.add(TvConnectionState.disconnected);
     _castSessionController.add(
@@ -105,11 +110,17 @@ class UnifiedTvService implements ITvService {
 
   @override
   Future<List<TvDevice>> discoverDevices({TvBrand? filterBrand}) async {
-    return _androidTv.discoverDevices(filterBrand: filterBrand);
+    _log('discoverDevices start brand=${filterBrand?.name ?? 'all'}');
+    final devices = await _androidTv.discoverDevices(filterBrand: filterBrand);
+    _lastError = _androidTv.lastError;
+    _log('discoverDevices done count=${devices.length}');
+    return devices;
   }
 
   @override
   Future<bool> connect(TvDevice device) async {
+    _log('connect start name=${device.name} ip=${device.ip} brand=${device.brand.name}');
+    _lastError = null;
     await _stateSubscription?.cancel();
     await _castSubscription?.cancel();
     _stateSubscription = null;
@@ -133,6 +144,7 @@ class UnifiedTvService implements ITvService {
 
     final success = await _activeService!.connect(device);
     _lastError = success ? null : getLastErrorMessage();
+    _log('connect result success=$success error=${_lastError ?? 'none'}');
     if (success) {
       await _storeLastDevice(device);
     }

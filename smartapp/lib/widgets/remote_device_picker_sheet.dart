@@ -33,6 +33,8 @@ class RemoteDevicePickerSheet extends StatefulWidget {
 
 class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
   final RxnString _connectingDeviceId = RxnString();
+  static final RegExp _ipv4Pattern =
+      RegExp(r'^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$');
 
   @override
   void initState() {
@@ -153,6 +155,12 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                                 widget.discoveryController.discoverDevices(),
                             onHandleTap: widget.onHandleTap,
                           ),
+                          const SizedBox(height: 8),
+                          _ManualIpButton(
+                            buttonKey: 'MANUAL_IP_CONNECT_EMPTY',
+                            onHandleTap: widget.onHandleTap,
+                            onTap: _showManualIpDialog,
+                          ),
                         ],
                       ),
                     );
@@ -170,11 +178,20 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                       if (index >= devices.length) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: _RescanButton(
-                            buttonKey: 'DISCOVERY_RESCAN_LIST',
-                            onTap: () =>
-                                widget.discoveryController.discoverDevices(),
-                            onHandleTap: widget.onHandleTap,
+                          child: Column(
+                            children: [
+                              _RescanButton(
+                                buttonKey: 'DISCOVERY_RESCAN_LIST',
+                                onTap: () =>
+                                    widget.discoveryController.discoverDevices(),
+                                onHandleTap: widget.onHandleTap,
+                              ),
+                              _ManualIpButton(
+                                buttonKey: 'MANUAL_IP_CONNECT_LIST',
+                                onHandleTap: widget.onHandleTap,
+                                onTap: _showManualIpDialog,
+                              ),
+                            ],
                           ),
                         );
                       }
@@ -249,6 +266,87 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
       ),
     );
   }
+
+  Future<void> _showManualIpDialog() async {
+    var ipValue = '';
+    String? validationMessage;
+
+    final manualDevice = await showDialog<TvDevice>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1D1D1F),
+              title: const Text(
+                'Connect with IP address',
+                style: TextStyle(color: Colors.white),
+              ),
+              content: TextField(
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'e.g. 192.168.1.24',
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  errorText: validationMessage,
+                ),
+                onChanged: (value) {
+                  ipValue = value.trim();
+                  if (validationMessage != null) {
+                    setState(() => validationMessage = null);
+                  }
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (ipValue.isEmpty) {
+                      setState(() => validationMessage = 'TV IP address required');
+                      return;
+                    }
+                    if (!_ipv4Pattern.hasMatch(ipValue)) {
+                      setState(
+                        () => validationMessage = 'Enter a valid IPv4 address',
+                      );
+                      return;
+                    }
+                    final ip = ipValue;
+                    Navigator.of(dialogContext).pop(
+                      TvDevice(
+                        id: 'manual-$ip:6467',
+                        name: 'Android TV ($ip)',
+                        ip: ip,
+                        port: 6467,
+                        brand: TvBrand.androidTv,
+                      ),
+                    );
+                  },
+                  child: const Text('Connect'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (!mounted || manualDevice == null) return;
+    if (_connectingDeviceId.value != null) return;
+    _connectingDeviceId.value = manualDevice.id;
+    try {
+      final connected = await widget.onDeviceSelected(manualDevice);
+      if (connected && mounted) {
+        Navigator.of(context).maybePop();
+      }
+    } finally {
+      if (!mounted) return;
+      _connectingDeviceId.value = null;
+    }
+  }
 }
 
 class _RescanButton extends StatelessWidget {
@@ -281,6 +379,48 @@ class _RescanButton extends StatelessWidget {
         },
         child: const Text(
           "Don't see your device?",
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.white70,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ManualIpButton extends StatelessWidget {
+  const _ManualIpButton({
+    required this.buttonKey,
+    required this.onTap,
+    required this.onHandleTap,
+  });
+
+  final String buttonKey;
+  final Future<void> Function() onTap;
+  final Future<void> Function({
+    required String buttonKey,
+    required FutureOr<void> Function() onTap,
+    String action,
+  }) onHandleTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () {
+          unawaited(
+            onHandleTap(
+              buttonKey: buttonKey,
+              action: 'manual_ip_connect',
+              onTap: onTap,
+            ),
+          );
+        },
+        child: const Text(
+          'Connect with IP address',
           style: TextStyle(
             color: Colors.white70,
             fontSize: 14,

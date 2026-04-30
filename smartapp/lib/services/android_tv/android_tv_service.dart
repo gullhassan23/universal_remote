@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:multicast_dns/multicast_dns.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/tv_brand.dart';
@@ -17,6 +18,8 @@ class AndroidTvService implements ITvService {
   static const _prefsPkcs12 = 'android_tv_pkcs12_path';
   static const _ptrScanWindow = Duration(seconds: 6);
   static const _lookupTimeout = Duration(seconds: 2);
+  static const _probeTimeout = Duration(milliseconds: 280);
+  static const _probeBatchSize = 24;
   static const _serviceTypes = <String>[
     '_androidtvremote._tcp.local',
     '_androidtvremote2._tcp.local',
@@ -185,6 +188,7 @@ class AndroidTvService implements ITvService {
       _log('discoverDevices skipped: ${_lastError!}');
       return [];
     }
+    _lastError = null;
     _log('discoverDevices start filter=${filterBrand?.name ?? 'all'}');
     return _discoverMdns();
   }
@@ -192,7 +196,6 @@ class AndroidTvService implements ITvService {
   Future<List<TvDevice>> _discoverMdns() async {
     final devices = <TvDevice>[];
     final seen = <String>{};
-    MDnsClient? mdns;
     var hasMulticastLock = false;
     try {
       if (!kIsWeb && Platform.isAndroid) {
@@ -204,38 +207,136 @@ class AndroidTvService implements ITvService {
               'AndroidTvService._discoverMdns: failed to acquire multicast lock');
         }
       }
+      _log('mDNS discovery attempt 1/1');
+      await _runMdnsDiscoveryAttempt(devices: devices, seen: seen);
+      if (!kIsWeb && Platform.isIOS && devices.isEmpty) {
+        _log('mDNS empty on iOS, trying subnet probe fallback');
+        await _discoverBySubnetProbe(devices: devices, seen: seen);
+      }
+      if (devices.isEmpty && (_lastError == null || _lastError!.isEmpty)) {
+        _lastError = 'No Android TV devices were discovered over mDNS.';
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('AndroidTvService._discoverMdns: $e');
+      }
+    } finally {
+      if (!kIsWeb && Platform.isAndroid && hasMulticastLock) {
+        await AndroidTvRemotePlatform.instance.releaseMulticastLock();
+      }
+    }
+
+    _log('discoverDevices done count=${devices.length}');
+    return devices;
+  }
+
+  Future<void> _discoverBySubnetProbe({
+    required List<TvDevice> devices,
+    required Set<String> seen,
+  }) async {
+    final subnet = await _readWifiSubnetPrefix();
+    if (subnet == null) {
+      _lastError = 'Could not read local Wi-Fi subnet for discovery.';
+      return;
+    }
+
+    final hosts = List<String>.generate(254, (i) => '$subnet.${i + 1}');
+    for (var i = 0; i < hosts.length; i += _probeBatchSize) {
+      final batch = hosts.skip(i).take(_probeBatchSize).toList();
+      await Future.wait(batch.map((host) async {
+        final port = await _firstOpenPort(host, const <int>[6467, 6466]);
+        if (port == null) return;
+        final key = '$host:$port';
+        if (!seen.add(key)) return;
+        devices.add(
+          TvDevice(
+            id: key,
+            name: 'Android TV ($host)',
+            ip: host,
+            port: port,
+            brand: TvBrand.androidTv,
+          ),
+        );
+      }));
+      if (devices.isNotEmpty) {
+        _lastError = null;
+      }
+    }
+  }
+
+  Future<String?> _readWifiSubnetPrefix() async {
+    String? ip;
+    try {
+      ip = await 
+       NetworkInfo().getWifiIP();
+    } catch (_) {
+      // Ignore and use interface fallback below.
+    }
+    final direct = _subnetPrefix(ip);
+    if (direct != null) return direct;
+
+    try {
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+      for (final interface in interfaces) {
+        for (final address in interface.addresses) {
+          final subnet = _subnetPrefix(address.address);
+          if (subnet != null) return subnet;
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  String? _subnetPrefix(String? ip) {
+    if (ip == null || ip.isEmpty) return null;
+    final parts = ip.split('.');
+    if (parts.length != 4) return null;
+    return '${parts[0]}.${parts[1]}.${parts[2]}';
+  }
+
+  Future<int?> _firstOpenPort(String host, List<int> ports) async {
+    for (final port in ports) {
+      Socket? socket;
+      try {
+        socket = await Socket.connect(host, port, timeout: _probeTimeout);
+        await socket.close();
+        return port;
+      } catch (_) {
+        // Try next port.
+      } finally {
+        socket?.destroy();
+      }
+    }
+    return null;
+  }
+
+  Future<void> _runMdnsDiscoveryAttempt({
+    required List<TvDevice> devices,
+    required Set<String> seen,
+  }) async {
+    MDnsClient? mdns;
+    try {
       mdns = MDnsClient();
       await mdns.start();
+      _log('mDNS client started');
 
       final ptrDomains = <String>{};
-      StreamSubscription<PtrResourceRecord>? ptrSub;
-      ptrSub = mdns
-          .lookup<PtrResourceRecord>(
-            ResourceRecordQuery.serverPointer(_serviceTypes.first),
-          )
-          .listen(
-            (ptr) => ptrDomains.add(ptr.domainName),
-            onError: (_) {},
-          );
-      final extraPtrSubs = <StreamSubscription<PtrResourceRecord>>[];
-      for (final serviceType in _serviceTypes.skip(1)) {
-        extraPtrSubs.add(
-          mdns
-              .lookup<PtrResourceRecord>(
-                ResourceRecordQuery.serverPointer(serviceType),
-              )
-              .listen(
-                (ptr) => ptrDomains.add(ptr.domainName),
-                onError: (_) {},
-              ),
-        );
-      }
-
-      await Future<void>.delayed(_ptrScanWindow);
-      await ptrSub.cancel();
-      for (final sub in extraPtrSubs) {
-        await sub.cancel();
-      }
+      await Future.wait(
+        _serviceTypes.map(
+          (serviceType) => _collectPtrDomainsForServiceType(
+            mdns: mdns!,
+            serviceType: serviceType,
+            ptrDomains: ptrDomains,
+          ),
+        ),
+      );
+      _log('mDNS PTR domains discovered=${ptrDomains.length}');
 
       for (final domain in ptrDomains) {
         try {
@@ -262,28 +363,47 @@ class AndroidTvService implements ITvService {
                 ),
               );
               _log('discovered name=${devices.last.name} ip=$ip port=${srv.port}');
-            } catch (_) {
+            } catch (e) {
+              _log('SRV address resolution failed for $domain: $e');
               continue;
             }
           }
-        } catch (_) {
+        } catch (e) {
+          _log('SRV lookup failed for $domain: $e');
           continue;
         }
       }
+    } on SocketException catch (e) {
+      _lastError = 'mDNS discovery socket error: $e';
+      _log('mDNS socket exception: $e');
     } catch (e) {
-      if (kDebugMode) {
-        // ignore: avoid_print
-        print('AndroidTvService._discoverMdns: $e');
-      }
+      _lastError = 'mDNS discovery failed: $e';
+      _log('mDNS discovery attempt failed: $e');
     } finally {
       mdns?.stop();
-      if (!kIsWeb && Platform.isAndroid && hasMulticastLock) {
-        await AndroidTvRemotePlatform.instance.releaseMulticastLock();
-      }
     }
+  }
 
-    _log('discoverDevices done count=${devices.length}');
-    return devices;
+  Future<void> _collectPtrDomainsForServiceType({
+    required MDnsClient mdns,
+    required String serviceType,
+    required Set<String> ptrDomains,
+  }) async {
+    try {
+      await for (final ptr in mdns
+          .lookup<PtrResourceRecord>(
+            ResourceRecordQuery.serverPointer(serviceType),
+          )
+          .timeout(_ptrScanWindow)) {
+        ptrDomains.add(ptr.domainName);
+      }
+    } on TimeoutException {
+      // Timebox each PTR scan window and continue with collected results.
+    } on SocketException catch (e) {
+      _log('PTR lookup socket error for $serviceType: $e');
+    } catch (e) {
+      _log('PTR lookup failed for $serviceType: $e');
+    }
   }
 
   String _extractServiceName(String domainName) {
@@ -388,6 +508,8 @@ class AndroidTvService implements ITvService {
     _lastError = null;
 
     if (!Platform.isAndroid) {
+      _lastError =
+          'Android TV remote pairing/control is currently supported on Android only.';
       await disconnect();
       _syncState(TvConnectionState.error);
       return false;

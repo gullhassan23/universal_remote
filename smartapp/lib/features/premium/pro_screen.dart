@@ -95,7 +95,7 @@ class _PremiumHeaderCard extends StatelessWidget {
           SizedBox(height: 8),
           Text("All Pro features are unlocked on your account",
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),

@@ -33,9 +33,11 @@
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
+		<string>_adb._tcp</string>
 		<string>_androidtvremote._tcp</string>
 		<string>_androidtvremote2._tcp</string>
 		<string>_googlecast._tcp</string>
+		<string>_mdns._udp</string>
 		<string>_CC1AD845._googlecast._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>

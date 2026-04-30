@@ -26,6 +26,15 @@ class DeviceDiscoveryController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   bool _isConnectingLoaderVisible = false;
+  static const int _maxDiscoveryAttempts = 3;
+  static const Duration _discoveryRetryDelay = Duration(milliseconds: 700);
+  static const int _maxConnectAttempts = 2;
+  static const Duration _connectRetryDelay = Duration(milliseconds: 500);
+
+  void _log(String message) {
+    // ignore: avoid_print
+    print('DeviceDiscoveryController: $message');
+  }
 
   void setPreferredBrand(TvBrand brand) {
     _preferredBrand = brand;
@@ -37,12 +46,29 @@ class DeviceDiscoveryController extends GetxController {
     devices.clear();
 
     try {
-      final results = await _connectionController.discoverCastTargets(
-        filterBrand: _preferredBrand,
-      );
+      var results = <TvDevice>[];
+      for (var attempt = 1; attempt <= _maxDiscoveryAttempts; attempt++) {
+        _log(
+          'discoverDevices attempt=$attempt/$_maxDiscoveryAttempts brand=${_preferredBrand?.name ?? 'all'}',
+        );
+        results = await _connectionController.discoverCastTargets(
+          filterBrand: _preferredBrand,
+        );
+        _log('discoverDevices attempt=$attempt found=${results.length}');
+        if (results.isNotEmpty) {
+          break;
+        }
+        if (attempt < _maxDiscoveryAttempts) {
+          await Future<void>.delayed(_discoveryRetryDelay);
+        }
+      }
       if (results.isEmpty) {
-        errorMessage.value =
-            'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
+        final detailedError = _tvService is UnifiedTvService
+            ? (_tvService as UnifiedTvService).getLastErrorMessage()
+            : null;
+        errorMessage.value = (detailedError != null && detailedError.isNotEmpty)
+            ? 'No TVs found.\n$detailedError'
+            : 'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
       }
       devices.assignAll(results);
     } catch (e) {
@@ -54,14 +80,38 @@ class DeviceDiscoveryController extends GetxController {
 
   Future<bool> connectTo(TvDevice device,
       {bool navigateToRemote = true}) async {
+    _log('connectTo start name=${device.name} ip=${device.ip} brand=${device.brand.name}');
     _showConnectionLoader(device);
     AndroidTvRemotePlatform.instance.setOnPairingPromptRequested(() {
+      _log('pairing prompt requested by native layer');
       _hideConnectionLoader();
     });
-    final success = await _connectionController.connectCastTarget(device);
+    var success = false;
+    for (var attempt = 1; attempt <= _maxConnectAttempts; attempt++) {
+      _log('connectTo attempt=$attempt/$_maxConnectAttempts device=${device.name}');
+      success = await _connectionController.connectCastTarget(device);
+      _log('connectTo attempt=$attempt success=$success');
+      if (success) {
+        break;
+      }
+      final liveError = _tvService is UnifiedTvService
+          ? (_tvService as UnifiedTvService).getLastErrorMessage()
+          : null;
+      final liveErrorNormalized = (liveError ?? '').toLowerCase();
+      final isPlatformUnsupported =
+          liveErrorNormalized.contains('supported on android only');
+      if (isPlatformUnsupported) {
+        _log('connectTo stop retrying due to platform restriction');
+        break;
+      }
+      if (attempt < _maxConnectAttempts) {
+        await Future<void>.delayed(_connectRetryDelay);
+      }
+    }
     AndroidTvRemotePlatform.instance.setOnPairingPromptRequested(null);
     _hideConnectionLoader();
     if (success) {
+      _log('connectTo success device=${device.name}');
       Get.snackbar(
         colorText: Colors.white,
         'Connected',
@@ -84,7 +134,10 @@ class DeviceDiscoveryController extends GetxController {
           ? (_tvService as UnifiedTvService).getLastErrorMessage()
           : null;
       final normalizedError = (detailedError ?? '').toLowerCase();
+      final isPlatformUnsupportedError =
+          normalizedError.contains('supported on android only');
       final isAndroidPairingCodeError = device.brand == TvBrand.androidTv &&
+          !isPlatformUnsupportedError &&
           (normalizedError.contains('pair') ||
               normalizedError.contains('password') ||
               normalizedError.contains('pin') ||
@@ -98,11 +151,16 @@ class DeviceDiscoveryController extends GetxController {
       final reason = (detailedError != null && detailedError.isNotEmpty)
           ? '\nReason: $detailedError'
           : '';
-      final title =
-          isAndroidPairingCodeError ? 'Incorrect password' : 'Connection failed';
-      final message = isAndroidPairingCodeError
-          ? 'Code is not correct or has expired. Please enter the latest code shown on your TV and try again.'
-          : 'Unable to connect to ${device.name}. $hint$reason';
+      final title = isPlatformUnsupportedError
+          ? 'Not supported on iOS'
+          : (isAndroidPairingCodeError
+              ? 'Incorrect password'
+              : 'Connection failed');
+      final message = isPlatformUnsupportedError
+          ? 'Android TV pairing/control is currently supported on Android only.'
+          : (isAndroidPairingCodeError
+              ? 'Code is not correct or has expired. Please enter the latest code shown on your TV and try again.'
+              : 'Unable to connect to ${device.name}. $hint$reason');
       Get.snackbar(
         colorText: Colors.white,
 
@@ -110,9 +168,9 @@ class DeviceDiscoveryController extends GetxController {
         message,
       );
       if (detailedError != null && detailedError.isNotEmpty) {
-        // ignore: avoid_print
-        print('DeviceDiscoveryController.connectTo error: $detailedError');
+        _log('connectTo detailedError=$detailedError');
       }
+      _log('connectTo failed device=${device.name} reason=${detailedError ?? 'unknown'}');
       return false;
     }
   }

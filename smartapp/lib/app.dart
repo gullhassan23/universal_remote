@@ -12,12 +12,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final analyticsService = Get.find<AnalyticsService>();
+    final AnalyticsService? analyticsService =
+        Get.isRegistered<AnalyticsService>()
+            ? Get.find<AnalyticsService>()
+            : null;
     return GetMaterialApp(
       title: 'Universal TV Remote',
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
-      routingCallback: analyticsService.trackRouteFromGetX,
+      routingCallback: analyticsService?.trackRouteFromGetX,
       getPages: [
         GetPage(name: '/', page: () => const SplashScreen()),
         GetPage(name: '/get-started', page: () => const GetStarted()),

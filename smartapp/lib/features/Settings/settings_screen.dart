@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,6 +11,7 @@ import 'package:smartapp/features/Settings/faq_screen.dart';
 import 'package:smartapp/features/Settings/sleeptimer.dart';
 
 import 'package:smartapp/models/tv_device.dart';
+import 'package:smartapp/models/tv_brand.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 import 'package:smartapp/utils/constant.dart';
@@ -25,6 +27,8 @@ import 'package:url_launcher/url_launcher.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   static const String _supportEmail = 'admin@maxgamesproduction.com';
+  static final RegExp _ipv4Pattern =
+      RegExp(r'^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$');
 
   // bool _isHapticEnabled = true;
   PremiumController get premiumController => Get.find<PremiumController>();
@@ -177,6 +181,76 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _openManualIpConnectDialog(BuildContext context) async {
+    unawaited(
+      _analyticsService.trackClick(
+        'ManualIpConnect',
+        screenName: 'SettingsScreen',
+      ),
+    );
+    var ipValue = '';
+    String? validationMessage;
+    final manualDevice = await showDialog<TvDevice>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Connect with IP address'),
+          content: TextField(
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: 'e.g. 192.168.1.24',
+              errorText: validationMessage,
+            ),
+            onChanged: (value) {
+              ipValue = value.trim();
+              if (validationMessage != null) {
+                setState(() => validationMessage = null);
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (ipValue.isEmpty) {
+                  setState(() => validationMessage = 'TV IP address required');
+                  return;
+                }
+                if (!_ipv4Pattern.hasMatch(ipValue)) {
+                  setState(() => validationMessage = 'Enter a valid IPv4 address');
+                  return;
+                }
+                final ip = ipValue;
+                Navigator.of(dialogContext).pop(
+                  TvDevice(
+                    id: 'manual-$ip:6467',
+                    name: 'Android TV ($ip)',
+                    ip: ip,
+                    port: 6467,
+                    brand: TvBrand.androidTv,
+                  ),
+                );
+              },
+              child: const Text('Connect'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (manualDevice == null) return;
+    final connected = await _onDeviceSelected(manualDevice);
+    if (!connected && context.mounted && Platform.isIOS) {
+      Get.snackbar(
+        colorText: Colors.white,
+        'Not supported on iOS',
+        'Android TV pairing/control currently works on Android only.',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -229,6 +303,12 @@ class SettingsScreen extends StatelessWidget {
                           onTap: () {
                             _openDeviceDiscoverySheet();
                           },
+                        ),
+                        _SettingsTile(
+                          icon: SettingsIcon.switchdevice,
+                          title: 'Connect with IP address',
+                          subtitle: 'Manual fallback when discovery fails',
+                          onTap: () => _openManualIpConnectDialog(context),
                         ),
                         _SettingsTile(
                           icon: SettingsIcon.remotestyle,
@@ -498,7 +578,7 @@ class _SwitchSettingsTile extends StatelessWidget {
               HapticAction.vibrate();
               onChanged(next);
             },
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: const Color(0xFF2FCC6A),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: Colors.white24,
