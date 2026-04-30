@@ -29,6 +29,7 @@ class LocalMediaServer {
   DateTime? _servedExpiry;
   bool _isMediaPreloaded = false;
   bool _isMediaStarted = false;
+  bool _requireViewerHandshake = true;
   String _servedMimeType = 'application/octet-stream';
 
   Future<CastServeSession?> serveFile({
@@ -37,6 +38,7 @@ class LocalMediaServer {
     required String sessionId,
     String? preferredRemoteIp,
     Duration tokenTtl = const Duration(minutes: 5),
+    bool requireViewerHandshake = true,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) {
@@ -54,6 +56,7 @@ class LocalMediaServer {
     _servedExpiry = DateTime.now().add(tokenTtl);
     _isMediaPreloaded = false;
     _isMediaStarted = false;
+    _requireViewerHandshake = requireViewerHandshake;
     _servedMimeType = mimeType;
     _server ??= await HttpServer.bind(InternetAddress.anyIPv4, 0);
     if (!_isListening) {
@@ -113,7 +116,7 @@ class LocalMediaServer {
         }
 
         if (path == '/media') {
-          if (!_isMediaPreloaded || !_isMediaStarted) {
+          if (_requireViewerHandshake && (!_isMediaPreloaded || !_isMediaStarted)) {
             request.response.statusCode = HttpStatus.conflict;
             request.response.headers.contentType = ContentType.json;
             request.response.write('{"status":"error","reason":"not_ready"}');
@@ -187,6 +190,7 @@ class LocalMediaServer {
     _servedExpiry = null;
     _isMediaPreloaded = false;
     _isMediaStarted = false;
+    _requireViewerHandshake = true;
     _servedMimeType = 'application/octet-stream';
     if (server != null) {
       await server.close(force: true);

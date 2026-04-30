@@ -424,6 +424,11 @@ class _CastScreenState extends State<CastScreen> {
   }
 
   Future<bool> _ensureTvConnectedForMediaCast() async {
+    // iOS Chromecast flow does not require Android TV remote pairing.
+    if (Platform.isIOS) {
+      return true;
+    }
+
     if (_tvConnectionController.connectionState.value ==
         TvConnectionState.connected) {
       return true;

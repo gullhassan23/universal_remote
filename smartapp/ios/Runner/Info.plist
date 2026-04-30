@@ -40,6 +40,8 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>This app discovers and controls TVs on your local Wi‑Fi network.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photo library access so you can select photos to cast to your TV.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses the microphone to convert your voice to TV search text.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
