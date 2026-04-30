@@ -212,6 +212,9 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
     case 'KEY_ENTER':
       // Use DPAD_CENTER so "OK" selects focused item in Android TV UI/keyboard.
       return 23;
+    case 'KEY_IME_ENTER':
+      // Use text-field enter to commit queries in launcher/search IME fields.
+      return 66;
     case 'KEY_MENU':
       return 82;
     case 'KEY_HOME':

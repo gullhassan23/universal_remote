@@ -52,13 +52,7 @@ class KeyboardLogEntry {
   }
 }
 
-/// Streams typed text to a connected Android TV via the existing
-/// `RemoteImeBatchEdit` (commitText-equivalent) pipeline.
-///
-/// On each keystroke the entire cumulative [buffer] is pushed: the TV's IME
-/// service replaces the focused field's text with the new value. Resending the
-/// full buffer is intentional — a single dropped packet self-heals on the next
-/// keystroke instead of corrupting the displayed text.
+/// Stores typed text locally and submits the full buffer only on ENTER.
 class KeyboardController extends GetxController {
   KeyboardController({TvConnectionController? connectionController})
       : _connectionController =
@@ -79,6 +73,7 @@ class KeyboardController extends GetxController {
   final RxList<KeyboardLogEntry> debugLog = <KeyboardLogEntry>[].obs;
 
   final Queue<KeyboardLogEntry> _logRing = Queue<KeyboardLogEntry>();
+  Future<void> _typingQueue = Future<void>.value();
 
   /// Total stats — maintained even when [debugLog] is capped.
   final RxInt sentCount = 0.obs;
@@ -90,35 +85,48 @@ class KeyboardController extends GetxController {
       TvConnectionState.connected;
 
   Future<bool> appendChar(String char) async {
-    if (char.isEmpty) return false;
-    final next = buffer.value + char;
-    return _applyBufferAndPush(next, label: char);
+    return _enqueueTyping<bool>(() async {
+      if (char.isEmpty) return false;
+
+      buffer.value = buffer.value + char; // ✅ only local state
+      return true;
+    });
   }
 
   Future<bool> backspace() async {
-    if (buffer.value.isEmpty) {
-      // Nothing buffered locally; ask the TV's IME to delete one character.
-      final stopwatch = Stopwatch()..start();
-      final counters = await _readImeCounters();
-      final sent = await _connectionController.sendKey('KEY_BACKSPACE');
-      stopwatch.stop();
-      final after = await _readImeCounters();
+    return _enqueueTyping<bool>(() async {
+      if (buffer.value.isEmpty) {
+        _appendLog(
+          label: _backspaceLabel,
+          bufferAfter: '',
+          sent: true,
+          latencyMs: 0,
+        );
+        return true;
+      }
+      final next = buffer.value.substring(0, buffer.value.length - 1);
+      buffer.value = next;
       _appendLog(
         label: _backspaceLabel,
-        bufferAfter: '',
-        sent: sent,
-        latencyMs: stopwatch.elapsedMilliseconds,
-        before: counters,
-        after: after,
+        bufferAfter: next,
+        sent: true,
+        latencyMs: 0,
       );
-      return sent;
-    }
-    final next = buffer.value.substring(0, buffer.value.length - 1);
-    return _applyBufferAndPush(next, label: _backspaceLabel);
+      return true;
+    });
   }
 
   Future<bool> space() {
-    return appendChar(' ').then((sent) {
+    return _enqueueTyping<bool>(() async {
+      final next = buffer.value + ' ';
+      buffer.value = next;
+      final sent = true;
+      _appendLog(
+        label: ' ',
+        bufferAfter: next,
+        sent: true,
+        latencyMs: 0,
+      );
       // Re-tag the most recent log entry so the user sees <SPACE> in the log.
       _retagLastLog(' ', _spaceLabel);
       return sent;
@@ -126,39 +134,56 @@ class KeyboardController extends GetxController {
   }
 
   Future<bool> enter() async {
-    final stopwatch = Stopwatch()..start();
-    final before = await _readImeCounters();
-    final sent = await _connectionController.sendKey('KEY_ENTER');
-    stopwatch.stop();
-    final after = await _readImeCounters();
-    _appendLog(
-      label: _enterLabel,
-      bufferAfter: buffer.value,
-      sent: sent,
-      latencyMs: stopwatch.elapsedMilliseconds,
-      before: before,
-      after: after,
-    );
-    return sent;
+    return _enqueueTyping<bool>(() async {
+      final payload = buffer.value;
+      if (payload.isEmpty) {
+        _appendLog(
+          label: _enterLabel,
+          bufferAfter: buffer.value,
+          sent: true,
+          latencyMs: 0,
+        );
+        return true;
+      }
+
+      final stopwatch = Stopwatch()..start();
+      final before = await _readImeCounters();
+      final sent = await _connectionController.sendTextPrepared(
+        payload,
+        autoPrepareInputContext: true,
+        forcePrepareInputContext: true,
+        liveTyping: false,
+        openPickerOnFailure: true,
+      );
+      stopwatch.stop();
+      final after = await _readImeCounters();
+      if (sent) {
+        buffer.value = '';
+      }
+      _appendLog(
+        label: _enterLabel,
+        bufferAfter: sent ? '' : buffer.value,
+        sent: sent,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        before: before,
+        after: after,
+      );
+      return sent;
+    });
   }
 
   Future<bool> clear() async {
-    if (buffer.value.isEmpty) return true;
-    final stopwatch = Stopwatch()..start();
-    final before = await _readImeCounters();
-    buffer.value = '';
-    final pushed = await _pushBuffer();
-    stopwatch.stop();
-    final after = await _readImeCounters();
-    _appendLog(
-      label: _clearLabel,
-      bufferAfter: '',
-      sent: pushed,
-      latencyMs: stopwatch.elapsedMilliseconds,
-      before: before,
-      after: after,
-    );
-    return pushed;
+    return _enqueueTyping<bool>(() async {
+      if (buffer.value.isEmpty) return true;
+      buffer.value = '';
+      _appendLog(
+        label: _clearLabel,
+        bufferAfter: '',
+        sent: true,
+        latencyMs: 0,
+      );
+      return true;
+    });
   }
 
   void clearLocalBufferOnly() {
@@ -197,55 +222,22 @@ class KeyboardController extends GetxController {
     isShiftActive.value = false;
   }
 
-  Future<bool> _applyBufferAndPush(String nextBuffer, {required String label}) async {
-    final stopwatch = Stopwatch()..start();
-    final before = await _readImeCounters();
-    buffer.value = nextBuffer;
-    debugPrint('[UI] Typed: $nextBuffer');
-    bool sent = false;
-    String? error;
-    try {
-      sent = await _pushBuffer();
-    } catch (e) {
-      error = '$e';
-      debugPrint('[Error] Message failed');
-    }
-    stopwatch.stop();
-    final after = await _readImeCounters();
-    if (sent && _hasImeDelta(before, after)) {
-      debugPrint('[TV] Received: $nextBuffer');
-    } else if (!sent) {
-      debugPrint('[Error] Message failed');
-    }
-    _appendLog(
-      label: label,
-      bufferAfter: nextBuffer,
-      sent: sent,
-      latencyMs: stopwatch.elapsedMilliseconds,
-      before: before,
-      after: after,
-      error: error,
-    );
-    return sent;
-  }
-
-  Future<bool> _pushBuffer() {
-    final payload = buffer.value;
-    debugPrint('[Protocol] Sending: $payload');
-    return _connectionController.sendTextPrepared(
-      payload,
-      autoPrepareInputContext: false,
-      forcePrepareInputContext: false,
-      liveTyping: true,
-      openPickerOnFailure: true,
-    );
+  Future<T> _enqueueTyping<T>(Future<T> Function() operation) {
+    final completer = Completer<T>();
+    _typingQueue = _typingQueue.then((_) async {
+      try {
+        completer.complete(await operation());
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    });
+    return completer.future;
   }
 
   Future<Map<String, int>?> _readImeCounters() async {
     if (!isConnected) return null;
     try {
-      final counters =
-          await AndroidTvRemotePlatform.instance.getImeCounters();
+      final counters = await AndroidTvRemotePlatform.instance.getImeCounters();
       return counters;
     } catch (e) {
       if (kDebugMode) {
@@ -319,10 +311,4 @@ class KeyboardController extends GetxController {
     debugLog.assignAll(_logRing.toList(growable: false).reversed);
   }
 
-  bool _hasImeDelta(Map<String, int>? before, Map<String, int>? after) {
-    final beforeIme = before?['ime'];
-    final afterIme = after?['ime'];
-    if (beforeIme == null || afterIme == null) return false;
-    return afterIme > beforeIme;
-  }
 }

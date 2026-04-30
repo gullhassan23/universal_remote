@@ -24,6 +24,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 import java.security.MessageDigest
 import java.security.interfaces.RSAPublicKey
@@ -33,6 +35,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private companion object {
         const val KEYCODE_HOME = 3
         const val KEYCODE_ENTER = 23
+        const val KEYCODE_IME_ENTER = 66
         const val KEYCODE_DPAD_DOWN = 20
         const val KEYCODE_SEARCH = 84
         const val KEYCODE_ASSIST = 219
@@ -55,6 +58,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
     private val imeCounter = java.util.concurrent.atomic.AtomicInteger(0)
     private val imeFieldCounter = java.util.concurrent.atomic.AtomicInteger(0)
     private val lastImeUpdateAtMs = java.util.concurrent.atomic.AtomicLong(0L)
+    private val textSendMutex = Mutex()
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun registerWith(flutterEngine: FlutterEngine) {
@@ -449,15 +453,16 @@ class AndroidTvRemotePlugin(private val context: Context) {
         if (!remoteReady.get()) {
             waitForRemoteReady()
         }
-        val ok = sendTextWithCounterFallback(text)
+       val ok = sendTextWithCounterFallback(text)
+if (ok) {
+    Thread.sleep(80)
+    commitSearchAfterText(remoteController)
+}
         mainHandler.post { result.success(ok) }
     }
 
     private suspend fun sendTextPrepared(arguments: Map<*, *>, result: MethodChannel.Result) {
         val text = arguments["text"] as? String
-        val autoPrepareInputContext = arguments["autoPrepareInputContext"] as? Boolean ?: true
-        val forcePrepareInputContext = arguments["forcePrepareInputContext"] as? Boolean ?: false
-        val liveTyping = arguments["liveTyping"] as? Boolean ?: false
         if (text.isNullOrEmpty()) {
             mainHandler.post { result.success(false) }
             return
@@ -471,127 +476,64 @@ class AndroidTvRemotePlugin(private val context: Context) {
                 "[Error] Session inactive; " +
                 "sendTextPrepared: remote unavailable " +
                     "remoteNull=${remote == null} remoteReady=${remoteReady.get()} " +
-                    "liveTyping=$liveTyping",
+                    "textLength=${text.length}",
             )
             mainHandler.post { result.success(false) }
             return
         }
 
-        if (liveTyping) {
-            // Live keystroke fast-path: never nudge through HOME -> SEARCH/ASSIST,
-            // never run the heavy 7-attempt fallback. The TV is assumed to already
-            // be on a focused input field; we just push the cumulative buffer.
-            if (!isImeContextFresh() && autoPrepareInputContext) {
-                val prepared = ensureInputContext(remote)
-                if (!prepared) {
-                    Logger.e("[Error] Session inactive")
-                    mainHandler.post { result.success(false) }
-                    return
+        val sent =
+            textSendMutex.withLock {
+                Logger.d(
+                    "sendTextPrepared: start length=${text.length} " +
+                        "imeCounter=${imeCounter.get()} fieldCounter=${imeFieldCounter.get()} " +
+                        "directPreparedSend=true",
+                )
+
+                var sentFallback = sendTextWithCounterFallback(text)
+                Logger.d("sendTextPrepared: directSend sent=$sentFallback")
+
+                if (!sentFallback) {
+                    repeat(2) { retry ->
+                        Thread.sleep(55)
+                        sentFallback = sendTextWithCounterFallback(text)
+                        Logger.d("sendTextPrepared: retry=$retry sent=$sentFallback")
+                        if (sentFallback) {
+                            return@repeat
+                        }
+                    }
                 }
-            }
-            Logger.d("[Protocol] Sending: $text")
-            val sentLive = sendTextLive(text)
-            Logger.d(
-                "sendTextPrepared: live length=${text.length} sent=$sentLive " +
-                    "ime=${imeCounter.get()} field=${imeFieldCounter.get()}",
-            )
-            if (!sentLive) {
+
+                if (sentFallback) {
+                    Thread.sleep(80)
+                    commitSearchAfterText(remote)
+                    return@withLock true
+                }
                 Logger.e("[Error] Message failed")
+                false
             }
-            mainHandler.post { result.success(sentLive) }
-            return
-        }
-
-        Logger.d(
-            "sendTextPrepared: start length=${text.length} " +
-                "autoPrepare=$autoPrepareInputContext " +
-                "forcePrepare=$forcePrepareInputContext " +
-                "imeCounter=${imeCounter.get()} fieldCounter=${imeFieldCounter.get()} " +
-                "imeFresh=${isImeContextFresh()}",
-        )
-
-        if (autoPrepareInputContext && (forcePrepareInputContext || !isImeContextFresh())) {
-            Logger.d(
-                "sendTextPrepared: preparing IME context before first send " +
-                    "force=$forcePrepareInputContext",
-            )
-            ensureInputContext(remote)
-        }
-
-        var sent = sendTextWithCounterFallback(text)
-        Logger.d("sendTextPrepared: directOrPrepreparedSend sent=$sent")
-        if (sent) {
-            mainHandler.post { result.success(true) }
-            return
-        }
-        if (!autoPrepareInputContext) {
-            Logger.e("[Error] Message failed")
-            mainHandler.post { result.success(false) }
-            return
-        }
-
-        val prepared = ensureInputContext(remote)
-        Logger.d("sendTextPrepared: ensureInputContext prepared=$prepared")
-        if (!prepared) {
-            Logger.e("[Error] Session inactive")
-            mainHandler.post { result.success(false) }
-            return
-        }
-
-        repeat(2) { retry ->
-            if (retry > 0) {
-                Thread.sleep(55)
-            }
-            sent = sendTextWithCounterFallback(text)
-            Logger.d("sendTextPrepared: postPrepareRetry=$retry sent=$sent")
-            if (sent) {
-                mainHandler.post { result.success(true) }
-                return
-            }
-        }
-        Logger.e("[Error] Message failed")
-        mainHandler.post { result.success(false) }
+        mainHandler.post { result.success(sent) }
     }
 
-    /**
-     * Live-typing fast-path: push cumulative text with low-latency counter
-     * permutations. Some OEM IMEs advance/shift field counters while their
-     * on-screen keyboard is active, so `(ime,field)` alone is not enough.
-     *
-     * We keep this path lightweight (no HOME/SEARCH nudging and no long retry
-     * loops) but try a compact matrix to avoid "text appears only after IME
-     * closes" behavior when field counter drifts mid-session.
-     */
-    private fun sendTextLive(text: String): Boolean {
-        val remote = remoteController ?: return false
-        val currentIme = imeCounter.get()
-        val currentField = imeFieldCounter.get()
-        val attempts =
-            listOf(
-                currentIme to currentField,
-                (currentIme + 1) to currentField,
-                currentIme to (currentField + 1),
-                (currentIme + 1) to (currentField + 1),
-            ).distinct()
-
-        for ((index, pair) in attempts.withIndex()) {
-            if (!remoteReady.get()) return false
-            val ime = pair.first
-            val field = pair.second
-            val sent = remote.sendText(text = text, imeCounter = ime, fieldCounter = field)
-            Logger.d(
-                "sendTextLive: attempt=$index ime=$ime field=$field " +
-                    "length=${text.length} sent=$sent",
-            )
-            if (sent) {
-                imeCounter.set(ime + 1)
-                imeFieldCounter.set(field)
-                Logger.d("[TV] Received: $text")
-                return true
-            }
+    private fun commitSearchAfterText(remote: RemoteController?): Boolean {
+        if (remote == null) return false
+        val imeEnterOk = remote.sendKeyCode(KEYCODE_IME_ENTER)
+        if (imeEnterOk) {
+            Logger.d("commitSearchAfterText: imeEnterOk=true")
+            return true
         }
-
-        return false
+        Thread.sleep(70)
+        val searchOk = remote.sendKeyCode(KEYCODE_SEARCH)
+        if (searchOk) {
+            Logger.d("commitSearchAfterText: searchOk=true")
+            return true
+        }
+        Thread.sleep(70)
+        val centerOk = remote.sendKeyCode(KEYCODE_ENTER)
+        Logger.d(
+            "commitSearchAfterText: imeEnterOk=false searchOk=false centerOk=$centerOk",
+        )
+        return centerOk
     }
 
     private fun sendTextWithCounterFallback(text: String): Boolean {

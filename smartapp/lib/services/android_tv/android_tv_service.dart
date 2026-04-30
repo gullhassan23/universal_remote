@@ -14,7 +14,6 @@ import '../tv_service_interface.dart';
 
 /// Android TV Remote v2: mDNS discovery, TLS pairing on 6467, keys on 6466 (Android native).
 class AndroidTvService implements ITvService {
-  static const _batchTextPrefix = '__TEXT__:';
   static const _prefsPkcs12 = 'android_tv_pkcs12_path';
   static const _ptrScanWindow = Duration(seconds: 6);
   static const _lookupTimeout = Duration(seconds: 2);
@@ -481,11 +480,6 @@ class AndroidTvService implements ITvService {
     }
     if (!Platform.isAndroid) return false;
 
-    if (key.startsWith(_batchTextPrefix)) {
-      final text = key.substring(_batchTextPrefix.length);
-      return sendTextPrepared(text, autoPrepareInputContext: false);
-    }
-
     final code = mapRemoteKeyToAndroidKeyCode(key);
     if (code == null) {
       if (kDebugMode) {
@@ -536,9 +530,8 @@ class AndroidTvService implements ITvService {
       return false;
     }
     if (!Platform.isAndroid) return false;
-    // Live-typing keystrokes must preserve whitespace verbatim (e.g. " ", " a")
-    // because the cumulative buffer is the source of truth on the TV side.
-    final normalizedText = liveTyping ? text : text.trim();
+    // Preserve payload exactly as entered by the user.
+    final normalizedText = text;
     if (normalizedText.isEmpty) return false;
     final aliveBeforeSend =
         await AndroidTvRemotePlatform.instance.isRemoteSessionAlive();
@@ -556,21 +549,6 @@ class AndroidTvService implements ITvService {
       'preview="${_previewTextForLog(normalizedText)}"',
     );
     try {
-      if (liveTyping) {
-        // Single fast call; native handles its own (limited) retry.
-        _log('[Protocol] Sending: ${_previewTextForLog(normalizedText)}');
-        final sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
-          normalizedText,
-          autoPrepareInputContext: autoPrepareInputContext,
-          forcePrepareInputContext: forcePrepareInputContext,
-          liveTyping: true,
-        );
-        _log('sendTextPrepared liveTyping result=$sent');
-        if (!sent) {
-          _log('[Error] Message failed');
-        }
-        return sent;
-      }
       _log('[Protocol] Sending: ${_previewTextForLog(normalizedText)}');
       var sent = await AndroidTvRemotePlatform.instance.sendTextPrepared(
         normalizedText,

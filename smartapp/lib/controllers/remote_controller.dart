@@ -18,6 +18,18 @@ import '../widgets/remote_keyboard_sheet.dart';
 
 enum _RemoteSheetType { picker, keyboard }
 
+class _PendingPreparedText {
+  const _PendingPreparedText({
+    required this.text,
+    required this.autoPrepareInputContext,
+    required this.forcePrepareInputContext,
+  });
+
+  final String text;
+  final bool autoPrepareInputContext;
+  final bool forcePrepareInputContext;
+}
+
 class RemoteController extends GetxController {
   RemoteController({
     TvConnectionController? connectionController,
@@ -41,6 +53,7 @@ class RemoteController extends GetxController {
   var selectedTab = 0.obs;
   final RxBool showDevicePicker = false.obs;
   String? _pendingKey;
+  _PendingPreparedText? _pendingPreparedText;
   bool _pendingOpenKeyboardAfterConnect = false;
   bool _pickerSheetVisible = false;
   _RemoteSheetType? _activeSheetType;
@@ -180,15 +193,11 @@ class RemoteController extends GetxController {
     String text, {
     bool openPickerOnFailure = false,
   }) {
-    if (text.isEmpty) return Future<bool>.value(false);
-    debugPrint(
-      '[remote_controller] send_text_reliably length=${text.length} '
-      'openPickerOnFailure=$openPickerOnFailure preview="${_previewPayload(text)}"',
-    );
-    return _sendReliably(
-      payload: '__TEXT__:$text',
+    return sendPreparedTextReliably(
+      text,
       openPickerOnFailure: openPickerOnFailure,
-      retryDelay: const Duration(milliseconds: 40),
+      autoPrepareInputContext: true,
+      source: 'mobile_voice',
     );
   }
 
@@ -230,7 +239,11 @@ class RemoteController extends GetxController {
     if (_connectionController.connectionState.value !=
             TvConnectionState.connected &&
         openPickerOnFailure) {
-      _pendingKey = '__TEXT__:$normalized';
+      _pendingPreparedText = _PendingPreparedText(
+        text: normalized,
+        autoPrepareInputContext: autoPrepareInputContext,
+        forcePrepareInputContext: source == 'mobile_keyboard',
+      );
       _openPickerIfNeeded();
       return false;
     }
@@ -303,7 +316,11 @@ class RemoteController extends GetxController {
 
     if (openPickerOnFailure) {
       _showReconnectNoticeIfAny();
-      _pendingKey = '__TEXT__:$normalized';
+      _pendingPreparedText = _PendingPreparedText(
+        text: normalized,
+        autoPrepareInputContext: autoPrepareInputContext,
+        forcePrepareInputContext: source == 'mobile_keyboard',
+      );
       _openPickerIfNeeded();
     }
     debugPrint(
@@ -404,6 +421,15 @@ class RemoteController extends GetxController {
       if (pendingKey != null) {
         await _connectionController.sendKey(pendingKey);
       }
+      final pendingPreparedText = _pendingPreparedText;
+      _pendingPreparedText = null;
+      if (pendingPreparedText != null) {
+        await _connectionController.sendTextPrepared(
+          pendingPreparedText.text,
+          autoPrepareInputContext: pendingPreparedText.autoPrepareInputContext,
+          forcePrepareInputContext: pendingPreparedText.forcePrepareInputContext,
+        );
+      }
     }
     return success;
   }
@@ -415,6 +441,7 @@ class RemoteController extends GetxController {
     }
     _setShowDevicePickerSafely(false);
     _pendingKey = null;
+    _pendingPreparedText = null;
   }
 
   void registerKeyboardSheetCloser(VoidCallback closeSheet) {

@@ -34,8 +34,10 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   String? _pendingReconnectNotice;
   Timer? _resumeDebounceTimer;
   Timer? _connectionHealthTimer;
+  DateTime? _lastKeyboardSessionHealthyAt;
   int _resumeToken = 0;
   VoidCallback? _onKeyboardConnectionRequired;
+  static const Duration _keyboardHealthCheckTtl = Duration(milliseconds: 1200);
 
   final Rx<TvDevice?> currentDevice = Rx<TvDevice?>(null);
   final Rx<TvConnectionState> connectionState =
@@ -70,6 +72,9 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     WidgetsBinding.instance.addObserver(this);
     _tvService.connectionStateStream.listen((state) {
       connectionState.value = state;
+      if (state != TvConnectionState.connected) {
+        _lastKeyboardSessionHealthyAt = null;
+      }
       if ((state == TvConnectionState.error ||
               state == TvConnectionState.disconnected) &&
           activeCastSession.value != null &&
@@ -353,6 +358,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       _backgroundKeepAliveArmed = false;
     }
     connectionState.value = TvConnectionState.disconnected;
+    _lastKeyboardSessionHealthyAt = null;
     await _tvService.disconnect();
     currentDevice.value = null;
     _restoreFuture = null;
@@ -387,6 +393,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   }) async {
     final ready = await ensureConnectedForKeyboardInput(
       openPickerOnFailure: openPickerOnFailure,
+      allowRecentHealthyCheck: liveTyping,
     );
     final state = connectionState.value;
     final deviceName = currentDevice.value?.name ?? 'unknown-device';
@@ -402,6 +409,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
       liveTyping: liveTyping,
     );
     if (sent) {
+      _lastKeyboardSessionHealthyAt = DateTime.now();
       _log(
         'sendTextPrepared success length=${text.length} device=$deviceName '
         'autoPrepare=$autoPrepareInputContext liveTyping=$liveTyping',
@@ -417,11 +425,22 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
 
   Future<bool> ensureConnectedForKeyboardInput({
     bool openPickerOnFailure = false,
+    bool allowRecentHealthyCheck = false,
   }) async {
     final state = connectionState.value;
     if (state == TvConnectionState.connected) {
+      final lastHealthyAt = _lastKeyboardSessionHealthyAt;
+      final withinTtl =
+          allowRecentHealthyCheck &&
+          lastHealthyAt != null &&
+          DateTime.now().difference(lastHealthyAt) <= _keyboardHealthCheckTtl;
+      if (withinTtl) {
+        _log('[Connection] Session Active ✅');
+        return true;
+      }
       final alive = await _tvService.verifyConnectedSessionAlive();
       if (alive) {
+        _lastKeyboardSessionHealthyAt = DateTime.now();
         _log('[Connection] Session Active ✅');
         return true;
       }
@@ -431,6 +450,7 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
     if (restored) {
       final aliveAfterReconnect = await _tvService.verifyConnectedSessionAlive();
       if (aliveAfterReconnect) {
+        _lastKeyboardSessionHealthyAt = DateTime.now();
         _log('[Connection] Session Active ✅');
         return true;
       }

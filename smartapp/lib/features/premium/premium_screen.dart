@@ -344,7 +344,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     ),
                                   )
                                 : const Text(
-                                    'Start Free -- Unlock Now',
+                                    'Continue',
                                     style: TextStyle(
                                       fontSize: 20, // FIXED
                                       fontWeight: FontWeight.w600,

@@ -12,10 +12,8 @@ import '../services/tv_service_interface.dart';
 
 /// Production-grade Android TV keyboard bottom sheet.
 ///
-/// Renders a custom QWERTY/symbols pad whose every keystroke streams the
-/// cumulative buffer to the TV via [KeyboardController.appendChar] (which uses
-/// the live-typing fast-path through [TvConnectionController.sendTextPrepared]
-/// with `liveTyping: true`).
+/// Renders a custom QWERTY/symbols pad that keeps typing in local buffer and
+/// submits the full text only when ENTER is pressed.
 class RemoteKeyboardSheet extends StatefulWidget {
   const RemoteKeyboardSheet({
     super.key,
@@ -368,15 +366,13 @@ class _RemoteKeyboardSheetState extends State<RemoteKeyboardSheet> {
           ),
         ),
         onTap: () {
-          unawaited(
-            widget.onHandleTap(
-              buttonKey: 'KB_${visible.toUpperCase()}',
-              action: 'send_char',
-              onTap: () async {
-                await _kb.appendChar(visible);
-                _kb.consumeShiftAfterPress();
-              },
-            ),
+          widget.onHandleTap(
+            buttonKey: 'KB_${visible.toUpperCase()}',
+            action: 'send_char',
+            onTap: () async {
+              await _kb.appendChar(visible);
+              _kb.consumeShiftAfterPress();
+            },
           );
         },
       );
@@ -395,14 +391,12 @@ class _RemoteKeyboardSheetState extends State<RemoteKeyboardSheet> {
     return _KeyButton(
       widthFactor: widthFactor,
       onTap: () {
-        unawaited(
-          widget.onHandleTap(
-            buttonKey: buttonKey,
-            action: action,
-            onTap: () async {
-              onTap();
-            },
-          ),
+        widget.onHandleTap(
+          buttonKey: buttonKey,
+          action: action,
+          onTap: () async {
+            onTap();
+          },
         );
       },
       onLongPress: onLongPress == null

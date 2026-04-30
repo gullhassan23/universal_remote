@@ -61,6 +61,30 @@ class RemoteScreen extends GetView<RemoteController> {
     );
   }
 
+  VoidCallback _sendSearchTap() {
+    return _loggedTap(
+      'KEY_SEARCH',
+      () async {
+        if (Get.isRegistered<KeyboardController>()) {
+          final kbController = Get.find<KeyboardController>();
+          final hasBufferedText = kbController.buffer.value.trim().isNotEmpty;
+          if (hasBufferedText) {
+            final submitted = await kbController.enter();
+            if (submitted) {
+              return;
+            }
+          }
+        }
+        await controller.send('KEY_SEARCH');
+        await Future<void>.delayed(const Duration(milliseconds: 140));
+        await controller.send('KEY_IME_ENTER');
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        await controller.send('KEY_ENTER');
+      },
+      action: 'search_or_submit',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -279,7 +303,7 @@ class RemoteScreen extends GetView<RemoteController> {
               SizedBox(height: 19),
               _roundedActionButton(
                 icon: Icons.search,
-                onTap: _sendKeyTap('KEY_SEARCH'),
+                onTap: _sendSearchTap(),
                 width: 88,
                 height: 50,
               ),
