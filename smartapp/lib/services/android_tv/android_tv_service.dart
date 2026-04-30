@@ -213,7 +213,10 @@ class AndroidTvService implements ITvService {
           .lookup<PtrResourceRecord>(
             ResourceRecordQuery.serverPointer(_serviceTypes.first),
           )
-          .listen((ptr) => ptrDomains.add(ptr.domainName));
+          .listen(
+            (ptr) => ptrDomains.add(ptr.domainName),
+            onError: (_) {},
+          );
       final extraPtrSubs = <StreamSubscription<PtrResourceRecord>>[];
       for (final serviceType in _serviceTypes.skip(1)) {
         extraPtrSubs.add(
@@ -221,7 +224,10 @@ class AndroidTvService implements ITvService {
               .lookup<PtrResourceRecord>(
                 ResourceRecordQuery.serverPointer(serviceType),
               )
-              .listen((ptr) => ptrDomains.add(ptr.domainName)),
+              .listen(
+                (ptr) => ptrDomains.add(ptr.domainName),
+                onError: (_) {},
+              ),
         );
       }
 
@@ -232,32 +238,36 @@ class AndroidTvService implements ITvService {
       }
 
       for (final domain in ptrDomains) {
-        await for (final srv in mdns
-            .lookup<SrvResourceRecord>(
-              ResourceRecordQuery.service(domain),
-            )
-            .timeout(_lookupTimeout)) {
-          try {
-            final addresses = await _lookupServiceAddresses(mdns, srv.target);
-            if (addresses.isEmpty) continue;
-            final ip = addresses.first.address;
-            final key = '$ip:${srv.port}';
-            if (!seen.add(key)) continue;
+        try {
+          await for (final srv in mdns
+              .lookup<SrvResourceRecord>(
+                ResourceRecordQuery.service(domain),
+              )
+              .timeout(_lookupTimeout)) {
+            try {
+              final addresses = await _lookupServiceAddresses(mdns, srv.target);
+              if (addresses.isEmpty) continue;
+              final ip = addresses.first.address;
+              final key = '$ip:${srv.port}';
+              if (!seen.add(key)) continue;
 
-            final name = _extractServiceName(domain);
-            devices.add(
-              TvDevice(
-                id: key,
-                name: name.isEmpty ? 'Android TV ($ip)' : name,
-                ip: ip,
-                port: srv.port,
-                brand: TvBrand.androidTv,
-              ),
-            );
-            _log('discovered name=${devices.last.name} ip=$ip port=${srv.port}');
-          } catch (_) {
-            continue;
+              final name = _extractServiceName(domain);
+              devices.add(
+                TvDevice(
+                  id: key,
+                  name: name.isEmpty ? 'Android TV ($ip)' : name,
+                  ip: ip,
+                  port: srv.port,
+                  brand: TvBrand.androidTv,
+                ),
+              );
+              _log('discovered name=${devices.last.name} ip=$ip port=${srv.port}');
+            } catch (_) {
+              continue;
+            }
           }
+        } catch (_) {
+          continue;
         }
       }
     } catch (e) {

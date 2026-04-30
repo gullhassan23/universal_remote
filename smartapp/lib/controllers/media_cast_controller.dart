@@ -2,16 +2,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_chrome_cast/cast_context.dart';
-import 'package:flutter_chrome_cast/discovery.dart';
 import 'package:flutter_chrome_cast/entities.dart';
 import 'package:flutter_chrome_cast/enums.dart';
-import 'package:flutter_chrome_cast/media.dart';
-import 'package:flutter_chrome_cast/models.dart';
-import 'package:flutter_chrome_cast/session.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/cast/chromecast_cast_service.dart';
+import '../services/media/local_media_server.dart';
 import 'tv_connection_controller.dart';
 
 enum MediaCastStatus {
@@ -38,8 +35,12 @@ class CastMediaItem {
 }
 
 class MediaCastController extends GetxController {
-  MediaCastController({TvConnectionController? connectionController});
+  MediaCastController({
+    TvConnectionController? connectionController,
+    ChromecastCastService? castService,
+  }) : _castService = castService ?? ChromecastCastService();
   final ImagePicker _imagePicker = ImagePicker();
+  final ChromecastCastService _castService;
   final Rx<MediaCastStatus> status = MediaCastStatus.idle.obs;
   final RxString errorMessage = ''.obs;
   final RxString progressMessage = ''.obs;
@@ -49,12 +50,11 @@ class MediaCastController extends GetxController {
   final RxList<CastMediaItem> mediaQueue = <CastMediaItem>[].obs;
   final RxInt currentMediaIndex = 0.obs;
   final RxInt mediaVersion = 0.obs;
-  bool _isCastContextInitialized = false;
-  bool _isDiscovering = false;
-  HttpServer? _mediaServer;
+  final LocalMediaServer _mediaServer = LocalMediaServer();
   CastMediaItem? _activeMedia;
   GoogleCastDevice? _selectedDevice;
   bool _manualDisconnectRequested = false;
+  Timer? _connectionMonitorTimer;
 
   @override
   void onInit() {
@@ -68,8 +68,7 @@ class MediaCastController extends GetxController {
           status.value == MediaCastStatus.success);
   bool get hasPersistentSession =>
       _selectedDevice != null &&
-      GoogleCastSessionManager.instance.connectionState ==
-          GoogleCastConnectState.connected;
+      _castService.connectionState == GoogleCastConnectState.connected;
   bool get shouldKeepConnectionAlive =>
       connectionLocked.value && !_manualDisconnectRequested;
 
@@ -87,7 +86,7 @@ class MediaCastController extends GetxController {
 
     try {
       errorMessage.value = '';
-      await _ensureCastContext();
+      await _castService.ensureContextInitialized();
 
       final connected = await ensureConnectedForCasting();
       if (!connected) return;
@@ -165,17 +164,10 @@ class MediaCastController extends GetxController {
         ? 'Casting media...'
         : 'Casting on ${connectedDeviceName.value} (${index + 1}/${mediaQueue.length})...';
 
-    await GoogleCastRemoteMediaClient.instance.loadMedia(
-      GoogleCastMediaInformationIOS(
-        contentId: mediaUri.toString(),
-        streamType: CastMediaStreamType.buffered,
-        contentUrl: mediaUri,
-        contentType: media.mimeType,
-        metadata: GoogleCastMovieMediaMetadata(title: media.name),
-      ),
-      autoPlay: true,
-      playPosition: Duration.zero,
-      playbackRate: 1.0,
+    await _castService.loadMedia(
+      mediaUri: mediaUri,
+      mimeType: media.mimeType,
+      title: media.name,
     );
 
     status.value = MediaCastStatus.success;
@@ -204,6 +196,7 @@ class MediaCastController extends GetxController {
     await _ensureSessionDisconnected();
     _selectedDevice = null;
     connectedDeviceName.value = '';
+    _stopConnectionMonitor();
     _resetToIdle();
   }
 
@@ -286,25 +279,6 @@ class MediaCastController extends GetxController {
     ];
   }
 
-  Future<void> _ensureCastContext() async {
-    if (_isCastContextInitialized) {
-      return;
-    }
-
-    const appId = GoogleCastDiscoveryCriteria.kDefaultApplicationId;
-    if (Platform.isIOS) {
-      final options = IOSGoogleCastOptions(
-        GoogleCastDiscoveryCriteriaInitialize.initWithApplicationID(appId),
-      );
-      GoogleCastContext.instance.setSharedInstanceWithOptions(options);
-    } else if (Platform.isAndroid) {
-      final options = GoogleCastOptionsAndroid(appId: appId);
-      GoogleCastContext.instance.setSharedInstanceWithOptions(options);
-    }
-
-    _isCastContextInitialized = true;
-  }
-
   Future<GoogleCastDevice?> _selectDevice(List<GoogleCastDevice> devices) async {
     if (devices.length == 1) {
       return devices.first;
@@ -361,24 +335,20 @@ class MediaCastController extends GetxController {
       return null;
     }
 
-    await _ensureMediaServer();
-    final server = _mediaServer;
-    if (server == null) return null;
-
-    final cacheBust = DateTime.now().millisecondsSinceEpoch.toString();
-    return Uri(
-      scheme: 'http',
-      host: server.address.address,
-      port: server.port,
-      path: '/media',
-      queryParameters: <String, String>{'v': cacheBust},
+    final session = await _mediaServer.serveFile(
+      filePath: media.path,
+      mimeType: media.mimeType,
+      sessionId: 'chromecast-${DateTime.now().millisecondsSinceEpoch}',
+      requireViewerHandshake: false,
     );
+    return session?.mediaUri;
   }
 
   @override
   void onClose() {
-    unawaited(_stopMediaServer());
-    _stopDiscovery();
+    unawaited(_mediaServer.stop());
+    _castService.stopDiscovery();
+    _stopConnectionMonitor();
     super.onClose();
   }
 
@@ -399,19 +369,14 @@ class MediaCastController extends GetxController {
     isConnecting.value = true;
     status.value = MediaCastStatus.selectingTarget;
     progressMessage.value = 'Searching for cast devices...';
-    _startDiscovery();
+    _castService.startDiscovery();
     _manualDisconnectRequested = false;
 
     try {
       final discoveryTimeout = Platform.isIOS
           ? const Duration(seconds: 25)
           : const Duration(seconds: 15);
-      final devices = await GoogleCastDiscoveryManager.instance.devicesStream
-          .firstWhere((List<GoogleCastDevice> list) => list.isNotEmpty)
-          .timeout(
-            discoveryTimeout,
-            onTimeout: () => <GoogleCastDevice>[],
-          );
+      final devices = await _castService.discoverDevices(timeout: discoveryTimeout);
       if (devices.isEmpty) {
         _setError(
           Platform.isIOS
@@ -437,29 +402,17 @@ class MediaCastController extends GetxController {
       _selectedDevice = selectedDevice;
       connectedDeviceName.value = selectedDevice.friendlyName;
       connectionLocked.value = true;
+      _startConnectionMonitor();
       return true;
     } finally {
-      _stopDiscovery();
+      _castService.stopDiscovery();
       isConnecting.value = false;
     }
   }
 
-  void _startDiscovery() {
-    if (_isDiscovering) return;
-    GoogleCastDiscoveryManager.instance.startDiscovery();
-    _isDiscovering = true;
-  }
-
-  void _stopDiscovery() {
-    if (!_isDiscovering) return;
-    GoogleCastDiscoveryManager.instance.stopDiscovery();
-    _isDiscovering = false;
-  }
-
   Future<void> _ensureSessionDisconnected() async {
-    if (GoogleCastSessionManager.instance.connectionState ==
-        GoogleCastConnectState.connected) {
-      await GoogleCastSessionManager.instance.endSessionAndStopCasting();
+    if (_castService.connectionState == GoogleCastConnectState.connected) {
+      await _castService.endSessionAndStopCasting();
       await Future<void>.delayed(const Duration(milliseconds: 650));
     }
   }
@@ -473,19 +426,17 @@ class MediaCastController extends GetxController {
     // Some devices (especially Mi TV Stick) take longer to expose a
     // fully connected cast session.
     const maxAttempts = 2;
-    var lastState = GoogleCastSessionManager.instance.connectionState;
+    var lastState = _castService.connectionState;
 
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       await _disconnectForReconnectIfNeeded(selectedDevice);
       await Future<void>.delayed(const Duration(milliseconds: 350));
-      await GoogleCastSessionManager.instance.startSessionWithDevice(
-        selectedDevice,
-      );
+      await _castService.startSessionWithDevice(selectedDevice);
 
       progressMessage.value = attempt == 1
           ? 'Waiting for ${selectedDevice.friendlyName} to accept cast session...'
           : 'Retrying connection to ${selectedDevice.friendlyName}...';
-      lastState = await _waitForConnectedSession();
+      lastState = await _castService.waitForConnectedSession();
       if (lastState == GoogleCastConnectState.connected) {
         return lastState;
       }
@@ -495,7 +446,7 @@ class MediaCastController extends GetxController {
 
   bool _canReuseConnectedSession(GoogleCastDevice device) {
     final isConnected =
-        GoogleCastSessionManager.instance.connectionState ==
+        _castService.connectionState ==
             GoogleCastConnectState.connected;
     if (!isConnected) return false;
     final selected = _selectedDevice;
@@ -505,7 +456,7 @@ class MediaCastController extends GetxController {
 
   Future<void> _disconnectForReconnectIfNeeded(GoogleCastDevice target) async {
     final isConnected =
-        GoogleCastSessionManager.instance.connectionState ==
+        _castService.connectionState ==
             GoogleCastConnectState.connected;
     if (!isConnected) return;
     final selected = _selectedDevice;
@@ -523,122 +474,40 @@ class MediaCastController extends GetxController {
     }
   }
 
-  Future<GoogleCastConnectState> _waitForConnectedSession() async {
-    final endAt = DateTime.now().add(const Duration(seconds: 20));
-    var state = GoogleCastSessionManager.instance.connectionState;
-    while (DateTime.now().isBefore(endAt) &&
-        state != GoogleCastConnectState.connected) {
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      state = GoogleCastSessionManager.instance.connectionState;
-    }
-    return state;
+  void _startConnectionMonitor() {
+    _connectionMonitorTimer?.cancel();
+    _connectionMonitorTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => unawaited(_monitorConnectionHealth()),
+    );
   }
 
-  Future<void> _handleMediaRequest(HttpRequest request) async {
-    final media = _activeMedia;
-    final mediaPath = media?.path;
-    final mimeType = media?.mimeType;
-    final mediaFile = mediaPath == null ? null : File(mediaPath);
-    if (mediaFile == null || mimeType == null || request.uri.path != '/media') {
-      request.response.statusCode = HttpStatus.notFound;
-      await request.response.close();
+  void _stopConnectionMonitor() {
+    _connectionMonitorTimer?.cancel();
+    _connectionMonitorTimer = null;
+  }
+
+  Future<void> _monitorConnectionHealth() async {
+    if (_manualDisconnectRequested || !connectionLocked.value) return;
+    final selectedDevice = _selectedDevice;
+    if (selectedDevice == null) return;
+    if (_castService.connectionState == GoogleCastConnectState.connected) return;
+
+    progressMessage.value = 'Cast connection lost. Reconnecting...';
+    final state = await _connectToDeviceWithRetry(selectedDevice);
+    if (state != GoogleCastConnectState.connected) {
+      _setError('Cast session dropped. Tap Media to reconnect.');
+      connectionLocked.value = false;
       return;
     }
 
-    try {
-      final fileLength = await mediaFile.length();
-      request.response.headers.set(HttpHeaders.contentTypeHeader, mimeType);
-      request.response.headers.set(HttpHeaders.acceptRangesHeader, 'bytes');
-
-      final range = request.headers.value(HttpHeaders.rangeHeader);
-      if (range != null && range.startsWith('bytes=')) {
-        final parts = range.replaceFirst('bytes=', '').split('-');
-        final start = int.tryParse(parts.first) ?? 0;
-        final end = parts.length > 1 && parts[1].isNotEmpty
-            ? int.tryParse(parts[1]) ?? fileLength - 1
-            : fileLength - 1;
-
-        if (start < 0 || end >= fileLength || start > end) {
-          request.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
-          request.response.headers.set(HttpHeaders.contentRangeHeader, 'bytes */$fileLength');
-          await request.response.close();
-          return;
-        }
-
-        request.response.statusCode = HttpStatus.partialContent;
-        request.response.headers.set(
-          HttpHeaders.contentRangeHeader,
-          'bytes $start-$end/$fileLength',
-        );
-        request.response.contentLength = end - start + 1;
-        await request.response.addStream(mediaFile.openRead(start, end + 1));
-        await request.response.close();
-        return;
-      }
-
-      request.response.contentLength = fileLength;
-      await request.response.addStream(mediaFile.openRead());
-      await request.response.close();
-    } catch (_) {
-      request.response.statusCode = HttpStatus.internalServerError;
-      await request.response.close();
+    if (_activeMedia != null && mediaQueue.isNotEmpty) {
+      final index = currentMediaIndex.value.clamp(0, mediaQueue.length - 1);
+      await castMediaAt(index);
+      progressMessage.value = connectedDeviceName.value.isEmpty
+          ? 'Reconnected. Casting resumed.'
+          : 'Reconnected to ${connectedDeviceName.value}. Casting resumed.';
     }
-  }
-
-  Future<void> _stopMediaServer() async {
-    final server = _mediaServer;
-    _mediaServer = null;
-    if (server != null) {
-      await server.close(force: true);
-    }
-  }
-
-  Future<void> _ensureMediaServer() async {
-    if (_mediaServer != null) return;
-    final bindAddress = await _resolvePrivateAddress();
-    if (bindAddress == null) return;
-    _mediaServer = await HttpServer.bind(bindAddress, 0);
-    unawaited(_mediaServer!.forEach(_handleMediaRequest));
-  }
-
-  Future<InternetAddress?> _resolvePrivateAddress() async {
-    final interfaces = await NetworkInterface.list(
-      type: InternetAddressType.IPv4,
-      includeLoopback: false,
-    );
-    final sortedInterfaces = List<NetworkInterface>.from(interfaces)
-      ..sort((a, b) {
-        final aScore = _networkInterfacePriority(a.name);
-        final bScore = _networkInterfacePriority(b.name);
-        return bScore.compareTo(aScore);
-      });
-    for (final interface in sortedInterfaces) {
-      for (final address in interface.addresses) {
-        if (_isPrivate(address)) {
-          return address;
-        }
-      }
-    }
-    return null;
-  }
-
-  bool _isPrivate(InternetAddress address) {
-    final parts = address.address.split('.');
-    if (parts.length != 4) return false;
-    final a = int.tryParse(parts[0]) ?? -1;
-    final b = int.tryParse(parts[1]) ?? -1;
-    return a == 10 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168);
-  }
-
-  int _networkInterfacePriority(String interfaceName) {
-    final name = interfaceName.toLowerCase();
-    if (name.contains('wlan') || name.contains('wifi') || name == 'en0') {
-      return 3;
-    }
-    if (name.contains('eth') || name.startsWith('en')) {
-      return 2;
-    }
-    return 1;
   }
 
   String _inferMimeType(String path) {
