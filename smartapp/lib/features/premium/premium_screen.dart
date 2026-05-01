@@ -21,6 +21,60 @@ class PremiumScreen extends StatefulWidget {
 
 class _PremiumScreenState extends State<PremiumScreen> {
   final Rx<_PremiumPlanType> _selectedPlan = _PremiumPlanType.weekly.obs;
+  Worker? _premiumStateWorker;
+  Worker? _messageWorker;
+  Worker? _errorWorker;
+  String? _lastShownMessage;
+  String? _lastShownError;
+  late bool _wasPremiumOnOpen;
+
+  @override
+  void initState() {
+    super.initState();
+    final premiumController = Get.find<PremiumController>();
+    final iapService = Get.find<SubscriptionIAPService>();
+    _wasPremiumOnOpen = premiumController.isPremium.value;
+
+    _premiumStateWorker = ever<bool>(premiumController.isPremium, (isPremium) {
+      if (!isPremium || _wasPremiumOnOpen) return;
+      _showSnackbar('Premium', 'Subscription activated successfully.');
+      if (mounted) {
+        Get.offAllNamed('/home');
+      }
+    });
+
+    _messageWorker = ever<String?>(iapService.lastMessage, (message) {
+      if (message == null || message.isEmpty) return;
+      if (message == _lastShownMessage) return;
+      _lastShownMessage = message;
+      _showSnackbar('Premium', message);
+    });
+
+    _errorWorker = ever<String?>(iapService.lastError, (error) {
+      if (error == null || error.isEmpty) return;
+      if (error == _lastShownError) return;
+      _lastShownError = error;
+      _showSnackbar('Purchase failed', error);
+    });
+  }
+
+  void _showSnackbar(String title, String message) {
+    if (!mounted) return;
+    Get.snackbar(
+      title,
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  @override
+  void dispose() {
+    _premiumStateWorker?.dispose();
+    _messageWorker?.dispose();
+    _errorWorker?.dispose();
+    super.dispose();
+  }
 
   String? _envProductIdForPlan(_PremiumPlanType plan) {
     final bool isIos = !kIsWeb && Platform.isIOS;
@@ -294,16 +348,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     final bool launched = await iapService.buy(
                                       product.productDetails,
                                     );
-                                    final String? error =
-                                        iapService.lastError.value;
-                                    final String? message =
-                                        iapService.lastMessage.value;
-                                    if (error != null && error.isNotEmpty) {
-                                      Get.snackbar('Purchase failed', error);
-                                    } else if (message != null &&
-                                        message.isNotEmpty) {
-                                      Get.snackbar('Premium', message);
-                                    } else if (!launched) {
+                                    if (!launched) {
                                       Get.snackbar(
                                         'Premium',
                                         'Could not start purchase flow.',
@@ -542,15 +587,15 @@ class _PlanCard extends StatelessWidget {
                         priceLine,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       Text(
                         durationLine,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                       ),
                     ],
