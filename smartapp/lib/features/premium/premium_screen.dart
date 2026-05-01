@@ -102,40 +102,45 @@ class _PremiumScreenState extends State<PremiumScreen> {
             SafeArea(
               child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 3, right: 10),
-                      child: IconButton(
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 32,
-                          height: 32,
-                        ),
-                        splashRadius: 18,
-                        iconSize: 18,
-                        onPressed: () => Get.back<void>(),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                      ),
-                    ),
-                  ),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         children: [
-                          Container(
+                          SizedBox(
                             width: double.infinity,
-                            height: 190,
-                            alignment: Alignment.topCenter,
-                            child: Image.asset(
-                              Premium.premium,
-                              width: double.infinity,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.topCenter,
+                            height: 200,
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Image.asset(
+                                    Premium.premium,
+                                    fit: BoxFit.cover,
+                                    alignment: Alignment.topCenter,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 3,
+                                  right: 10,
+                                  child: IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints.tightFor(
+                                      width: 32,
+                                      height: 32,
+                                    ),
+                                    splashRadius: 18,
+                                    iconSize: 22,
+                                    onPressed: () => Get.back<void>(),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 16),
                           const Text(
                             'Unlock Premium TV Control',
                             textAlign: TextAlign.center,
@@ -146,7 +151,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               height: 1.15,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           const Text(
                             'Faster connection, smoother controls, and an ad-free remote experience',
                             textAlign: TextAlign.center,
@@ -157,7 +162,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               height: 1.3,
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                           const _FeatureItem(
                             icon: Icons.control_camera,
                             text: 'Instant Smart TV Pairing',
@@ -172,7 +177,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             icon: Icons.block,
                             text: 'No Ads, No Interruptions',
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                           Obx(
                             () {
                               final allProducts = iapService.products;
