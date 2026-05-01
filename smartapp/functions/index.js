@@ -435,7 +435,6 @@ exports.checkSubscriptionExpiryAndNotify = onSchedule(
     async () => {
       const nowIso = new Date().toISOString();
       const nowMs = Date.now();
-      const oneDayFromNowMs = nowMs + 24 * 60 * 60 * 1000;
       const snapshot = await db
           .collection("Users")
           .where("isPremium", "==", true)
@@ -453,25 +452,6 @@ exports.checkSubscriptionExpiryAndNotify = onSchedule(
 
         const expiryMs = Date.parse(expiry);
         const expired = Number.isFinite(expiryMs) && expiryMs <= nowMs;
-        const renewingSoon =
-          Number.isFinite(expiryMs) &&
-          expiryMs > nowMs &&
-          expiryMs <= oneDayFromNowMs &&
-          data.subscription?.autoRenew === true;
-
-        if (renewingSoon && typeof fcmToken === "string" && fcmToken.length > 20) {
-          messages.push({
-            token: fcmToken,
-            notification: {
-              title: "Subscription Renewing Soon",
-              body: "Your premium subscription is set to auto-renew soon.",
-            },
-            data: {
-              type: "SUBSCRIPTION_RENEWING_SOON",
-              expiryTime: expiry,
-            },
-          });
-        }
 
         if (!expired) return;
 

@@ -520,10 +520,6 @@ class SubscriptionIAPService extends GetxService {
       fcmToken: fcmToken,
       isRestore: isRestore,
     );
-    await showLocalSubscriptionNotification(
-      title: 'Premium Activated',
-      body: 'Your subscription is active. Remote Style is unlocked.',
-    );
 
     if (Get.isRegistered<AdaptyService>()) {
       final adaptyService = Get.find<AdaptyService>();

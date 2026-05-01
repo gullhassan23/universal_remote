@@ -115,32 +115,6 @@ Future<void> _showForegroundAndroidNotification(RemoteMessage message) async {
   );
 }
 
-Future<void> showLocalSubscriptionNotification({
-  required String title,
-  required String body,
-}) async {
-  try {
-    await _localNotifications.show(
-      Object.hash(title, body, DateTime.now().millisecondsSinceEpoch),
-      title,
-      body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _androidFcmChannelId,
-          'Push notifications',
-          channelDescription: 'Firebase Cloud Messaging',
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
-  } catch (e) {
-    debugPrint('[FCM] local subscription notification failed: $e');
-  }
-}
-
 Future<void> initializeFcmAndUploadToken() async {
   try {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
