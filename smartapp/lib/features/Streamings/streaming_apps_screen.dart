@@ -128,7 +128,14 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                     ),
                   );
                 }),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
+                Image.asset(
+                  Premium.premium,
+                  width: double.infinity,
+                  height: 170,
+                  fit: BoxFit.cover,
+                ),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
