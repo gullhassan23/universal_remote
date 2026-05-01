@@ -124,55 +124,58 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       child: Column(
                         children: [
-                          Image.asset(
-                            Premium.premium,
+                          Container(
                             width: double.infinity,
-                            height: 172,
-                            fit: BoxFit.cover,
+                            height: 190,
+                            alignment: Alignment.topCenter,
+                            child: Image.asset(
+                              Premium.premium,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.topCenter,
+                            ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
                           const Text(
-                            'Turn Your Phone Into a Smart Remote Instantly',
+                            'Unlock Premium TV Control',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
-                              fontSize: 25, // FIXED
+                              fontSize: 30,
                               height: 1.15,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           const Text(
-                            'Control any TV in seconds -- no setup, no frustration',
+                            'Faster connection, smoother controls, and an ad-free remote experience',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
                               fontWeight: FontWeight.w500,
-                              fontSize: 15,
+                              fontSize: 16,
                               height: 1.3,
                             ),
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 20),
                           const _FeatureItem(
                             icon: Icons.control_camera,
-                            text: 'Control Any TV Instantly',
+                            text: 'Instant Smart TV Pairing',
                           ),
                           const SizedBox(height: 14),
                           const _FeatureItem(
                             icon: Icons.gamepad_outlined,
-                            text: '1-Tap Channel & Volume',
+                            text: 'One-Tap Channel & Volume',
                           ),
                           const SizedBox(height: 14),
                           const _FeatureItem(
                             icon: Icons.block,
-                            text: 'No Ads. No Interruptions',
+                            text: 'No Ads, No Interruptions',
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 20),
                           Obx(
                             () {
                               final allProducts = iapService.products;
-                              final error = iapService.lastError.value;
-                              final missingIds = iapService.notFoundProductIds;
                               final monthlyProduct = _matchByPlan(
                                 allProducts,
                                 _PremiumPlanType.monthly,
@@ -188,35 +191,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
                               return Column(
                                 children: [
-                                  if ((error != null && error.isNotEmpty) ||
-                                      missingIds.isNotEmpty)
-                                    Container(
-                                      width: double.infinity,
-                                      margin: const EdgeInsets.only(bottom: 10),
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Colors.red.withValues(alpha: 0.18),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: Colors.red
-                                              .withValues(alpha: 0.45),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        [
-                                          if (error != null && error.isNotEmpty)
-                                            error,
-                                          if (missingIds.isNotEmpty)
-                                            'Missing IDs: ${missingIds.join(', ')}',
-                                        ].join('\n'),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
                                   Row(
                                     children: [
                                       Expanded(
@@ -239,7 +213,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: _PlanCard(
-                                          badge: '3 DAYS\nFREE TRIAL',
+                                          badge: 'BEST START',
                                           title: 'Weekly',
                                           subtitle:
                                               weeklyProduct?.description ??
@@ -288,7 +262,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             iapService.isRestoring.value;
                         return SizedBox(
                           width: double.infinity,
-                          height: 56,
+                          height: 54,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               elevation: 0,
@@ -346,8 +320,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 : const Text(
                                     'Continue',
                                     style: TextStyle(
-                                      fontSize: 20, // FIXED
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 22, // FIXED
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                           ),
@@ -378,7 +352,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -393,7 +367,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -407,7 +381,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -521,7 +495,7 @@ class _PlanCard extends StatelessWidget {
                     badge,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: highlighted
                           ? const Color(0xFF1E88E5)
@@ -536,8 +510,8 @@ class _PlanCard extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18, // FIXED
-                    fontWeight: FontWeight.w600,
+                    fontSize: 20, // FIXED
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
 
@@ -548,7 +522,7 @@ class _PlanCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 11,
+                    fontSize: 14,
                   ),
                 ),
 
