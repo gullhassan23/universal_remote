@@ -310,6 +310,30 @@ class _PremiumScreenState extends State<PremiumScreen> {
                       ),
                     ),
                   ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 5),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Auto-renewable. Cancel anytime.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                 
                   Padding(
                     padding: EdgeInsets.fromLTRB(20, 6, 20, 16),
                     child: Obx(
@@ -378,24 +402,15 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   ),
                   Padding(
                     padding: EdgeInsets.only(bottom: 12),
-                    // child: Text(
-                    //   'Limited Time Offer -- Cancel Anytime',
-                    //   textAlign: TextAlign.center,
-                    //   style: TextStyle(
-                    //     color: Colors.white70,
-                    //     fontSize: 13,
-                    //     fontWeight: FontWeight.w500,
-                    //   ),
-                    // ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         GestureDetector(
-                          onTap: () => SettingsActions.openTermsAndConditions(
+                          onTap: () => SettingsActions.openPrivacyPolicy(
                             screenName: 'PremiumScreen',
                           ),
                           child: Text(
-                            'Terms of Use',
+                            'Privacy',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
@@ -420,11 +435,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => SettingsActions.openPrivacyPolicy(
+                          onTap: () => SettingsActions.openTermsAndConditions(
                             screenName: 'PremiumScreen',
                           ),
                           child: Text(
-                            'Privacy',
+                            'Terms',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
