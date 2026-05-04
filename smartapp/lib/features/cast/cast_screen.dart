@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'dart:async';
 
@@ -99,13 +98,6 @@ class _CastScreenState extends State<CastScreen> {
                     ),
                   );
                 }),
-                const SizedBox(height: 5),
-                Image.asset(
-                  Premium.premium,
-                  width: double.infinity,
-                  height: 170,
-                  fit: BoxFit.cover,
-                ),
                 const SizedBox(height: 8),
                 Obx(
                   () {

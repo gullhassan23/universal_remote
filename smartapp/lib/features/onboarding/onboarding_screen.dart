@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:multicast_dns/multicast_dns.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
@@ -36,6 +38,7 @@ class _InstructionOnboardingScreenState
 
   final PageController _pageController = PageController();
   final RxInt _pageIndex = 0.obs;
+  bool _localNetworkPromptTriggered = false;
 
   @override
   void dispose() {
@@ -46,6 +49,30 @@ class _InstructionOnboardingScreenState
 
   void _syncPageIndex(int index) {
     if (mounted) _pageIndex.value = index;
+  }
+
+  Future<void> _triggerLocalNetworkPermissionOnSameNetworkStep() async {
+    if (_localNetworkPromptTriggered) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    _localNetworkPromptTriggered = true;
+
+    final mdns = MDnsClient();
+    try {
+      await mdns.start();
+      await for (final _ in mdns
+          .lookup<PtrResourceRecord>(
+            ResourceRecordQuery.serverPointer(
+              '_androidtvremote._tcp.local',
+            ),
+          )
+          .timeout(const Duration(seconds: 2))) {
+        break;
+      }
+    } catch (_) {
+      // Best-effort permission trigger only.
+    } finally {
+      mdns.stop();
+    }
   }
 
   void _goBack() {
@@ -127,7 +154,7 @@ class _InstructionOnboardingScreenState
                       'Instructions',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.98),
-                        fontSize: 18,
+                        fontSize: 24,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -142,6 +169,8 @@ class _InstructionOnboardingScreenState
                         title: 'Connect to the Same Network.',
                         body:
                             'Before anything, verify that your phone and your Android TV are connected to the exact same Wi-Fi network. This is crucial for a fast handshake.',
+                        onPageShown:
+                            _triggerLocalNetworkPermissionOnSameNetworkStep,
                       ),
                       _InstructionStepPage(
                         title: 'Start Discovery.',
@@ -193,6 +222,7 @@ class _InstructionStepPage extends StatelessWidget {
     this.isDiscoveryStep = false,
     this.isCodeStep = false,
     this.onButtonTap,
+    this.onPageShown,
   });
 
   final String title;
@@ -201,9 +231,15 @@ class _InstructionStepPage extends StatelessWidget {
   final bool isDiscoveryStep;
   final bool isCodeStep;
   final VoidCallback? onButtonTap;
+  final Future<void> Function()? onPageShown;
 
   @override
   Widget build(BuildContext context) {
+    if (onPageShown != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(onPageShown!());
+      });
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(

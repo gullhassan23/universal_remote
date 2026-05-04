@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 import 'package:smartapp/services/analytics_service.dart';
+import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 import 'onboarding/onboarding_screen.dart';
@@ -159,6 +160,7 @@ class GetStarted extends StatelessWidget {
                                 screenName: 'GetStarted',
                               ),
                             );
+                            await requestNotificationPermissionAndUploadToken();
                             final completed =
                                 await isInstructionOnboardingCompleted();
                             if (completed) {

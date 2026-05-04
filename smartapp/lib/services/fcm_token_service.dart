@@ -158,17 +158,6 @@ Future<void> initializeFcmAndUploadToken() async {
           '[FCM][OPEN] messageId=${message.messageId} data=${message.data}');
     });
 
-    final settings = await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('[FCM] Notification permission denied');
-      return;
-    }
-    await updateFcmTokenInFirestore();
-
     // Keep Firestore token in sync if it rotates.
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
       try {
@@ -185,6 +174,23 @@ Future<void> initializeFcmAndUploadToken() async {
     });
   } catch (e) {
     debugPrint('[FCM] initializeFcmAndUploadToken error: $e');
+  }
+}
+
+Future<void> requestNotificationPermissionAndUploadToken() async {
+  try {
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      debugPrint('[FCM] Notification permission denied');
+      return;
+    }
+    await updateFcmTokenInFirestore();
+  } catch (e) {
+    debugPrint('[FCM] requestNotificationPermissionAndUploadToken error: $e');
   }
 }
 
