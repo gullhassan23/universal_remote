@@ -256,10 +256,17 @@ class SubscriptionIAPService extends GetxService {
         'Verification failed for ${purchase.productID}: ${verification.message}');
     lastError.value = verification.message ?? 'Purchase verification failed';
     if (verification.isExpired || _isInactiveState(verification.state)) {
-      await _downgradePremium(
-        reason: verification.message ??
-            'Subscription inactive or expired. Premium access removed.',
-      );
+      if (isRestore) {
+        await _downgradePremium(
+          reason: verification.message ??
+              'Subscription inactive or expired. Premium access removed.',
+        );
+      } else {
+        _log(
+          'Skip downgrade for non-restore purchase '
+          '(possible transient or duplicate verification mismatch).',
+        );
+      }
     }
     await _completePurchaseIfNeeded(purchase);
     _processedPurchaseKeys.add(_buildPurchaseKey(purchase));
@@ -512,6 +519,7 @@ class SubscriptionIAPService extends GetxService {
       expiryDate: resolvedExpiryDate,
       purchaseDate: purchaseDate,
       fcmToken: fcmToken,
+      syncToFirestore: false,
     );
     await _persistPremiumSubscriptionMetadata(
       purchase: purchase,

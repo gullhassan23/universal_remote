@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
-import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
 
 /// Matches [AndroidManifest] `com.google.firebase.messaging.default_notification_channel_id`.
@@ -198,15 +197,11 @@ Map<String, dynamic> _buildUserMetadataPayload({
   required String userId,
   required String fcmToken,
 }) {
-  final PremiumController? premiumController =
-      Get.isRegistered<PremiumController>() ? Get.find<PremiumController>() : null;
-  final bool isPremium = premiumController?.isPremium.value ?? false;
-  return buildPremiumFirestorePayload(
-    userId: userId,
-    isPremium: isPremium,
-    source: 'fcm_token_service',
-    productId: premiumController?.activeProductId.value,
-    expiryDate: premiumController?.expiryDate.value,
-    fcmToken: fcmToken,
-  );
+  return <String, dynamic>{
+    // Token sync must not mutate premium fields.
+    'userId': userId,
+    'deviceId': userId,
+    'fcmToken': fcmToken,
+    'updatedAt': FieldValue.serverTimestamp(),
+  };
 }
