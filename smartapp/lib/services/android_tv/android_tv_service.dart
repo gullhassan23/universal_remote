@@ -323,7 +323,12 @@ class AndroidTvService implements ITvService {
     MDnsClient? mdns;
     try {
       mdns = MDnsClient();
-      await mdns.start();
+      await mdns.start().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('mDNS start exceeded 10s');
+        },
+      );
       _log('mDNS client started');
 
       final ptrDomains = <String>{};

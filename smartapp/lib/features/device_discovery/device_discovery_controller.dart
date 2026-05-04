@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -47,13 +49,20 @@ class DeviceDiscoveryController extends GetxController {
 
     try {
       var results = <TvDevice>[];
+      var discoveryTimedOut = false;
       for (var attempt = 1; attempt <= _maxDiscoveryAttempts; attempt++) {
         _log(
           'discoverDevices attempt=$attempt/$_maxDiscoveryAttempts brand=${_preferredBrand?.name ?? 'all'}',
         );
-        results = await _connectionController.discoverCastTargets(
-          filterBrand: _preferredBrand,
-        );
+        try {
+          results = await _connectionController.discoverCastTargets(
+            filterBrand: _preferredBrand,
+          ).timeout(const Duration(seconds: 55));
+        } on TimeoutException {
+          _log('discoverDevices attempt=$attempt timed out');
+          results = <TvDevice>[];
+          discoveryTimedOut = true;
+        }
         _log('discoverDevices attempt=$attempt found=${results.length}');
         if (results.isNotEmpty) {
           break;
@@ -63,6 +72,12 @@ class DeviceDiscoveryController extends GetxController {
         }
       }
       if (results.isEmpty) {
+        if (discoveryTimedOut) {
+          errorMessage.value =
+              'Discovery took too long. Check Wi‑Fi and tap below to try again.';
+          devices.assignAll(results);
+          return;
+        }
         final detailedError = _tvService is UnifiedTvService
             ? (_tvService as UnifiedTvService).getLastErrorMessage()
             : null;
