@@ -28,7 +28,7 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsLocalNetworking</key>
+		<key>NSAllowsArbitraryLoadsInLocalNetwork</key>
 		<true/>
 	</dict>
 	<key>NSBonjourServices</key>

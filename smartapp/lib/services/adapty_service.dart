@@ -143,6 +143,25 @@ class AdaptyService extends GetxService {
       return;
     }
 
+    // During explicit restore, a temporary inactive profile is common while
+    // store events/backend verification are still in-flight. Avoid syncing
+    // `isPremium=false` to Firestore from this transient restore response.
+    if (source == 'restorePurchases' && !isPremium) {
+      _log(
+        'Profile sync ($source) reported inactive during restore; '
+        'skipping downgrade write until store verification completes.',
+      );
+      return;
+    }
+
+    if (!isPremium) {
+      _log(
+        'Profile sync ($source) is inactive; skipping downgrade sync to avoid '
+        'accidental premium reset during restore/propagation delays.',
+      );
+      return;
+    }
+
     await premiumController.setPremium(
       enabled: isPremium,
       productId: isPremium ? accessLevel?.vendorProductId : null,
