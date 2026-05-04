@@ -75,18 +75,7 @@ class SubscriptionIAPService extends GetxService {
 
       final Set<String> productIds = _loadProductIdsFromEnv();
       final ProductDetailsResponse response =
-          await _inAppPurchase.queryProductDetails(productIds).timeout(
-            const Duration(seconds: 25),
-            onTimeout: () => ProductDetailsResponse(
-              productDetails: const <ProductDetails>[],
-              notFoundIDs: productIds.toList(),
-              error: IAPError(
-                source: 'timeout',
-                code: 'timeout',
-                message: 'Store product query timed out',
-              ),
-            ),
-          );
+          await _inAppPurchase.queryProductDetails(productIds);
 
       if (response.error != null) {
         lastError.value = response.error!.message;

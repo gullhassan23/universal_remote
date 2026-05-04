@@ -29,7 +29,6 @@ class _SplashScreenState extends State<SplashScreen>
   bool _isAdFlowComplete = false;
   late final bool _isPremiumUser;
   late final AnalyticsService _analyticsService;
-  Timer? _launchSafetyTimer;
 
   @override
   void initState() {
@@ -48,11 +47,6 @@ class _SplashScreenState extends State<SplashScreen>
       ..addStatusListener(_handleProgressStatus);
     _loadAppOpenAdIfNeeded();
     _progressController.forward();
-    // Never block review or users if ad / animation callbacks misbehave on a device.
-    _launchSafetyTimer = Timer(const Duration(seconds: 22), () {
-      if (!mounted) return;
-      Get.offAllNamed('/get-started');
-    });
   }
 
   void _handleProgressUpdate() {
@@ -241,14 +235,11 @@ class _SplashScreenState extends State<SplashScreen>
   void _goToGetStartedWhenReady() {
     if (!_isProgressComplete || !_isAdFlowComplete) return;
     if (!mounted) return;
-    _launchSafetyTimer?.cancel();
-    _launchSafetyTimer = null;
     Get.offAllNamed('/get-started');
   }
 
   @override
   void dispose() {
-    _launchSafetyTimer?.cancel();
     _progressController
       ..removeListener(_handleProgressUpdate)
       ..removeStatusListener(_handleProgressStatus)

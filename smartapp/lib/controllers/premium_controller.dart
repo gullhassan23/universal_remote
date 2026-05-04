@@ -46,8 +46,7 @@ class PremiumController extends GetxController {
           await FirebaseFirestore.instance
               .collection('Users')
               .doc(deviceId)
-              .get()
-              .timeout(const Duration(seconds: 12));
+              .get();
       final Map<String, dynamic>? data = snapshot.data();
 
       print("🔥 Firestore Raw Data: $data");

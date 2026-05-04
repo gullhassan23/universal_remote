@@ -125,8 +125,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
         products.first;
   }
 
+// 🔥 ADD THESE HELPERS ON TOP
+
   @override
   Widget build(BuildContext context) {
+
     final iapService = Get.find<SubscriptionIAPService>();
     final premiumController = Get.find<PremiumController>();
 
@@ -395,7 +398,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             screenName: 'PremiumScreen',
                           ),
                           child: Text(
-                            'Terms of Use',
+                            "Term",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,
@@ -424,7 +427,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             screenName: 'PremiumScreen',
                           ),
                           child: Text(
-                            'Privacy',
+                            "Privacy",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white70,

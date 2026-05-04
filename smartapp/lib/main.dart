@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -45,10 +44,9 @@ Future<void> main() async {
   }
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await _registerCoreDependencies();
+  await initializeFcmAndUploadToken();
+
   runApp(const MyApp());
-  // FCM asks for notification permission on iOS; must not block first frame or review
-  // devices can appear "stuck" before any UI is shown.
-  unawaited(initializeFcmAndUploadToken());
 }
 
 /// Global services + TV session layer (connection, discovery). Shell UI controllers are in
@@ -78,27 +76,14 @@ Future<void> _registerCoreDependencies() async {
     fenix: false,
   );
 
-  try {
-    await Future(() async {
-      await premiumController.syncPremiumFromFirestore();
-      await adaptyService.initialize();
-      await iapService.initialize(
-        premiumActivationHook: (String productId) async {
-          debugPrint('[IAP] Premium activated for product=$productId');
-          await adaptyService.syncProfileToPremiumState(
-            source: 'iap_activation_hook',
-          );
-        },
+  await premiumController.syncPremiumFromFirestore();
+  await adaptyService.initialize();
+  await iapService.initialize(
+    premiumActivationHook: (String productId) async {
+      debugPrint('[IAP] Premium activated for product=$productId');
+      await adaptyService.syncProfileToPremiumState(
+        source: 'iap_activation_hook',
       );
-    }).timeout(
-      const Duration(seconds: 18),
-      onTimeout: () {
-        debugPrint(
-          '[BOOT] Premium / Adapty / IAP bootstrap timed out; launching UI anyway.',
-        );
-      },
-    );
-  } catch (error, stackTrace) {
-    debugPrint('[BOOT] Bootstrap failed: $error\n$stackTrace');
-  }
+    },
+  );
 }
