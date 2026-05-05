@@ -30,6 +30,8 @@ class DeviceDiscoveryController extends GetxController {
   static const Duration _discoveryRetryDelay = Duration(milliseconds: 700);
   static const int _maxConnectAttempts = 2;
   static const Duration _connectRetryDelay = Duration(milliseconds: 500);
+  static const String _genericDiscoveryHint =
+      'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
 
   void _log(String message) {
     // ignore: avoid_print
@@ -38,6 +40,17 @@ class DeviceDiscoveryController extends GetxController {
 
   void setPreferredBrand(TvBrand brand) {
     _preferredBrand = brand;
+  }
+
+  String? _sanitizeDiscoveryError(String? rawError) {
+    if (rawError == null || rawError.trim().isEmpty) return null;
+    final normalized = rawError.toLowerCase();
+    if (normalized.contains('android tv') ||
+        normalized.contains('mdns') ||
+        normalized.contains('supported on android only')) {
+      return null;
+    }
+    return rawError;
   }
 
   Future<void> discoverDevices() async {
@@ -63,12 +76,13 @@ class DeviceDiscoveryController extends GetxController {
         }
       }
       if (results.isEmpty) {
-        final detailedError = _tvService is UnifiedTvService
+        final detailedErrorRaw = _tvService is UnifiedTvService
             ? (_tvService as UnifiedTvService).getLastErrorMessage()
             : null;
+        final detailedError = _sanitizeDiscoveryError(detailedErrorRaw);
         errorMessage.value = (detailedError != null && detailedError.isNotEmpty)
             ? 'No TVs found.\n$detailedError'
-            : 'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
+            : _genericDiscoveryHint;
       }
       devices.assignAll(results);
     } catch (e) {

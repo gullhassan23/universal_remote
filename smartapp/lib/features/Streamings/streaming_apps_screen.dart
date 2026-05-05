@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/services/analytics_service.dart';
+import 'package:smartapp/services/tv_service_interface.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 
@@ -13,6 +14,7 @@ import '../../controllers/streaming_controller.dart';
 import '../../models/tv_device.dart';
 import '../../models/streaming_app_item.dart';
 import '../../widgets/premium_status_banner.dart';
+import '../../widgets/remote_device_picker_sheet.dart';
 import '../../widgets/streaming_mrec_ad.dart';
 import '../../widgets/top_banner_ad.dart';
 import '../../widgets/streaming_app_tile.dart';
@@ -41,6 +43,21 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
   }
 
   Future<void> _onAppTap(BuildContext context, StreamingAppItem app) async {
+    final alreadyConnected =
+        _connectionController.connectionState.value == TvConnectionState.connected;
+    if (!alreadyConnected) {
+      final connected = await _openDeviceDiscoverySheet();
+      if (!context.mounted) return;
+      if (!connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connect to your TV first to launch apps.'),
+          ),
+        );
+        return;
+      }
+    }
+
     unawaited(
       _analyticsService.trackClick(
         app.name,
@@ -78,6 +95,61 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
         content: Text('Unable to connect. Please try another device.'),
       ),
     );
+  }
+
+  Future<bool> _openDeviceDiscoverySheet() async {
+    final result = Completer<bool>();
+    await Get.bottomSheet<void>(
+      RemoteDevicePickerSheet(
+        discoveryController: _discoveryController,
+        onDeviceSelected: (TvDevice device) async {
+          final connected = await _discoveryController.connectTo(
+            device,
+            navigateToRemote: false,
+          );
+          if (!result.isCompleted) {
+            result.complete(connected);
+          }
+          if (connected && (Get.isBottomSheetOpen ?? false)) {
+            Get.back<void>();
+          }
+          return connected;
+        },
+        onDismiss: () {
+          if (!result.isCompleted) {
+            result.complete(false);
+          }
+        },
+        onHandleTap: ({
+          required String buttonKey,
+          required FutureOr<void> Function() onTap,
+          String action = 'tap',
+        }) async {
+          await onTap();
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2A2A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+    );
+
+    if (!result.isCompleted) {
+      result.complete(false);
+    }
+    return result.future;
+  }
+
+  void _requestDiscoveryIfNeeded() {
+    if (!_requestedDiscovery &&
+        !_discoveryController.isLoading.value &&
+        _discoveryController.devices.isEmpty) {
+      _requestedDiscovery = true;
+      Future<void>.microtask(
+        _discoveryController.discoverDevices,
+      );
+    }
   }
 
   @override
@@ -160,46 +232,55 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                 Expanded(
                   child: Obx(
                     () {
-                      final isConnected =
-                          _connectionController.currentDevice.value != null;
-                      if (isConnected) {
-                        final launchingAppId =
-                            _streamingController.launchingAppId.value;
-                        final hasMrecSlot =
-                            StreamingController.apps.length >= 2;
-                        final totalItemCount = StreamingController.apps.length +
-                            (hasMrecSlot ? 1 : 0);
-                        return ListView.separated(
-                          itemCount: totalItemCount,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            if (hasMrecSlot &&
-                                index == StreamingController.apps.length) {
-                              return const Center(
-                                child: StreamingMrecAd(),
-                              );
-                            }
-                            final app = StreamingController.apps[index];
-                            return StreamingAppTile(
-                              app: app,
-                              isBusy: launchingAppId == app.id,
-                              onTap: () => _onAppTap(context, app),
-                            );
-                          },
-                        );
-                      }
+                      _requestDiscoveryIfNeeded();
+                      final launchingAppId =
+                          _streamingController.launchingAppId.value;
+                      final isConnected = _connectionController
+                              .connectionState.value ==
+                          TvConnectionState.connected;
+                      final selectedDeviceName =
+                          _connectionController.currentDevice.value?.name;
+                      final hasMrecSlot = StreamingController.apps.length >= 2;
+                      final totalItemCount =
+                          StreamingController.apps.length + (hasMrecSlot ? 1 : 0);
 
-                      if (!_requestedDiscovery &&
-                          !_discoveryController.isLoading.value &&
-                          _discoveryController.devices.isEmpty) {
-                        _requestedDiscovery = true;
-                        Future<void>.microtask(
-                          _discoveryController.discoverDevices,
-                        );
-                      }
-
-                      return _buildDeviceSelection(context);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _ConnectionStatusCard(
+                            isConnected: isConnected,
+                            selectedDeviceName: selectedDeviceName,
+                            onConnectPressed: _openDeviceDiscoverySheet,
+                            onReconnectPressed: () async {
+                              _requestedDiscovery = false;
+                              _discoveryController.devices.clear();
+                              await _openDeviceDiscoverySheet();
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: ListView.separated(
+                              itemCount: totalItemCount,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                if (hasMrecSlot &&
+                                    index == StreamingController.apps.length) {
+                                  return const Center(
+                                    child: StreamingMrecAd(),
+                                  );
+                                }
+                                final app = StreamingController.apps[index];
+                                return StreamingAppTile(
+                                  app: app,
+                                  isBusy: launchingAppId == app.id,
+                                  onTap: () => _onAppTap(context, app),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
                     },
                   ),
                 ),
@@ -211,124 +292,83 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
     );
   }
 
-  Widget _buildDeviceSelection(BuildContext context) {
-    return Obx(() {
-      final isLoading = _discoveryController.isLoading.value;
-      final devices = _discoveryController.devices;
-      final errorMessage = _discoveryController.errorMessage.value;
+}
 
-      if (isLoading) {
-        return const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        );
-      }
+class _ConnectionStatusCard extends StatelessWidget {
+  const _ConnectionStatusCard({
+    required this.isConnected,
+    required this.selectedDeviceName,
+    required this.onConnectPressed,
+    required this.onReconnectPressed,
+  });
 
-      if (devices.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                errorMessage.isNotEmpty
-                    ? errorMessage
-                    : 'No devices found.\nMake sure your phone and TV are on the same WiFi network.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 18),
-              TextButton(
-                onPressed: () {
-                  unawaited(
-                    _analyticsService.trackClick(
-                      'DiscoverDevices',
-                      screenName: 'StreamingAppsScreen',
-                    ),
-                  );
-                  _discoveryController.discoverDevices();
-                },
-                child: const Text(
-                  "Don't see your device?",
-                  style: TextStyle(
-                    color: Colors.white,
-                    decoration: TextDecoration.underline,
-                    decorationColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }
+  final bool isConnected;
+  final String? selectedDeviceName;
+  final Future<bool> Function() onConnectPressed;
+  final Future<void> Function() onReconnectPressed;
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    final title = isConnected
+        ? 'Connected to ${selectedDeviceName ?? 'TV'}'
+        : 'Connect your TV to launch apps';
+    final subtitle = isConnected
+        ? 'You can now launch apps directly on your TV.'
+        : 'Apps are visible now. Connection is needed only when launching.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
         children: [
-          const Text(
-            'Select your device',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+          Icon(
+            isConnected ? Icons.tv_rounded : Icons.cast_connected,
+            color: Colors.white70,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: ListView.separated(
-              itemCount: devices.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: Colors.white24),
-              itemBuilder: (context, index) {
-                final device = devices[index];
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading:
-                      const Icon(Icons.tv, color: Colors.white70, size: 28),
-                  title: Text(
-                    device.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
-                  subtitle: Text(
-                    device.brand.name,
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
                   ),
-                  onTap: () => _connectToDevice(context, device),
-                );
-              },
+                ),
+              ],
             ),
           ),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                unawaited(
-                  _analyticsService.trackClick(
-                    'DiscoverDevices',
-                    screenName: 'StreamingAppsScreen',
-                  ),
-                );
-                _discoveryController.discoverDevices();
-              },
-              child: const Text(
-                "Don't see your device?",
-                style: TextStyle(
-                  color: Colors.white,
-                  decoration: TextDecoration.underline,
-                  decorationColor: Colors.white,
-                ),
-              ),
+          TextButton(
+            onPressed: () async {
+              if (isConnected) {
+                await onReconnectPressed();
+              } else {
+                await onConnectPressed();
+              }
+            },
+            child: Text(
+              isConnected ? 'Change' : 'Connect',
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
-      );
-    });
+      ),
+    );
   }
 }
