@@ -77,25 +77,25 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
     );
   }
 
-  Future<void> _connectToDevice(BuildContext context, TvDevice device) async {
-    unawaited(
-      _analyticsService.trackClick(
-        'SelectDevice_${device.name}',
-        screenName: 'StreamingAppsScreen',
-      ),
-    );
-    final messenger = ScaffoldMessenger.of(context);
-    final success = await _discoveryController.connectTo(
-      device,
-      navigateToRemote: false,
-    );
-    if (!mounted || success) return;
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Unable to connect. Please try another device.'),
-      ),
-    );
-  }
+  // Future<void> _connectToDevice(BuildContext context, TvDevice device) async {
+  //   unawaited(
+  //     _analyticsService.trackClick(
+  //       'SelectDevice_${device.name}',
+  //       screenName: 'StreamingAppsScreen',
+  //     ),
+  //   );
+  //   final messenger = ScaffoldMessenger.of(context);
+  //   final success = await _discoveryController.connectTo(
+  //     device,
+  //     navigateToRemote: false,
+  //   );
+  //   if (!mounted || success) return;
+  //   messenger.showSnackBar(
+  //     const SnackBar(
+  //       content: Text('Unable to connect. Please try another device.'),
+  //     ),
+  //   );
+  // }
 
   Future<bool> _openDeviceDiscoverySheet() async {
     final result = Completer<bool>();
