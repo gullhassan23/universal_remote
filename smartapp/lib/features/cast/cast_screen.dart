@@ -27,7 +27,9 @@ class CastScreen extends StatefulWidget {
 }
 
 class _CastScreenState extends State<CastScreen> {
-  static const String _fallbackStreamingAppUrl =
+  static const String _fallbackStreamingAppUrlIos =
+      'https://apps.apple.com/us/app/data-mirroring-tv-cast-app/id6761363660';
+  static const String _fallbackStreamingAppUrlAndroid =
       'https://play.google.com/store/apps/details?id=com.FutureDialLabs.screen.mirroring.tv.casting.wireless.app';
   late final MediaCastController controller;
   late final TvConnectionController _tvConnectionController;
@@ -399,8 +401,7 @@ class _CastScreenState extends State<CastScreen> {
         screenName: 'CastScreen',
       ),
     );
-    final String streamingUrl =
-        (dotenv.env['StreamingAppLink'] ?? _fallbackStreamingAppUrl).trim();
+    final streamingUrl = _resolveStreamingUrl();
 
     final uri = Uri.tryParse(streamingUrl);
     if (uri == null) {
@@ -420,6 +421,19 @@ class _CastScreenState extends State<CastScreen> {
         colorText: Colors.white,
       );
     }
+  }
+
+  String _resolveStreamingUrl() {
+    if (Platform.isIOS) {
+      return (dotenv.env['StreamingAppLinkIOS'] ?? _fallbackStreamingAppUrlIos)
+          .trim();
+    }
+    if (Platform.isAndroid) {
+      return (dotenv.env['StreamingAppLinkAndroid'] ??
+              _fallbackStreamingAppUrlAndroid)
+          .trim();
+    }
+    return _fallbackStreamingAppUrlIos;
   }
 
   Future<bool> _ensureTvConnectedForMediaCast() async {

@@ -80,7 +80,7 @@ class MediaCastController extends GetxController {
 
   Future<void> pickAndCastMedia() async {
     if (!(Platform.isAndroid || Platform.isIOS)) {
-      _setError('Media casting is currently supported on Android and iOS only.');
+      _setError('Media casting is currently unavailable on this device.');
       return;
     }
 
@@ -380,7 +380,7 @@ class MediaCastController extends GetxController {
       if (devices.isEmpty) {
         _setError(
           Platform.isIOS
-              ? 'No cast devices found. On iPhone, allow Local Network access for this app in iOS Settings, then retry on the same Wi-Fi.'
+              ? 'No cast devices found. Allow Local Network access for this app in Settings, then retry on the same Wi-Fi.'
               : 'No cast devices found on this Wi-Fi network.',
         );
         return false;

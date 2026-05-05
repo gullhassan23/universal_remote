@@ -143,21 +143,21 @@ class DeviceDiscoveryController extends GetxController {
               normalizedError.contains('pin') ||
               normalizedError.contains('code'));
       final androidPairingHint =
-          'On Android, use the same Wi‑Fi as the TV, accept pairing on the TV, and enter the PIN shown on screen. '
+          'Use the same Wi‑Fi as the TV, accept pairing on the TV, and enter the PIN shown on screen. '
           'If pairing fails, your code may be incorrect/expired, so enter the latest 6-character code again.';
       final hint = device.brand == TvBrand.androidTv
-          ? '$androidPairingHint iOS is not supported for Android TV control yet.'
+          ? '$androidPairingHint This connection method is not available on this device.'
           : 'Please ensure the TV is on and try again.';
       final reason = (detailedError != null && detailedError.isNotEmpty)
           ? '\nReason: $detailedError'
           : '';
       final title = isPlatformUnsupportedError
-          ? 'Not supported on iOS'
+          ? 'Connection unavailable'
           : (isAndroidPairingCodeError
               ? 'Incorrect password'
               : 'Connection failed');
       final message = isPlatformUnsupportedError
-          ? 'Android TV pairing/control is currently supported on Android only.'
+          ? 'This connection method is currently unavailable on this platform.'
           : (isAndroidPairingCodeError
               ? 'Code is not correct or has expired. Please enter the latest code shown on your TV and try again.'
               : 'Unable to connect to ${device.name}. $hint$reason');

@@ -168,14 +168,14 @@ class _InstructionOnboardingScreenState
                       _InstructionStepPage(
                         title: 'Connect to the Same Network.',
                         body:
-                            'Before anything, verify that your phone and your Android TV are connected to the exact same Wi-Fi network. This is crucial for a fast handshake.',
+                            'Before anything, verify that your phone and your TV are connected to the exact same Wi-Fi network. This is crucial for a fast handshake.',
                         onPageShown:
                             _triggerLocalNetworkPermissionOnSameNetworkStep,
                       ),
                       _InstructionStepPage(
                         title: 'Start Discovery.',
                         body:
-                            'Tap below to search for available Android TVs on your local network.',
+                            'Tap below to search for available TVs on your local network.',
                         showButton: true,
                         isDiscoveryStep: true,
                         onButtonTap: _onDiscoverTvs,
