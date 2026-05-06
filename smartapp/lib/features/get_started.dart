@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 import 'package:smartapp/services/analytics_service.dart';
+import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 import 'onboarding/onboarding_screen.dart';
 
 /// Bundled background art (Waves_Design).
 
-/// Onboarding screen — Android TV “Universal Remote” intro.
+/// Onboarding screen — Universal Remote intro.
 class GetStarted extends StatelessWidget {
   const GetStarted({super.key});
 
@@ -131,7 +132,7 @@ class GetStarted extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        'Effortless control for your Android TV is just moments away.',
+                        'Effortless control for your smart TV is just moments away.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.95),
@@ -159,6 +160,7 @@ class GetStarted extends StatelessWidget {
                                 screenName: 'GetStarted',
                               ),
                             );
+                            await requestNotificationPermissionAndUploadToken();
                             final completed =
                                 await isInstructionOnboardingCompleted();
                             if (completed) {

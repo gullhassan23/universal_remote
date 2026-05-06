@@ -252,7 +252,7 @@ class AndroidTvService implements ITvService {
         devices.add(
           TvDevice(
             id: key,
-            name: 'Android TV ($host)',
+            name: 'Smart TV ($host)',
             ip: host,
             port: port,
             brand: TvBrand.androidTv,
@@ -356,7 +356,7 @@ class AndroidTvService implements ITvService {
               devices.add(
                 TvDevice(
                   id: key,
-                  name: name.isEmpty ? 'Android TV ($ip)' : name,
+                  name: name.isEmpty ? 'Smart TV ($ip)' : name,
                   ip: ip,
                   port: srv.port,
                   brand: TvBrand.androidTv,

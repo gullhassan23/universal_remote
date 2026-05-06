@@ -336,7 +336,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                   Text(
-                    'Effortless control for your Android TV is just moments away.',
+                    'Effortless control for your smart TV is just moments away.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.95),

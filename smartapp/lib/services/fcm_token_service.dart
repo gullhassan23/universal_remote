@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
-import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
 
 /// Matches [AndroidManifest] `com.google.firebase.messaging.default_notification_channel_id`.
@@ -158,17 +157,6 @@ Future<void> initializeFcmAndUploadToken() async {
           '[FCM][OPEN] messageId=${message.messageId} data=${message.data}');
     });
 
-    final settings = await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('[FCM] Notification permission denied');
-      return;
-    }
-    await updateFcmTokenInFirestore();
-
     // Keep Firestore token in sync if it rotates.
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
       try {
@@ -188,19 +176,32 @@ Future<void> initializeFcmAndUploadToken() async {
   }
 }
 
+Future<void> requestNotificationPermissionAndUploadToken() async {
+  try {
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      debugPrint('[FCM] Notification permission denied');
+      return;
+    }
+    await updateFcmTokenInFirestore();
+  } catch (e) {
+    debugPrint('[FCM] requestNotificationPermissionAndUploadToken error: $e');
+  }
+}
+
 Map<String, dynamic> _buildUserMetadataPayload({
   required String userId,
   required String fcmToken,
 }) {
-  final PremiumController? premiumController =
-      Get.isRegistered<PremiumController>() ? Get.find<PremiumController>() : null;
-  final bool isPremium = premiumController?.isPremium.value ?? false;
-  return buildPremiumFirestorePayload(
-    userId: userId,
-    isPremium: isPremium,
-    source: 'fcm_token_service',
-    productId: premiumController?.activeProductId.value,
-    expiryDate: premiumController?.expiryDate.value,
-    fcmToken: fcmToken,
-  );
+  return <String, dynamic>{
+    // Token sync must not mutate premium fields.
+    'userId': userId,
+    'deviceId': userId,
+    'fcmToken': fcmToken,
+    'updatedAt': FieldValue.serverTimestamp(),
+  };
 }

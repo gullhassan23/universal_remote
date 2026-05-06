@@ -30,6 +30,8 @@ class DeviceDiscoveryController extends GetxController {
   static const Duration _discoveryRetryDelay = Duration(milliseconds: 700);
   static const int _maxConnectAttempts = 2;
   static const Duration _connectRetryDelay = Duration(milliseconds: 500);
+  static const String _genericDiscoveryHint =
+      'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
 
   void _log(String message) {
     // ignore: avoid_print
@@ -38,6 +40,17 @@ class DeviceDiscoveryController extends GetxController {
 
   void setPreferredBrand(TvBrand brand) {
     _preferredBrand = brand;
+  }
+
+  String? _sanitizeDiscoveryError(String? rawError) {
+    if (rawError == null || rawError.trim().isEmpty) return null;
+    final normalized = rawError.toLowerCase();
+    if (normalized.contains('android tv') ||
+        normalized.contains('mdns') ||
+        normalized.contains('supported on android only')) {
+      return null;
+    }
+    return rawError;
   }
 
   Future<void> discoverDevices() async {
@@ -63,12 +76,13 @@ class DeviceDiscoveryController extends GetxController {
         }
       }
       if (results.isEmpty) {
-        final detailedError = _tvService is UnifiedTvService
+        final detailedErrorRaw = _tvService is UnifiedTvService
             ? (_tvService as UnifiedTvService).getLastErrorMessage()
             : null;
+        final detailedError = _sanitizeDiscoveryError(detailedErrorRaw);
         errorMessage.value = (detailedError != null && detailedError.isNotEmpty)
             ? 'No TVs found.\n$detailedError'
-            : 'No TVs found.\nMake sure your phone and TV are on the same WiFi network.';
+            : _genericDiscoveryHint;
       }
       devices.assignAll(results);
     } catch (e) {
@@ -143,21 +157,21 @@ class DeviceDiscoveryController extends GetxController {
               normalizedError.contains('pin') ||
               normalizedError.contains('code'));
       final androidPairingHint =
-          'On Android, use the same Wi‑Fi as the TV, accept pairing on the TV, and enter the PIN shown on screen. '
+          'Use the same Wi‑Fi as the TV, accept pairing on the TV, and enter the PIN shown on screen. '
           'If pairing fails, your code may be incorrect/expired, so enter the latest 6-character code again.';
       final hint = device.brand == TvBrand.androidTv
-          ? '$androidPairingHint iOS is not supported for Android TV control yet.'
+          ? '$androidPairingHint This connection method is not available on this device.'
           : 'Please ensure the TV is on and try again.';
       final reason = (detailedError != null && detailedError.isNotEmpty)
           ? '\nReason: $detailedError'
           : '';
       final title = isPlatformUnsupportedError
-          ? 'Not supported on iOS'
+          ? 'Connection unavailable'
           : (isAndroidPairingCodeError
               ? 'Incorrect password'
               : 'Connection failed');
       final message = isPlatformUnsupportedError
-          ? 'Android TV pairing/control is currently supported on Android only.'
+          ? 'This connection method is currently unavailable on this platform.'
           : (isAndroidPairingCodeError
               ? 'Code is not correct or has expired. Please enter the latest code shown on your TV and try again.'
               : 'Unable to connect to ${device.name}. $hint$reason');

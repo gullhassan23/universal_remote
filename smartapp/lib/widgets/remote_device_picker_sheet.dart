@@ -200,7 +200,7 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                       final isConnectingThisDevice =
                           _connectingDeviceId.value == device.id;
                       final brandLabel = device.brand == TvBrand.androidTv
-                          ? 'Android TV'
+                          ? 'Smart TV'
                           : device.brand.name;
                       return ListTile(
                         leading: const Icon(
@@ -318,7 +318,7 @@ class _RemoteDevicePickerSheetState extends State<RemoteDevicePickerSheet> {
                     Navigator.of(dialogContext).pop(
                       TvDevice(
                         id: 'manual-$ip:6467',
-                        name: 'Android TV ($ip)',
+                        name: 'Smart TV ($ip)',
                         ip: ip,
                         port: 6467,
                         brand: TvBrand.androidTv,

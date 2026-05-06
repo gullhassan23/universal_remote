@@ -130,16 +130,34 @@ class AdaptyService extends GetxService {
                 : null);
 
     final bool isPremium = accessLevel?.isActive == true;
-    final bool isAndroid = !kIsWeb && Platform.isAndroid;
     final bool hasLocalPremium = premiumController.isPremium.value;
 
-    // In Android observer mode, Adapty profile can temporarily report inactive
-    // right after a successful Play Billing purchase. Avoid overriding a
-    // locally verified premium state with this transient false signal.
-    if (isAndroid && !isPremium && hasLocalPremium) {
+    // Adapty profile can transiently report inactive right after purchase/restore
+    // before all stores/backends are fully synchronized. Do not overwrite a
+    // locally verified premium=true state with this temporary false signal.
+    if (!isPremium && hasLocalPremium) {
       _log(
-        'Profile sync ($source) reported inactive access level on Android; '
+        'Profile sync ($source) reported inactive access level; '
         'keeping existing local premium state to avoid false downgrade.',
+      );
+      return;
+    }
+
+    // During explicit restore, a temporary inactive profile is common while
+    // store events/backend verification are still in-flight. Avoid syncing
+    // `isPremium=false` to Firestore from this transient restore response.
+    if (source == 'restorePurchases' && !isPremium) {
+      _log(
+        'Profile sync ($source) reported inactive during restore; '
+        'skipping downgrade write until store verification completes.',
+      );
+      return;
+    }
+
+    if (!isPremium) {
+      _log(
+        'Profile sync ($source) is inactive; skipping downgrade sync to avoid '
+        'accidental premium reset during restore/propagation delays.',
       );
       return;
     }

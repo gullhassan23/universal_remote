@@ -124,18 +124,21 @@ class PremiumController extends GetxController {
     DateTime? expiryDate,
     DateTime? purchaseDate,
     String? fcmToken,
+    bool syncToFirestore = true,
   }) async {
     await _persistLocalState(
       enabled: enabled,
       productId: enabled ? productId : null,
       expiryDate: enabled ? expiryDate : null,
     );
-    await _syncUserProfileToFirestore(
-      autoRenew: autoRenew,
-      expiryDate: expiryDate,
-      purchaseDate: purchaseDate,
-      fcmToken: fcmToken,
-    );
+    if (syncToFirestore) {
+      await _syncUserProfileToFirestore(
+        autoRenew: autoRenew,
+        expiryDate: expiryDate,
+        purchaseDate: purchaseDate,
+        fcmToken: fcmToken,
+      );
+    }
   }
 
   Future<void> _persistLocalState({
