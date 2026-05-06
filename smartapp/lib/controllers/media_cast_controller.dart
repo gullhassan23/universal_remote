@@ -137,6 +137,27 @@ class MediaCastController extends GetxController {
     }
   }
 
+  /// Returns `true` only when casting successfully starts (i.e. ends in [MediaCastStatus.success]).
+  ///
+  /// This is used by rewarded-gated features to consume an entitlement only after a successful cast.
+  Future<bool> pickAndCastMediaWithResult() async {
+    final int startVersion = mediaVersion.value;
+    final MediaCastStatus startStatus = status.value;
+    final String startError = errorMessage.value;
+
+    await pickAndCastMedia();
+
+    if (status.value == MediaCastStatus.success) {
+      // If status was already success before and nothing changed, treat it as not a new success.
+      final bool noChange =
+          mediaVersion.value == startVersion &&
+          startStatus == MediaCastStatus.success &&
+          errorMessage.value == startError;
+      return !noChange;
+    }
+    return false;
+  }
+
   Future<void> pickAndCastImage() async {
     await pickAndCastMedia();
   }

@@ -504,7 +504,7 @@ class _SwitchSettingsTile extends StatelessWidget {
               HapticAction.vibrate();
               onChanged(next);
             },
-            activeThumbColor: Colors.white,
+            // activeThumbColor: Colors.white,
             activeTrackColor: const Color(0xFF2FCC6A),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: Colors.white24,

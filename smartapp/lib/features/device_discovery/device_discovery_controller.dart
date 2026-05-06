@@ -118,7 +118,7 @@ class DeviceDiscoveryController extends GetxController {
         'Connected to ${device.name}.',
       );
       if (navigateToRemote) {
-        Get.to(() => const RemoteScreen());
+        Get.to(() =>  RemoteScreen());
       }
       return true;
     } else {

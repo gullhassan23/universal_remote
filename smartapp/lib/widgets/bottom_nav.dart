@@ -30,7 +30,7 @@ class _BottomNavState extends State<BottomNav> {
     'Settings',
   ];
 
-  static const List<Widget> _tabs = <Widget>[
+  static  List<Widget> _tabs = <Widget>[
     RemoteScreen(),
     StreamingAppsScreen(),
     CastScreen(),

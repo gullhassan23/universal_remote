@@ -18,6 +18,6 @@ class HomeController extends GetxController {
   void onBrandSelected(TvBrand brand) {
     // Android TV only.
     _discoveryController.setPreferredBrand(TvBrand.androidTv);
-    Get.to(() => const RemoteScreen());
+    Get.to(() => RemoteScreen());
   }
 }

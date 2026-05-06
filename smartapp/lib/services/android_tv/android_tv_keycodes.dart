@@ -219,6 +219,8 @@ int? mapRemoteKeyToAndroidKeyCode(String key) {
       return 82;
     case 'KEY_HOME':
       return 3;
+    case 'KEY_TV_INPUT':
+      return 178; // KEYCODE_TV_INPUT — HDMI/source cycling on many TVs
     case 'KEY_GUIDE':
       return 172;
     case 'KEY_TOOLS':

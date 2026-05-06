@@ -32,6 +32,73 @@ class RemoteWallpaperAssets {
       'assets/images/remote_wallpapers/wallpaper_6.png';
 }
 
+class RemoteWallpaperButtonAssets {
+  const RemoteWallpaperButtonAssets._({required String basePath})
+      : volUp = '$basePath/10.png',
+        mute = '$basePath/11.png',
+        volDown = '$basePath/12.png',
+        search = '$basePath/2.png',
+        power = '$basePath/1.png',
+        keyboard = '$basePath/3.png',
+        input = '$basePath/7.png',
+        back = '$basePath/9.png',
+        home = '$basePath/8.png',
+        modeDpad = '$basePath/6.png',
+        modeNumbers = '$basePath/5.png',
+        dpadOk = '$basePath/13.png',
+        dpadDown = '$basePath/14.png',
+        dpadRight = '$basePath/15.png',
+        dpadUp = '$basePath/16.png',
+        dpadLeft = '$basePath/17.png';
+
+  final String volUp;
+  final String mute;
+  final String volDown;
+  final String search;
+  final String power;
+  final String keyboard;
+  final String input;
+  final String back;
+  final String home;
+  final String modeDpad;
+  final String modeNumbers;
+  final String dpadOk;
+  final String dpadDown;
+  final String dpadRight;
+  final String dpadUp;
+  final String dpadLeft;
+}
+
+/// Button art mapping for [RemoteWallpaperAssets.wallpaper1].
+class RemoteWallpaper1ButtonAssets {
+  RemoteWallpaper1ButtonAssets._();
+
+  static const RemoteWallpaperButtonAssets set =
+      RemoteWallpaperButtonAssets._(
+    basePath: 'assets/images/remote_wallpapers/wallpaper1',
+  );
+}
+
+/// Button art mapping for [RemoteWallpaperAssets.wallpaper2].
+class RemoteWallpaper2ButtonAssets {
+  RemoteWallpaper2ButtonAssets._();
+
+  static const RemoteWallpaperButtonAssets set =
+      RemoteWallpaperButtonAssets._(
+    basePath: 'assets/images/remote_wallpapers/wallpaper2',
+  );
+}
+
+/// Button art mapping for [RemoteWallpaperAssets.wallpaper3].
+class RemoteWallpaper3ButtonAssets {
+  RemoteWallpaper3ButtonAssets._();
+
+  static const RemoteWallpaperButtonAssets set =
+      RemoteWallpaperButtonAssets._(
+    basePath: 'assets/images/remote_wallpapers/wallpaper3',
+  );
+}
+
 class CastTileImage {
   static const browse = 'assets/images/Browser.png';
   static const mirror = 'assets/images/Mirror.png';
@@ -68,4 +135,3 @@ class NavIcon {
   static const String castIcon = 'assets/images/bottomnav/Cast.png';
   static const String settingsIcon = 'assets/images/bottomnav/Setting.png';
 }
-

@@ -1,4 +1,3 @@
-
 import 'dart:io';
 import 'dart:async';
 
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/controllers/rewarded_media_cast_controller.dart';
 import 'package:smartapp/controllers/media_cast_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
@@ -31,6 +31,7 @@ class _CastScreenState extends State<CastScreen> {
   static const String _fallbackStreamingAppUrl =
       'https://play.google.com/store/apps/details?id=com.FutureDialLabs.screen.mirroring.tv.casting.wireless.app';
   late final MediaCastController controller;
+  late final RewardedMediaCastController _rewardedMediaCastController;
   late final TvConnectionController _tvConnectionController;
   late final DeviceDiscoveryController _discoveryController;
   late final AnalyticsService _analyticsService;
@@ -40,6 +41,7 @@ class _CastScreenState extends State<CastScreen> {
   void initState() {
     super.initState();
     controller = Get.find<MediaCastController>();
+    _rewardedMediaCastController = Get.find<RewardedMediaCastController>();
     _tvConnectionController = Get.find<TvConnectionController>();
     _discoveryController = Get.find<DeviceDiscoveryController>();
     _analyticsService = Get.find<AnalyticsService>();
@@ -100,13 +102,7 @@ class _CastScreenState extends State<CastScreen> {
                   );
                 }),
                 const SizedBox(height: 5),
-                Image.asset(
-                  Premium.premium,
-                  width: double.infinity,
-                  height: 170,
-                  fit: BoxFit.cover,
-                ),
-                const SizedBox(height: 8),
+
                 Obx(
                   () {
                     // final bool isPremium =
@@ -392,12 +388,17 @@ class _CastScreenState extends State<CastScreen> {
         screenName: 'CastScreen',
       ),
     );
-    if (!isPremiumUnlocked()) {
-      openPremiumPaywall();
+    if (isPremiumUnlocked()) {
+      if (!await _ensureTvConnectedForMediaCast()) return;
+      await controller.pickAndCastMedia();
       return;
     }
-    if (!await _ensureTvConnectedForMediaCast()) return;
-    await controller.pickAndCastMedia();
+
+    await _rewardedMediaCastController.requestOneTimeFreeMediaCast(
+      openPaywall: openPremiumPaywall,
+      ensureTvConnected: _ensureTvConnectedForMediaCast,
+      startCasting: controller.pickAndCastMediaWithResult,
+    );
   }
 
   Future<void> _openStreamingUrl(String source) async {

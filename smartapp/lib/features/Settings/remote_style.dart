@@ -171,6 +171,8 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
                           _isFreeWallpaper(selectedWallpaper);
                       if (!_premiumController.isPremium.value &&
                           !canApplyForFree) {
+                        await _styleController
+                            .setPendingPremiumWallpaper(selectedWallpaper);
                         openPremiumPaywall();
                         return;
                       }

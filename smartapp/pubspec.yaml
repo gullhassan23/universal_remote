@@ -83,5 +83,8 @@ flutter:
     - assets/images/settings/
     - assets/images/bottomnav/
     - assets/images/remote_wallpapers/
+    - assets/images/remote_wallpapers/wallpaper1/
+    - assets/images/remote_wallpapers/wallpaper2/
+    - assets/images/remote_wallpapers/wallpaper3/
 
     - .env

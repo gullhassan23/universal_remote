@@ -14,6 +14,7 @@ import 'package:smartapp/controllers/keyboard_controller.dart';
 import 'package:smartapp/controllers/media_cast_controller.dart';
 import 'package:smartapp/controllers/remote_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
+import 'package:smartapp/controllers/rewarded_media_cast_controller.dart';
 import 'package:smartapp/controllers/sleep_timer_controller.dart';
 import 'package:smartapp/controllers/streaming_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
@@ -93,6 +94,12 @@ class HomeBinding extends Bindings {
     if (!Get.isRegistered<RemoteStyleController>()) {
       Get.lazyPut<RemoteStyleController>(
         () => RemoteStyleController(),
+        fenix: true,
+      );
+    }
+    if (!Get.isRegistered<RewardedMediaCastController>()) {
+      Get.lazyPut<RewardedMediaCastController>(
+        () => RewardedMediaCastController(),
         fenix: true,
       );
     }
