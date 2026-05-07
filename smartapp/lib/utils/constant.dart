@@ -24,10 +24,6 @@ class RemoteWallpaperAssets {
       'assets/images/remote_wallpapers/wallpaper_2.png';
   static const String wallpaper3 =
       'assets/images/remote_wallpapers/wallpaper_3.png';
-  static const String wallpaper4 =
-      'assets/images/remote_wallpapers/wallpaper_4.png';
-  static const String wallpaper5 =
-      'assets/images/remote_wallpapers/wallpaper_5.png';
   static const String wallpaper6 =
       'assets/images/remote_wallpapers/wallpaper_6.png';
 }
@@ -35,21 +31,30 @@ class RemoteWallpaperAssets {
 class RemoteWallpaperButtonAssets {
   const RemoteWallpaperButtonAssets._({required String basePath})
       : volUp = '$basePath/10.png',
+        mic = '$basePath/18.png',
         mute = '$basePath/11.png',
+        plus = '$basePath/plus.png',
+        minus = '$basePath/minus.png',
+        sound = '$basePath/mute.png',
         volDown = '$basePath/12.png',
         search = '$basePath/2.png',
         power = '$basePath/1.png',
         keyboard = '$basePath/3.png',
         input = '$basePath/7.png',
+        gamepad = '$basePath/gamepad.png',
         back = '$basePath/9.png',
         home = '$basePath/8.png',
         modeDpad = '$basePath/6.png',
         modeNumbers = '$basePath/5.png',
+        number = "$basePath/number.png",
         dpadOk = '$basePath/13.png',
-        dpadDown = '$basePath/14.png',
-        dpadRight = '$basePath/15.png',
-        dpadUp = '$basePath/16.png',
-        dpadLeft = '$basePath/17.png';
+        togglebar = '$basePath/togglebar.png',
+        dpadDown = '$basePath/downarrow.png',
+        dpadRight = '$basePath/rightarrow.png',
+        volumebar = '$basePath/volumebar.png',
+        dpadUp = '$basePath/uparrow.png',
+        dpadLeft = '$basePath/leftarrow.png',
+        dpadcircle = '$basePath/circle.png';
 
   final String volUp;
   final String mute;
@@ -60,21 +65,29 @@ class RemoteWallpaperButtonAssets {
   final String input;
   final String back;
   final String home;
+  final String number;
   final String modeDpad;
   final String modeNumbers;
   final String dpadOk;
   final String dpadDown;
+  final String dpadcircle;
   final String dpadRight;
   final String dpadUp;
   final String dpadLeft;
+  final String mic;
+  final String gamepad;
+  final String togglebar;
+  final String volumebar;
+  final String plus;
+  final String minus;
+  final String sound;
 }
 
 /// Button art mapping for [RemoteWallpaperAssets.wallpaper1].
 class RemoteWallpaper1ButtonAssets {
   RemoteWallpaper1ButtonAssets._();
 
-  static const RemoteWallpaperButtonAssets set =
-      RemoteWallpaperButtonAssets._(
+  static const RemoteWallpaperButtonAssets set = RemoteWallpaperButtonAssets._(
     basePath: 'assets/images/remote_wallpapers/wallpaper1',
   );
 }
@@ -83,8 +96,7 @@ class RemoteWallpaper1ButtonAssets {
 class RemoteWallpaper2ButtonAssets {
   RemoteWallpaper2ButtonAssets._();
 
-  static const RemoteWallpaperButtonAssets set =
-      RemoteWallpaperButtonAssets._(
+  static const RemoteWallpaperButtonAssets set = RemoteWallpaperButtonAssets._(
     basePath: 'assets/images/remote_wallpapers/wallpaper2',
   );
 }
@@ -93,9 +105,17 @@ class RemoteWallpaper2ButtonAssets {
 class RemoteWallpaper3ButtonAssets {
   RemoteWallpaper3ButtonAssets._();
 
-  static const RemoteWallpaperButtonAssets set =
-      RemoteWallpaperButtonAssets._(
+  static const RemoteWallpaperButtonAssets set = RemoteWallpaperButtonAssets._(
     basePath: 'assets/images/remote_wallpapers/wallpaper3',
+  );
+}
+
+/// Button art mapping for [RemoteWallpaperAssets.wallpaper6].
+class RemoteWallpaper6ButtonAssets {
+  RemoteWallpaper6ButtonAssets._();
+
+  static const RemoteWallpaperButtonAssets set = RemoteWallpaperButtonAssets._(
+    basePath: 'assets/images/remote_wallpapers/wallpaper6',
   );
 }
 

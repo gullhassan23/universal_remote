@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:smartapp/features/Streamings/streaming_apps_screen.dart';
 import 'package:smartapp/features/Settings/settings_screen.dart';
 import 'package:smartapp/features/cast/cast_screen.dart';
-import 'package:smartapp/features/remote/remote_screen.dart';
+import 'package:smartapp/features/remote/remote_screen_switcher.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
@@ -31,7 +31,7 @@ class _BottomNavState extends State<BottomNav> {
   ];
 
   static  List<Widget> _tabs = <Widget>[
-    RemoteScreen(),
+    const RemoteScreenSwitcher(),
     StreamingAppsScreen(),
     CastScreen(),
     SettingsScreen(),

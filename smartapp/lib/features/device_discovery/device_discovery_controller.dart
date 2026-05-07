@@ -7,7 +7,7 @@ import '../../services/tv_service_interface.dart';
 import '../../services/unified_tv_service.dart';
 import '../../services/android_tv/android_tv_remote_platform.dart';
 import '../../controllers/tv_connection_controller.dart';
-import '../remote/remote_screen.dart';
+import '../remote/remote_screen_switcher.dart';
 
 class DeviceDiscoveryController extends GetxController {
   DeviceDiscoveryController({
@@ -132,7 +132,7 @@ class DeviceDiscoveryController extends GetxController {
         'Connected to ${device.name}.',
       );
       if (navigateToRemote) {
-        Get.to(() =>  RemoteScreen());
+        Get.to(() => const RemoteScreenSwitcher());
       }
       return true;
     } else {

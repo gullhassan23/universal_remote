@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 
 import '../models/tv_brand.dart';
 import '../features/device_discovery/device_discovery_controller.dart';
-import '../features/remote/remote_screen.dart';
+import '../features/remote/remote_screen_switcher.dart';
 
 class HomeController extends GetxController {
   HomeController({DeviceDiscoveryController? discoveryController})
@@ -18,6 +18,6 @@ class HomeController extends GetxController {
   void onBrandSelected(TvBrand brand) {
     // Android TV only.
     _discoveryController.setPreferredBrand(TvBrand.androidTv);
-    Get.to(() => RemoteScreen());
+    Get.to(() => const RemoteScreenSwitcher());
   }
 }

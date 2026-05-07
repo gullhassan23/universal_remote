@@ -20,7 +20,22 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
   final PremiumController _premiumController = Get.find<PremiumController>();
 
   bool _isFreeWallpaper(String wallpaperPath) {
-    return wallpaperPath == _styleController.wallpapers.last;
+    return wallpaperPath == _styleController.wallpapers.first;
+  }
+
+  Future<void> _applySelectedWallpaper(BuildContext context) async {
+    final selectedWallpaper = _styleController.selectedWallpaper.value;
+    final canApplyForFree = _isFreeWallpaper(selectedWallpaper);
+
+    if (!_premiumController.isPremium.value && !canApplyForFree) {
+      await _styleController.setPendingPremiumWallpaper(selectedWallpaper);
+      openPremiumPaywall();
+      return;
+    }
+
+    await _styleController.applySelection();
+    if (!context.mounted) return;
+    Get.back<void>();
   }
 
   @override
@@ -75,112 +90,129 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: FlutterCarousel.builder(
-                    itemCount: _styleController.wallpapers.length,
-                    itemBuilder: (context, index, realIndex) {
-                      final wallpaperPath = _styleController.wallpapers[index];
-                      return Obx(() {
-                        final isPremiumUser = _premiumController.isPremium.value;
-                        final isFreeWallpaper = _isFreeWallpaper(wallpaperPath);
-                        final isSelected =
-                            _styleController.selectedWallpaper.value ==
-                                wallpaperPath;
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: FlutterCarousel.builder(
+                          itemCount: _styleController.wallpapers.length,
+                          itemBuilder: (context, index, realIndex) {
+                            final wallpaperPath =
+                                _styleController.wallpapers[index];
+                            return Obx(() {
+                              final isPremiumUser =
+                                  _premiumController.isPremium.value;
+                              final isFreeWallpaper =
+                                  _isFreeWallpaper(wallpaperPath);
+                              final isSelected =
+                                  _styleController.selectedWallpaper.value ==
+                                      wallpaperPath;
 
-                        return GestureDetector(
-                          onTap: () =>
-                              _styleController.selectWallpaper(wallpaperPath),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 4,
-                            ),
-                            child: Stack(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? const Color(0xFF4FC3F7)
-                                          : Colors.white24,
-                                      width: isSelected ? 3 : 1,
-                                    ),
-                                    image: DecorationImage(
-                                      image: AssetImage(wallpaperPath),
-                                      fit: BoxFit.cover,
-                                    ),
+                              return GestureDetector(
+                                onTap: () => _styleController
+                                    .selectWallpaper(wallpaperPath),
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 4,
                                   ),
-                                  alignment: Alignment.topRight,
-                                  padding: const EdgeInsets.all(10),
-                                  child: Icon(
-                                    isSelected
-                                        ? Icons.check_circle
-                                        : Icons.radio_button_unchecked,
-                                    color: isSelected
-                                        ? const Color(0xFF4FC3F7)
-                                        : Colors.white70,
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? const Color(0xFF4FC3F7)
+                                                : Colors.white24,
+                                            width: isSelected ? 3 : 1,
+                                          ),
+                                          image: DecorationImage(
+                                            image: AssetImage(wallpaperPath),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        alignment: Alignment.topRight,
+                                        padding: const EdgeInsets.all(10),
+                                        child: Icon(
+                                          isSelected
+                                              ? Icons.check_circle
+                                              : Icons.radio_button_unchecked,
+                                          color: isSelected
+                                              ? const Color(0xFF4FC3F7)
+                                              : Colors.white70,
+                                        ),
+                                      ),
+                                      if (!isPremiumUser && !isFreeWallpaper)
+                                        Positioned(
+                                          top: 10,
+                                          left: 10,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.45,
+                                              ),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.diamond_outlined,
+                                              size: 16,
+                                              color: Color(0xFFFFD27A),
+                                            ),
+                                          ),
+                                        ),
+                                      if (isSelected)
+                                        Positioned(
+                                          left: 12,
+                                          right: 12,
+                                          bottom: 12,
+                                          child: SafeArea(
+                                            top: false,
+                                            child: SizedBox(
+                                              height: 44,
+                                              child: ElevatedButton(
+                                                onPressed: () =>
+                                                    _applySelectedWallpaper(
+                                                        context),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      const Color(0xFF4FC3F7),
+                                                  foregroundColor: Colors.black,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12),
+                                                  ),
+                                                ),
+                                                child: const Text('Apply'),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                if (!isPremiumUser && !isFreeWallpaper)
-                                  Positioned(
-                                    top: 10,
-                                    left: 10,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.45,
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.diamond_outlined,
-                                        size: 16,
-                                        color: Color(0xFFFFD27A),
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                              );
+                            });
+                          },
+                          options: FlutterCarouselOptions(
+                            height: 500,
+                            viewportFraction: 0.72,
+                            enlargeCenterPage: true,
+                            enableInfiniteScroll: false,
+                            showIndicator: true,
+                            slideIndicator: CircularSlideIndicator(
+                              slideIndicatorOptions: SlideIndicatorOptions(
+                                indicatorBackgroundColor: Colors.white24,
+                                currentIndicatorColor:
+                                    const Color(0xFF4FC3F7),
+                              ),
                             ),
                           ),
-                        );
-                      });
-                    },
-                    options: FlutterCarouselOptions(
-                      height: 500,
-                      viewportFraction: 0.72,
-                      enlargeCenterPage: true,
-                      enableInfiniteScroll: false,
-                      showIndicator: true,
-                      slideIndicator: CircularSlideIndicator(
-                        slideIndicatorOptions: SlideIndicatorOptions(
-                          indicatorBackgroundColor: Colors.white24,
-                          currentIndicatorColor: const Color(0xFF4FC3F7),
                         ),
                       ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final selectedWallpaper =
-                          _styleController.selectedWallpaper.value;
-                      final canApplyForFree =
-                          _isFreeWallpaper(selectedWallpaper);
-                      if (!_premiumController.isPremium.value &&
-                          !canApplyForFree) {
-                        await _styleController
-                            .setPendingPremiumWallpaper(selectedWallpaper);
-                        openPremiumPaywall();
-                        return;
-                      }
-                      await _styleController.applySelection();
-                      if (!context.mounted) return;
-                      Get.back<void>();
-                    },
-                    child: const Text('Apply'),
+                    ],
                   ),
                 ),
               ],

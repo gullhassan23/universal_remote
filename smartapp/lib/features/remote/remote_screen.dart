@@ -4,12 +4,12 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/controllers/voice_controller.dart';
 import 'package:smartapp/utils/constant.dart';
 import '../../services/analytics_service.dart';
 
 import '../../controllers/keyboard_controller.dart';
 import '../../controllers/remote_controller.dart';
-import '../../controllers/remote_style_controller.dart';
 import '../../services/tv_service_interface.dart';
 import '../cast/cast_session_banner.dart';
 import '../../widgets/top_banner_ad.dart';
@@ -21,8 +21,6 @@ class RemoteScreen extends GetView<RemoteController> {
 
   static const Color _fallbackBackgroundColor = Color(0xFF0B1B25);
 
-  RemoteStyleController get _remoteStyleController =>
-      Get.find<RemoteStyleController>();
   AnalyticsService get _analyticsService => Get.find<AnalyticsService>();
 
   VoidCallback _loggedTap(
@@ -52,16 +50,6 @@ class RemoteScreen extends GetView<RemoteController> {
   }
 
   static const double _wallpaper1DpadSize = 228;
-
-  /// Radial nudge for U/D/L/R — keep small so wedges meet without diagonal gaps.
-  static const double _wallpaper1DpadRingOutset = 4;
-
-  static const double _wallpaper1DpadUdHeightBoost = 0;
-
-  /// Pulls wedge art toward the outer rim (see Remote-Skin); -1…1 like [Alignment].
-  static const double _wallpaper1DpadWedgeAlign = 0.62;
-
-  /// D-pad / 123 mode images ([6.png] / [5.png]) — aligned with Remote-Skin-1.
   static const double _wallpaper1ModeImageHeight = 80;
   static const double _wallpaper1ModeImageWidth = 160;
 
@@ -128,129 +116,127 @@ class RemoteScreen extends GetView<RemoteController> {
 
   @override
   Widget build(BuildContext context) {
+    const RemoteWallpaperButtonAssets activeButtonAssets =
+        RemoteWallpaper1ButtonAssets.set;
     return Scaffold(
       backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,
       extendBodyBehindAppBar: true,
-      body: Obx(
-        () => Container(
-          decoration: BoxDecoration(
-            color: _fallbackBackgroundColor,
-            image: DecorationImage(
-              image: AssetImage(_remoteStyleController.appliedWallpaper.value),
-              fit: BoxFit.cover,
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          color: _fallbackBackgroundColor,
+          image: DecorationImage(
+            image: AssetImage(RemoteWallpaperAssets.wallpaper1),
+            fit: BoxFit.cover,
           ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 6),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final activeButtonAssets =
-                      _remoteStyleController.activeButtonAssets;
-                  final isCompactHeight = constraints.maxHeight < 520;
-                  final topGap = isCompactHeight ? 4.0 : 8.0;
-                  final bannerToMainGap = isCompactHeight ? 18.0 : 26.0;
-                  final mainToToggleGap = isCompactHeight ? 2.0 : 5.0;
-                  final toggleToPadGap = isCompactHeight ? 10.0 : 16.0;
-                  final bottomGap = isCompactHeight ? 4.0 : 8.0;
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 6),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompactHeight = constraints.maxHeight < 520;
+                final topGap = isCompactHeight ? 4.0 : 8.0;
+                final bannerToMainGap = isCompactHeight ? 18.0 : 26.0;
+                final mainToToggleGap = isCompactHeight ? 2.0 : 5.0;
+                final toggleToPadGap = isCompactHeight ? 10.0 : 16.0;
+                final bottomGap = isCompactHeight ? 4.0 : 8.0;
 
-                  return Column(
-                    children: [
-                      SizedBox(height: topGap),
-                      const Center(
-                        child: TopBannerAd(),
-                      ),
-                      Obx(() {
-                        final isConnected = controller
-                                .connectionController.connectionState.value ==
-                            TvConnectionState.connected;
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                isConnected
-                                    ? 'Connected Device'
-                                    : 'Connect a device',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
+                return Column(
+                  children: [
+                    SizedBox(height: topGap),
+                    const Center(
+                      child: TopBannerAd(),
+                    ),
+                    Obx(() {
+                      final isConnected = controller
+                              .connectionController.connectionState.value ==
+                          TvConnectionState.connected;
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              isConnected
+                                  ? 'Connected Device'
+                                  : 'Connect a device',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                            // if (!isPremium)
-                            //   IconButton(
-                            //     onPressed: openRemoteStyleOrPaywall,
-                            //     tooltip: 'Premium remote styles',
-                            //     icon: const Icon(
-                            //       Icons.diamond_outlined,
-                            //       color: Color(0xFFFFD27A),
-                            //     ),
-                            //   ),
-                            if (isConnected) const SizedBox(width: 10),
-                            if (isConnected)
-                              TextButton.icon(
-                                onPressed: _loggedTap(
-                                  'DISCONNECT_TV',
-                                  () {
-                                    unawaited(
-                                      controller.connectionController
-                                          .disconnect(),
-                                    );
-                                  },
-                                  action: 'disconnect_tv',
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  backgroundColor:
-                                      Colors.red.withValues(alpha: 0.28),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                icon: const Icon(Icons.link_off, size: 16),
-                                label: const Text('Disconnect'),
-                              ),
-                          ],
-                        );
-                      }),
-                      Obx(() {
-                        final label = controller
-                            .connectionController.castConnectionLabel.value;
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: CastSessionBanner(label: label),
-                        );
-                      }),
-                      SizedBox(height: bannerToMainGap),
-                      _buildMainButtons(activeButtonAssets, context),
-                      SizedBox(height: mainToToggleGap),
-                      _buildModeToggle(activeButtonAssets),
-                      SizedBox(height: toggleToPadGap),
-                      Expanded(
-                        child: Obx(
-                          () => AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 180),
-                            child: controller.selectedTab.value == 0
-                                ? _buildDpad(activeButtonAssets)
-                                : _buildNumberTab(),
                           ),
+                          // if (!isPremium)
+                          //   IconButton(
+                          //     onPressed: openRemoteStyleOrPaywall,
+                          //     tooltip: 'Premium remote styles',
+                          //     icon: const Icon(
+                          //       Icons.diamond_outlined,
+                          //       color: Color(0xFFFFD27A),
+                          //     ),
+                          //   ),
+                          if (isConnected) const SizedBox(width: 10),
+                          if (isConnected)
+                            TextButton.icon(
+                              onPressed: _loggedTap(
+                                'DISCONNECT_TV',
+                                () {
+                                  unawaited(
+                                    controller.connectionController
+                                        .disconnect(),
+                                  );
+                                },
+                                action: 'disconnect_tv',
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor:
+                                    Colors.red.withValues(alpha: 0.28),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              icon: const Icon(Icons.link_off, size: 16),
+                              label: const Text('Disconnect'),
+                            ),
+                        ],
+                      );
+                    }),
+                    Obx(() {
+                      final label = controller
+                          .connectionController.castConnectionLabel.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: CastSessionBanner(label: label),
+                      );
+                    }),
+                    SizedBox(height: bannerToMainGap),
+                    _buildMainButtons(activeButtonAssets, context),
+                    SizedBox(height: mainToToggleGap),
+                    _buildModeToggle(activeButtonAssets),
+                    SizedBox(height: toggleToPadGap),
+                    Expanded(
+                      child: Obx(
+                        () => AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: controller.selectedTab.value == 0
+                              ? _buildDpad(activeButtonAssets)
+                              : _buildNumberTab(),
                         ),
                       ),
-                      _buildBottomButtons(context, activeButtonAssets),
-                      SizedBox(height: bottomGap),
-                    ],
-                  );
-                },
-              ),
+                    ),
+                    _buildBottomButtons(context, activeButtonAssets),
+                    SizedBox(height: bottomGap),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -347,7 +333,8 @@ class RemoteScreen extends GetView<RemoteController> {
       );
     }
 
-    const railW = 108.0;
+    // Keep the rail width tight to avoid extra blank space in the Row.
+    const railW = 90.0;
     const railH = 222.0;
 
     return SizedBox(
@@ -357,41 +344,49 @@ class RemoteScreen extends GetView<RemoteController> {
         children: [
           // Volume Up (Top Center)
           Positioned(
-            top: 0,
-            left: 0,
-            child: GestureDetector(
-              onTap: _sendKeyTap('KEY_VOLUP'),
-              child: Container(
-                height: 80,
-                width: 90,
-                child: Image.asset(
-                  buttonAssets.volUp,
+            top: 4,
+            right: 6,
+            child: Container(
+              // decoration: BoxDecoration(border: Border.all(color: Colors.red)),
+              child: GestureDetector(
+                onTap: _sendKeyTap('KEY_VOLUP'),
+                child: SizedBox(
+                  height: 81.5,
+                  width: 80,
+                  child: Image.asset(
+                    buttonAssets.volUp,
+                  ),
                 ),
               ),
             ),
           ),
 
           Positioned(
-            top: 79,
-            left: 1,
-            child: GestureDetector(
-              onTap: _sendKeyTap('KEY_MUTE'),
-              child: SizedBox(
-                width: 81.5,
-                height: 62,
-                child: Image.asset(
-                  buttonAssets.mute,
-                  fit: BoxFit.fitWidth,
+            top: 84,
+            left: 0.2,
+            child: Container(
+              // decoration: BoxDecoration(border: Border.all(color: Colors.blue)),
+              child: GestureDetector(
+                onTap: _sendKeyTap('KEY_MUTE'),
+                child: SizedBox(
+                  width: 80.8,
+                  height: 63.9,
+                  child: Image.asset(
+                    buttonAssets.mute,
+                    fit: BoxFit.fitWidth,
+                  ),
                 ),
               ),
             ),
           ),
           // Volume Down (Bottom Center)
           Positioned(
-            top: 134,
+            top: 148.1,
             bottom: 0,
-            left: 7.5,
-            child: Center(
+            left: 5.6,
+            child: Container(
+              // decoration:
+              //     BoxDecoration(border: Border.all(color: Colors.black)),
               child: GestureDetector(
                 onTap: _sendKeyTap('KEY_VOLDOWN'),
                 child: SizedBox(
@@ -408,6 +403,59 @@ class RemoteScreen extends GetView<RemoteController> {
         ],
       ),
     );
+  }
+
+  Widget _micButtton(
+    RemoteWallpaperButtonAssets? buttonAssets,
+    BuildContext context,
+  ) {
+    final voiceController = Get.find<VoiceController>();
+    return Obx(() {
+      final isListening = voiceController.isListening.value;
+      // return _roundedActionButton(
+      //   icon: isListening ? Icons.mic : Icons.mic_none,
+      //   iconColor: isListening ? const Color(0xFFFFE082) : Colors.white,
+      //   onTap: () {
+      //     unawaited(
+      //       controller.handleButtonTap(
+      //         buttonKey: 'KEY_MIC',
+      //         action: isListening ? 'stop_voice' : 'start_voice',
+      //         onTap: () async {
+      //           if (isListening) {
+      //             await voiceController.stopListening();
+      //           } else {
+      //             await voiceController.startListening();
+      //           }
+      //         },
+      //       ),
+      //     );
+      //   },
+      //   width: 88,
+      //   height: 50,
+      // );
+      return _roundedActionButton(
+        icon: buttonAssets != null ? null : Icons.power_settings_new,
+        imageAsset: buttonAssets?.mic,
+        iconColor: const Color(0xFFFF3D3D),
+        onTap: () {
+          unawaited(
+            controller.handleButtonTap(
+              buttonKey: 'KEY_MIC',
+              action: isListening ? 'stop_voice' : 'start_voice',
+              onTap: () async {
+                if (isListening) {
+                  await voiceController.stopListening();
+                } else {
+                  await voiceController.startListening();
+                }
+              },
+            ),
+          );
+        },
+        width: MediaQuery.of(context).size.width * 0.18,
+        height: MediaQuery.of(context).size.width * 0.18,
+      );
+    });
   }
 
   Widget _buildMainButtons(
@@ -440,7 +488,7 @@ class RemoteScreen extends GetView<RemoteController> {
         _keyboardActionButton(buttonAssets, context),
         const SizedBox(height: 5),
         // _roundedActionButton(
-        //   icon: useWallpaper1Assets ? null : Icons.settings_input_component,
+        //   icon: useWallpaper1Assets ? null : Icons.settings_input_component,fz
         //   imageAsset: useWallpaper1Assets
         //       ? RemoteWallpaper1ButtonAssets.keyboard
         //       : null,
@@ -452,10 +500,11 @@ class RemoteScreen extends GetView<RemoteController> {
     );
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        volumeColumn,
+        Center(child: volumeColumn),
+        Center(child: _micButtton(buttonAssets, context)),
         utilityStack,
       ],
     );
@@ -684,105 +733,86 @@ class RemoteScreen extends GetView<RemoteController> {
 
   Widget _buildDpad(RemoteWallpaperButtonAssets? buttonAssets) {
     if (buttonAssets != null) {
-      const half = _wallpaper1DpadSize / 2;
-
-      final udSlotHeight = half + _wallpaper1DpadUdHeightBoost;
       return Center(
         key: const ValueKey('dpad_wp1'),
         child: SizedBox(
-          width: 215,
-          height: 210,
+          width: _wallpaper1DpadSize,
+          height: _wallpaper1DpadSize,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTapUp: (details) {
-              _handleWallpaper1DpadTap(details.localPosition);
-            },
+            onTapUp: (details) =>
+                _handleWallpaper1DpadTap(details.localPosition),
             child: ClipOval(
               child: Stack(
-                clipBehavior: Clip.hardEdge,
                 alignment: Alignment.center,
                 children: [
+                  Image.asset(
+                    buttonAssets.dpadcircle,
+                    width: _wallpaper1DpadSize,
+                    height: _wallpaper1DpadSize,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    top: 17,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_UP'),
+                      child: Image.asset(
+                        'assets/images/remote_wallpapers/wallpaper1/uparrow.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 17,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_DOWN'),
+                      child: Image.asset(
+                        'assets/images/remote_wallpapers/wallpaper1/downarrow.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 17,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_LEFT'),
+                      child: Image.asset(
+                        'assets/images/remote_wallpapers/wallpaper1/leftarrow.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 17,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_RIGHT'),
+                      child: Image.asset(
+                        'assets/images/remote_wallpapers/wallpaper1/rightarrow.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
                   Align(
-                    alignment: Alignment.topCenter,
-                    child: Transform.translate(
-                      offset: const Offset(0, -_wallpaper1DpadRingOutset),
-                      child: SizedBox(
-                        width: _wallpaper1DpadSize,
-                        height: udSlotHeight,
-                        child: Image.asset(
-                          buttonAssets.dpadUp,
-                          fit: BoxFit.contain,
-                          alignment: Alignment(0, -_wallpaper1DpadWedgeAlign),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    bottom: 19,
-                    right: 0,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Transform.translate(
-                        offset: const Offset(0, _wallpaper1DpadRingOutset),
-                        child: SizedBox(
-                          width: _wallpaper1DpadSize - 57,
-                          height: udSlotHeight,
-                          child: Image.asset(
-                            buttonAssets.dpadDown,
-                            fit: BoxFit.contain,
-                            alignment: Alignment(0, _wallpaper1DpadWedgeAlign),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 108,
-                    bottom: 10,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Transform.translate(
-                        offset: const Offset(-_wallpaper1DpadRingOutset, 0),
-                        child: SizedBox(
-                          width: 150,
-                          height: 200,
-                          child: Image.asset(
-                            buttonAssets.dpadLeft,
-                            fit: BoxFit.contain,
-                            alignment: Alignment(-_wallpaper1DpadWedgeAlign, 0),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 112,
-                    bottom: 10,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Transform.translate(
-                        offset: const Offset(_wallpaper1DpadRingOutset, 0),
-                        child: SizedBox(
-                          // width: lrSlotWidth,
-                          // height: _wallpaper1DpadSize,
-                          width: 150,
-                          height: 200,
-                          child: Image.asset(
-                            buttonAssets.dpadRight,
-                            fit: BoxFit.contain,
-                            alignment: Alignment(_wallpaper1DpadWedgeAlign, 0),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: SizedBox(
-                      width: 58,
-                      height: 58,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_ENTER'),
                       child: Image.asset(
                         buttonAssets.dpadOk,
+                        width: 70,
+                        height: 70,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -920,8 +950,8 @@ class RemoteScreen extends GetView<RemoteController> {
           icon: buttonAssets != null ? null : Icons.home,
           imageAsset: buttonAssets?.home,
           onTap: _sendKeyTap('KEY_HOME'),
-          width: 78,
-          height: 50,
+          width: MediaQuery.of(context).size.width * 0.18,
+          height: MediaQuery.of(context).size.width * 0.18,
         ),
         // _roundedActionButton(
         //   icon: Icons.menu,

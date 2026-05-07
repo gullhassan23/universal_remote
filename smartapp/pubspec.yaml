@@ -86,5 +86,6 @@ flutter:
     - assets/images/remote_wallpapers/wallpaper1/
     - assets/images/remote_wallpapers/wallpaper2/
     - assets/images/remote_wallpapers/wallpaper3/
+    - assets/images/remote_wallpapers/wallpaper6/
 
     - .env
