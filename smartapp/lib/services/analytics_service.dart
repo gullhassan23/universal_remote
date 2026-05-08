@@ -40,7 +40,7 @@ class AnalyticsService extends GetxService {
     final build = '${pkg.version}+${pkg.buildNumber}';
 
     final gameKey = (dotenv.env['GAME_KEY'] ?? '').trim();
-    final secretKey = (dotenv.env['SECRET_KEY'] ?? '').trim();
+    final secretKey = (dotenv.env['SECRET_KEY_ANDROID'] ?? '').trim();
 
     final targets = <AppAnalytics>[
       FirebaseAnalyticsBackend(
@@ -58,7 +58,8 @@ class AnalyticsService extends GetxService {
 
     _fanout = CompositeAnalytics(targets);
     await _fanout!.init();
-    _debug.log('initialized build=$build gaKeysPresent=${gameKey.isNotEmpty && secretKey.isNotEmpty}');
+    _debug.log(
+        'initialized build=$build gaKeysPresent=${gameKey.isNotEmpty && secretKey.isNotEmpty}');
   }
 
   Future<void> logScreen({
@@ -75,7 +76,8 @@ class AnalyticsService extends GetxService {
 
     // Emit per-screen custom event so screens appear directly in
     // Firebase "Event count by event name" list.
-    final screenEventName = 'screen_${_sanitizeToken(screenName).toLowerCase()}';
+    final screenEventName =
+        'screen_${_sanitizeToken(screenName).toLowerCase()}';
     await logEvent(
       screenEventName,
       params: _baseParams(screenName: screenName),
@@ -147,7 +149,8 @@ class AnalyticsService extends GetxService {
     Map<String, Object?>? params,
   }) async {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final dropKey = '${_normalizeEventName(name)}|${params?['screen_name'] ?? ''}|${params?['button_name'] ?? ''}';
+    final dropKey =
+        '${_normalizeEventName(name)}|${params?['screen_name'] ?? ''}|${params?['button_name'] ?? ''}';
     if (_eventDedupe.shouldDrop(dropKey, nowMs)) {
       _debug.log('dedupe drop event=$name');
       return;
@@ -162,7 +165,8 @@ class AnalyticsService extends GetxService {
                 ),
           );
 
-    await _analytics.logEvent(name: normalizedName, parameters: sanitizedParams);
+    await _analytics.logEvent(
+        name: normalizedName, parameters: sanitizedParams);
 
     final fanout = _fanout;
     if (fanout != null) {
@@ -263,12 +267,15 @@ class AnalyticsService extends GetxService {
       final screenName = _screenKeyToName['bottom_nav']!;
       return (screenName, screenName);
     }
-    if (trimmed == '/premium' || trimmed == '/pro' || trimmed.contains('premium')) {
+    if (trimmed == '/premium' ||
+        trimmed == '/pro' ||
+        trimmed.contains('premium')) {
       return ('PremiumScreen', 'PremiumScreen');
     }
 
     final cleaned = trimmed.split('?').first;
-    final segments = cleaned.split('/').where((part) => part.isNotEmpty).toList();
+    final segments =
+        cleaned.split('/').where((part) => part.isNotEmpty).toList();
     if (segments.isEmpty) return null;
     final leaf = segments.last;
     return (leaf, leaf);

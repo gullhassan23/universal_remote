@@ -151,7 +151,10 @@ class KeyboardController extends GetxController {
       final sent = await _connectionController.sendTextPrepared(
         payload,
         autoPrepareInputContext: true,
-        forcePrepareInputContext: true,
+        // Forcing input-context preparation can steal focus and open the TV's
+        // global search UI on some launchers (causing long delays). Prefer a
+        // best-effort send into the currently focused field.
+        forcePrepareInputContext: false,
         liveTyping: false,
         openPickerOnFailure: true,
       );
