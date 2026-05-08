@@ -38,9 +38,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
     _premiumStateWorker = ever<bool>(premiumController.isPremium, (isPremium) {
       if (!isPremium || _wasPremiumOnOpen) return;
       _showSnackbar('Premium', 'Subscription activated successfully.');
-      if (mounted) {
-        Get.offAllNamed('/home');
-      }
+      _goToRemoteScreen();
     });
 
     _messageWorker = ever<String?>(iapService.lastMessage, (message) {
@@ -66,6 +64,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
       snackPosition: SnackPosition.BOTTOM,
       duration: const Duration(seconds: 3),
     );
+  }
+
+  // Bypass any onboarding/instructions screens that might be in the stack so the
+  // user always lands on the Remote tab inside BottomNav after a successful
+  // subscription.
+  void _goToRemoteScreen() {
+    if (!mounted) return;
+    Get.offAllNamed('/home');
   }
 
   @override
@@ -374,9 +380,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                         'Premium',
                                         'Could not start purchase flow.',
                                       );
+                                      return;
                                     }
+                                    // If premium was already active by the time
+                                    // buy() returned (rare race), short-circuit
+                                    // to the Remote screen instead of relying on
+                                    // the reactive worker.
                                     if (premiumController.isPremium.value) {
-                                      Get.back<void>();
+                                      _goToRemoteScreen();
                                     }
                                   },
                             child: isBusy
