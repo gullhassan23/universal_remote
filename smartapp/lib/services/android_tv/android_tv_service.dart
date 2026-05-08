@@ -129,6 +129,10 @@ class AndroidTvService implements ITvService {
       return alive;
     } catch (e) {
       _log('verifyConnectedSessionAlive failed: $e');
+      // If the health check itself fails, assume transport is no longer valid.
+      // Keeping `connected` here makes the UI stale (e.g. still showing
+      // "Disconnect") even though the native session is gone.
+      _syncState(TvConnectionState.disconnected);
       return false;
     }
   }

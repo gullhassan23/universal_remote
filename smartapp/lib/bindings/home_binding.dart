@@ -15,16 +15,26 @@ import 'package:smartapp/controllers/media_cast_controller.dart';
 import 'package:smartapp/controllers/remote_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
 import 'package:smartapp/controllers/rewarded_media_cast_controller.dart';
+import 'package:smartapp/controllers/rewarded_wallpaper_controller.dart';
 import 'package:smartapp/controllers/sleep_timer_controller.dart';
 import 'package:smartapp/controllers/streaming_controller.dart';
+import 'package:smartapp/controllers/temporary_wallpaper_timer_controller.dart';
 import 'package:smartapp/controllers/vibratiion_controller.dart';
 import 'package:smartapp/controllers/voice_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
+import 'package:smartapp/services/local_storage_service.dart';
+import 'package:smartapp/services/rewarded_ad_service.dart';
 
 class HomeBinding extends Bindings {
   @override
   void dependencies() {
+    if (!Get.isRegistered<LocalStorageService>()) {
+      Get.lazyPut<LocalStorageService>(() => LocalStorageService(), fenix: true);
+    }
+    if (!Get.isRegistered<RewardedAdService>()) {
+      Get.lazyPut<RewardedAdService>(() => RewardedAdService(), fenix: true);
+    }
     if (!Get.isRegistered<MediaCastController>()) {
       Get.lazyPut<MediaCastController>(
         () => MediaCastController(
@@ -100,6 +110,18 @@ class HomeBinding extends Bindings {
     if (!Get.isRegistered<RewardedMediaCastController>()) {
       Get.lazyPut<RewardedMediaCastController>(
         () => RewardedMediaCastController(),
+        fenix: true,
+      );
+    }
+    if (!Get.isRegistered<TemporaryWallpaperTimerController>()) {
+      Get.lazyPut<TemporaryWallpaperTimerController>(
+        () => TemporaryWallpaperTimerController(),
+        fenix: true,
+      );
+    }
+    if (!Get.isRegistered<RewardedWallpaperController>()) {
+      Get.lazyPut<RewardedWallpaperController>(
+        () => RewardedWallpaperController(),
         fenix: true,
       );
     }

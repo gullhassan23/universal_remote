@@ -20,6 +20,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
   RemoteScreen3({super.key});
 
   static const Color _fallbackBackgroundColor = Color(0xFF0B1B25);
+  static const String _screenName = 'Remote_Screen_3';
 
   AnalyticsService get _analyticsService => Get.find<AnalyticsService>();
 
@@ -34,6 +35,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
           buttonKey: buttonKey,
           onTap: onTap,
           action: action,
+          screenName: _screenName,
         ),
       );
     };
@@ -118,6 +120,12 @@ class RemoteScreen3 extends GetView<RemoteController> {
   Widget build(BuildContext context) {
     const RemoteWallpaperButtonAssets activeButtonAssets =
         RemoteWallpaper2ButtonAssets.set;
+    unawaited(
+      _analyticsService.logScreen(
+        screenName: _screenName,
+        screenClass: 'RemoteScreen3',
+      ),
+    );
     return Scaffold(
       backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,
@@ -137,7 +145,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
               builder: (context, constraints) {
                 final isCompactHeight = constraints.maxHeight < 520;
                 final topGap = isCompactHeight ? 4.0 : 8.0;
-                final bannerToMainGap = isCompactHeight ? 18.0 : 26.0;
+               
                 final mainToToggleGap = isCompactHeight ? 2.0 : 5.0;
                 final toggleToPadGap = isCompactHeight ? 10.0 : 16.0;
                 final bottomGap = isCompactHeight ? 4.0 : 8.0;
@@ -217,7 +225,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                         child: CastSessionBanner(label: label),
                       );
                     }),
-                    SizedBox(height: bannerToMainGap),
+                   
                     _buildMainButtons(activeButtonAssets, context),
                     SizedBox(height: mainToToggleGap),
                     _buildModeToggle(activeButtonAssets),
@@ -227,7 +235,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                         () => AnimatedSwitcher(
                           duration: const Duration(milliseconds: 180),
                           child: controller.selectedTab.value == 0
-                              ? _buildDpad(activeButtonAssets)
+                              ? _buildAdaptiveDpad(activeButtonAssets)
                               : _buildNumberTab(),
                         ),
                       ),
@@ -531,7 +539,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                           unawaited(
                             _analyticsService.trackTab(
                               'Dpad',
-                              screenName: 'Remote_Screen',
+                              screenName: _screenName,
                             ),
                           );
                         },
@@ -555,7 +563,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                           unawaited(
                             _analyticsService.trackTab(
                               'NumberPad',
-                              screenName: 'Remote_Screen',
+                              screenName: _screenName,
                             ),
                           );
                         },
@@ -604,7 +612,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                       unawaited(
                         _analyticsService.trackTab(
                           'Dpad',
-                          screenName: 'Remote_Screen',
+                          screenName: _screenName,
                         ),
                       );
                     },
@@ -620,7 +628,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                       unawaited(
                         _analyticsService.trackTab(
                           'NumberPad',
-                          screenName: 'Remote_Screen',
+                          screenName: _screenName,
                         ),
                       );
                     },
@@ -735,13 +743,28 @@ class RemoteScreen3 extends GetView<RemoteController> {
     );
   }
 
-  Widget _buildDpad(RemoteWallpaperButtonAssets? buttonAssets) {
+  Widget _buildAdaptiveDpad(RemoteWallpaperButtonAssets? buttonAssets) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final double available = min(c.maxWidth, c.maxHeight);
+        final double size =
+            min(_wallpaper1DpadSize, max(140.0, available - 6)).toDouble();
+        return Center(
+          child: _buildDpad(buttonAssets, size: size),
+        );
+      },
+    );
+  }
+
+  Widget _buildDpad(RemoteWallpaperButtonAssets? buttonAssets, {double? size}) {
+    final dpadSize = size ?? _wallpaper1DpadSize;
     if (buttonAssets != null) {
+      final scale = dpadSize / _wallpaper1DpadSize;
       return Center(
         key: const ValueKey('dpad_wp1'),
         child: SizedBox(
-          width: _wallpaper1DpadSize,
-          height: _wallpaper1DpadSize,
+          width: dpadSize,
+          height: dpadSize,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapUp: (details) =>
@@ -752,58 +775,58 @@ class RemoteScreen3 extends GetView<RemoteController> {
                 children: [
                   Image.asset(
                     buttonAssets.dpadcircle,
-                    width: _wallpaper1DpadSize,
-                    height: _wallpaper1DpadSize,
+                    width: dpadSize,
+                    height: dpadSize,
                     fit: BoxFit.cover,
                   ),
                   Positioned(
-                    top: 14,
+                    top: 14 * scale,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_UP'),
                       child: Image.asset(
                         buttonAssets.dpadUp,
-                        width: 30,
-                        height: 30,
+                        width: 30 * scale,
+                        height: 30 * scale,
                         fit: BoxFit.contain,
                       ),
                     ),
                   ),
                   Positioned(
-                    bottom: 14,
+                    bottom: 14 * scale,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_DOWN'),
                       child: Image.asset(
                         buttonAssets.dpadDown,
-                        width: 30,
-                        height: 30,
+                        width: 30 * scale,
+                        height: 30 * scale,
                         fit: BoxFit.contain,
                       ),
                     ),
                   ),
                   Positioned(
-                    left: 14,
+                    left: 14 * scale,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_LEFT'),
                       child: Image.asset(
                         buttonAssets.dpadLeft,
-                        width: 30,
-                        height: 30,
+                        width: 30 * scale,
+                        height: 30 * scale,
                         fit: BoxFit.contain,
                       ),
                     ),
                   ),
                   Positioned(
-                    right: 14,
+                    right: 14 * scale,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_RIGHT'),
                       child: Image.asset(
                         buttonAssets.dpadRight,
-                        width: 30,
-                        height: 30,
+                        width: 30 * scale,
+                        height: 30 * scale,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -815,8 +838,8 @@ class RemoteScreen3 extends GetView<RemoteController> {
                       onTap: _sendKeyTap('KEY_ENTER'),
                       child: Image.asset(
                         buttonAssets.dpadOk,
-                        width: 70,
-                        height: 70,
+                        width: 70 * scale,
+                        height: 70 * scale,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -831,14 +854,14 @@ class RemoteScreen3 extends GetView<RemoteController> {
 
     return SizedBox(
       key: const ValueKey('dpad'),
-      width: 228,
-      height: 228,
+      width: dpadSize,
+      height: dpadSize,
       child: Stack(
         alignment: Alignment.center,
         children: [
           Container(
-            width: 228,
-            height: 228,
+            width: dpadSize,
+            height: dpadSize,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -849,8 +872,8 @@ class RemoteScreen3 extends GetView<RemoteController> {
             ),
           ),
           Container(
-            width: 226,
-            height: 226,
+            width: max(0, dpadSize - 2),
+            height: max(0, dpadSize - 2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: const Color(0x8A1A2E4A), width: 0.3),
@@ -858,7 +881,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
           ),
           // TOP
           Positioned(
-            top: 6, // pehle 14 tha → ab outer ring pe
+            top: dpadSize * (6 / 228), // pehle 14 tha → ab outer ring pe
             child: IconButton(
               icon: const Icon(Icons.keyboard_arrow_up,
                   color: Colors.white, size: 42),
@@ -868,7 +891,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
 
 // LEFT
           Positioned(
-            left: 6, // 👈 IMPORTANT (14 → 6)
+            left: dpadSize * (6 / 228), // 👈 IMPORTANT (14 → 6)
             child: IconButton(
               icon: const Icon(Icons.keyboard_arrow_left,
                   color: Colors.white, size: 42),
@@ -878,7 +901,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
 
 // RIGHT
           Positioned(
-            right: 6, // 👈 IMPORTANT (14 → 6)
+            right: dpadSize * (6 / 228), // 👈 IMPORTANT (14 → 6)
             child: IconButton(
               icon: const Icon(Icons.keyboard_arrow_right,
                   color: Colors.white, size: 42),
@@ -886,11 +909,34 @@ class RemoteScreen3 extends GetView<RemoteController> {
             ),
           ),
 
-          _buildArrow(Icons.keyboard_arrow_up, -pi / 2, _sendKeyTap('KEY_UP')),
           _buildArrow(
-              Icons.keyboard_arrow_down, pi / 2, _sendKeyTap('KEY_DOWN')),
-          _buildArrow(Icons.keyboard_arrow_left, pi, _sendKeyTap('KEY_LEFT')),
-          _buildArrow(Icons.keyboard_arrow_right, 0, _sendKeyTap('KEY_RIGHT')),
+            Icons.keyboard_arrow_up,
+            -pi / 2,
+            _sendKeyTap('KEY_UP'),
+            radius: dpadSize * (90 / 228),
+            iconSize: dpadSize * (36 / 228),
+          ),
+          _buildArrow(
+            Icons.keyboard_arrow_down,
+            pi / 2,
+            _sendKeyTap('KEY_DOWN'),
+            radius: dpadSize * (90 / 228),
+            iconSize: dpadSize * (36 / 228),
+          ),
+          _buildArrow(
+            Icons.keyboard_arrow_left,
+            pi,
+            _sendKeyTap('KEY_LEFT'),
+            radius: dpadSize * (90 / 228),
+            iconSize: dpadSize * (36 / 228),
+          ),
+          _buildArrow(
+            Icons.keyboard_arrow_right,
+            0,
+            _sendKeyTap('KEY_RIGHT'),
+            radius: dpadSize * (90 / 228),
+            iconSize: dpadSize * (36 / 228),
+          ),
           // Container(
           //   width: 92,
           //   height: 92,
@@ -916,9 +962,13 @@ class RemoteScreen3 extends GetView<RemoteController> {
     );
   }
 
-  double radius = 90; // circle ke andar arrows ka distance
-
-  Widget _buildArrow(IconData icon, double angle, VoidCallback onTap) {
+  Widget _buildArrow(
+    IconData icon,
+    double angle,
+    VoidCallback onTap, {
+    required double radius,
+    required double iconSize,
+  }) {
     return Transform.rotate(
       angle: 0,
       child: Transform.translate(
@@ -929,7 +979,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
         child: IconButton(
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
-          icon: Icon(icon, color: Colors.white, size: 36),
+          icon: Icon(icon, color: Colors.white, size: iconSize),
           onPressed: onTap,
         ),
       ),

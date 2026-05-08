@@ -57,6 +57,11 @@ class RemoteStyleController extends GetxController {
     selectedWallpaper.value = wallpaperPath;
   }
 
+  Future<void> selectAndApply(String wallpaperPath) async {
+    selectedWallpaper.value = wallpaperPath;
+    await applyWallpaper(wallpaperPath);
+  }
+
   Future<void> applySelection() async {
     final nextWallpaper = selectedWallpaper.value;
     await applyWallpaper(nextWallpaper);

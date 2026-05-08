@@ -8,11 +8,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/controllers/rewarded_wallpaper_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
+import 'package:smartapp/controllers/temporary_wallpaper_timer_controller.dart';
 import 'package:smartapp/firebase_options.dart';
 import 'package:smartapp/services/adapty_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/services/analytics_service.dart';
+import 'package:smartapp/services/local_storage_service.dart';
+import 'package:smartapp/services/rewarded_ad_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 
 import 'app.dart';
@@ -61,6 +65,10 @@ Future<void> _registerCoreDependencies() async {
   final premiumController = Get.put(PremiumController(), permanent: true);
   // Keep remote style state accessible during paywall -> activation flow.
   Get.put(RemoteStyleController(), permanent: true);
+  Get.put(LocalStorageService(), permanent: true);
+  Get.put(RewardedAdService(), permanent: true);
+  Get.put(TemporaryWallpaperTimerController(), permanent: true);
+  Get.put(RewardedWallpaperController(), permanent: true);
   final adaptyService = Get.put(AdaptyService(), permanent: true);
   final iapService = Get.put(SubscriptionIAPService(), permanent: true);
 

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_carousel_widget/flutter_carousel_widget.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
+import 'package:smartapp/controllers/rewarded_wallpaper_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
+import 'package:smartapp/controllers/temporary_wallpaper_timer_controller.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/haptic_action.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
@@ -18,6 +20,10 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
   final RemoteStyleController _styleController =
       Get.find<RemoteStyleController>();
   final PremiumController _premiumController = Get.find<PremiumController>();
+  final RewardedWallpaperController _rewardedWallpaperController =
+      Get.find<RewardedWallpaperController>();
+  final TemporaryWallpaperTimerController _tempWallpaperTimer =
+      Get.find<TemporaryWallpaperTimerController>();
 
   bool _isFreeWallpaper(String wallpaperPath) {
     return wallpaperPath == _styleController.wallpapers.first;
@@ -28,8 +34,28 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
     final canApplyForFree = _isFreeWallpaper(selectedWallpaper);
 
     if (!_premiumController.isPremium.value && !canApplyForFree) {
-      await _styleController.setPendingPremiumWallpaper(selectedWallpaper);
-      openPremiumPaywall();
+      final tempUnlocked =
+          _tempWallpaperTimer.isActive.value &&
+          _tempWallpaperTimer.activeWallpaperPath.value == selectedWallpaper &&
+          _styleController.appliedWallpaper.value == selectedWallpaper;
+      if (tempUnlocked) {
+        if (!context.mounted) return;
+        Get.back<void>();
+        return;
+      }
+
+      final outcome =
+          await _rewardedWallpaperController.handlePremiumWallpaperTap(
+        wallpaperPath: selectedWallpaper,
+        openPaywall: openPremiumPaywall,
+      );
+      if (outcome == RewardedWallpaperOutcome.dismissed) {
+        _styleController.prepareSelection();
+      }
+      if (!context.mounted) return;
+      if (outcome == RewardedWallpaperOutcome.unlockedTemporarily) {
+        Get.back<void>();
+      }
       return;
     }
 
@@ -103,13 +129,39 @@ class _RemoteStyleScreenState extends State<RemoteStyleScreen> {
                                   _premiumController.isPremium.value;
                               final isFreeWallpaper =
                                   _isFreeWallpaper(wallpaperPath);
+                              final isTempUnlockedThis =
+                                  !isPremiumUser &&
+                                  _tempWallpaperTimer.isActive.value &&
+                                  _tempWallpaperTimer.activeWallpaperPath
+                                          .value ==
+                                      wallpaperPath;
                               final isSelected =
                                   _styleController.selectedWallpaper.value ==
                                       wallpaperPath;
 
                               return GestureDetector(
-                                onTap: () => _styleController
-                                    .selectWallpaper(wallpaperPath),
+                                onTap: () async {
+                                  if (isPremiumUser ||
+                                      isFreeWallpaper ||
+                                      isTempUnlockedThis) {
+                                    _styleController.selectWallpaper(
+                                      wallpaperPath,
+                                    );
+                                    return;
+                                  }
+
+                                  final outcome =
+                                      await _rewardedWallpaperController
+                                          .handlePremiumWallpaperTap(
+                                    wallpaperPath: wallpaperPath,
+                                    openPaywall: openPremiumPaywall,
+                                  );
+
+                                  if (outcome ==
+                                      RewardedWallpaperOutcome.dismissed) {
+                                    _styleController.prepareSelection();
+                                  }
+                                },
                                 child: Container(
                                   margin: const EdgeInsets.symmetric(
                                     horizontal: 6,

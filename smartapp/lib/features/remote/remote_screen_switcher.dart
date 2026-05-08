@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
 import 'package:smartapp/features/remote/remote_screen2.dart';
-import 'package:smartapp/features/remote/remote_screen4dart';
+import 'package:smartapp/features/remote/remote_screen4.dart';
 import 'package:smartapp/utils/constant.dart';
 
 import 'remote_screen3.dart';

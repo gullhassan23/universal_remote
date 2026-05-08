@@ -85,11 +85,12 @@ class RemoteController extends GetxController {
     required String buttonKey,
     required FutureOr<void> Function() onTap,
     String action = 'tap',
+    String? screenName,
   }) async {
     unawaited(
       _analyticsService.trackClick(
         buttonKey,
-        screenName: 'Remote_Screen',
+        screenName: screenName ?? 'Remote_Screen',
       ),
     );
     if (Get.isRegistered<VibrationController>()) {

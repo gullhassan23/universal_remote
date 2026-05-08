@@ -18,7 +18,6 @@ import 'package:smartapp/utils/haptic_action.dart';
 import 'package:smartapp/utils/settings_actions.dart';
 import 'package:smartapp/utils/premium_navigation.dart';
 import 'package:smartapp/services/tv_service_interface.dart';
-import 'package:smartapp/widgets/top_banner_ad.dart';
 import 'package:smartapp/widgets/premium_status_banner.dart';
 import 'package:smartapp/widgets/remote_device_picker_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -64,7 +63,8 @@ class SettingsScreen extends StatelessWidget {
       ),
     ];
 
-    Future<bool> _safeLaunch(Uri uri, {LaunchMode mode = LaunchMode.externalApplication}) async {
+    Future<bool> _safeLaunch(Uri uri,
+        {LaunchMode mode = LaunchMode.externalApplication}) async {
       try {
         final canLaunch = await canLaunchUrl(uri);
         if (!canLaunch) {
@@ -198,9 +198,9 @@ class SettingsScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              const Center(
-                child: TopBannerAd(),
-              ),
+              // const Center(
+              //   child: TopBannerAd(),
+              // ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
