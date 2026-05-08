@@ -65,9 +65,12 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
             _isLoading = false;
           });
           unawaited(
-            _analyticsService.logEvent(
-              'admob_mrec_loaded',
-              params: {'screen_name': 'StreamingMrecAd', 'ad_unit': 'mrec'},
+            _analyticsService.logAdEvent(
+              action: 'loaded',
+              adType: 'banner',
+              adSdkName: 'admob',
+              adPlacement: 'mrec',
+              params: {'screen_name': 'StreamingMrecAd'},
             ),
           );
         },
@@ -82,11 +85,13 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
             _isLoading = false;
           });
           unawaited(
-            _analyticsService.logEvent(
-              'admob_mrec_failed_load',
+            _analyticsService.logAdEvent(
+              action: 'failed_load',
+              adType: 'banner',
+              adSdkName: 'admob',
+              adPlacement: 'mrec',
               params: {
                 'screen_name': 'StreamingMrecAd',
-                'ad_unit': 'mrec',
                 'error_code': error.code,
                 'error_domain': error.domain,
               },
@@ -94,15 +99,21 @@ class _StreamingMrecAdState extends State<StreamingMrecAd> {
           );
         },
         onAdImpression: (_) => unawaited(
-          _analyticsService.logEvent(
-            'admob_mrec_impression',
-            params: {'screen_name': 'StreamingMrecAd', 'ad_unit': 'mrec'},
+          _analyticsService.logAdEvent(
+            action: 'impression',
+            adType: 'banner',
+            adSdkName: 'admob',
+            adPlacement: 'mrec',
+            params: {'screen_name': 'StreamingMrecAd'},
           ),
         ),
         onAdClicked: (_) => unawaited(
-          _analyticsService.logEvent(
-            'admob_mrec_clicked',
-            params: {'screen_name': 'StreamingMrecAd', 'ad_unit': 'mrec'},
+          _analyticsService.logAdEvent(
+            action: 'clicked',
+            adType: 'banner',
+            adSdkName: 'admob',
+            adPlacement: 'mrec',
+            params: {'screen_name': 'StreamingMrecAd'},
           ),
         ),
       ),

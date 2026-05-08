@@ -410,14 +410,39 @@ class AdController extends GetxController {
 
   void _trackAdEvent(String name, {Map<String, Object?>? extra}) {
     unawaited(
-      _analyticsService.logEvent(
-        name,
+      _analyticsService.logAdEvent(
+        action: _toAdAction(name),
+        adType: _toAdType(name),
+        adSdkName: 'admob',
+        adPlacement: 'banner_or_interstitial',
         params: <String, Object?>{
           'screen_name': 'AdController',
-          'ad_unit': 'admob',
+          'event_name': name,
           ...?extra,
         },
       ),
     );
+  }
+
+  String _toAdType(String name) {
+    final v = name.toLowerCase();
+    if (v.contains('banner')) return 'banner';
+    if (v.contains('interstitial')) return 'interstitial';
+    if (v.contains('rewarded')) return 'rewarded';
+    return 'unknown';
+  }
+
+  String _toAdAction(String name) {
+    final v = name.toLowerCase();
+    if (v.contains('loaded')) return 'loaded';
+    if (v.contains('failed_load')) return 'failed_load';
+    if (v.contains('failed_show')) return 'failed_show';
+    if (v.contains('shown')) return 'shown';
+    if (v.contains('impression')) return 'impression';
+    if (v.contains('clicked')) return 'clicked';
+    if (v.contains('dismissed')) return 'dismissed';
+    if (v.contains('opened')) return 'shown';
+    if (v.contains('closed')) return 'dismissed';
+    return 'unknown';
   }
 }

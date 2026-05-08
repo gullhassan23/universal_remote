@@ -11,20 +11,24 @@ import '../services/cast/cast_session_manager.dart';
 import '../services/network_context_service.dart';
 import '../services/tv_service_interface.dart';
 import '../services/unified_tv_service.dart';
+import '../services/analytics_service.dart';
 
 class TvConnectionController extends GetxController with WidgetsBindingObserver {
   TvConnectionController({
     ITvService? tvService,
     CastSessionManager? castSessionManager,
     NetworkContextService? networkContextService,
+    AnalyticsService? analyticsService,
   }) : _tvService = tvService ?? Get.find<ITvService>(),
        _castSessionManager = castSessionManager ?? CastSessionManager(),
        _networkContextService =
-           networkContextService ?? Get.find<NetworkContextService>();
+           networkContextService ?? Get.find<NetworkContextService>(),
+       _analyticsService = analyticsService ?? Get.find<AnalyticsService>();
 
   final ITvService _tvService;
   final CastSessionManager _castSessionManager;
   final NetworkContextService _networkContextService;
+  final AnalyticsService _analyticsService;
   Future<bool>? _restoreFuture;
   bool _reconnectInProgress = false;
   bool _isInForeground = true;
@@ -308,13 +312,44 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
   Future<bool> connectTo(TvDevice device) async {
     _manualDisconnectRequested = false;
     _log('connectTo start device=${device.name} ip=${device.ip}:${device.port}');
+    unawaited(
+      _analyticsService.logEvent(
+        'connection_attempt',
+        params: <String, Object?>{
+          'screen_name': 'TvConnectionController',
+          'device_name': device.name,
+          'brand': device.brand.name,
+          'port': device.port,
+        },
+      ),
+    );
     currentDevice.value = device;
     final success = await _tvService.connect(device);
     if (!success) {
       _log('connectTo failed device=${device.name} ip=${device.ip}');
+      unawaited(
+        _analyticsService.logEvent(
+          'connection_failed',
+          params: <String, Object?>{
+            'screen_name': 'TvConnectionController',
+            'device_name': device.name,
+            'brand': device.brand.name,
+          },
+        ),
+      );
       currentDevice.value = null;
     } else {
       _log('connectTo success device=${device.name} ip=${device.ip}');
+      unawaited(
+        _analyticsService.logEvent(
+          'connection_success',
+          params: <String, Object?>{
+            'screen_name': 'TvConnectionController',
+            'device_name': device.name,
+            'brand': device.brand.name,
+          },
+        ),
+      );
       _pendingReconnectNotice = null;
       await _networkContextService.captureOnSuccessfulConnection();
       if (!_isInForeground) {
@@ -350,6 +385,15 @@ class TvConnectionController extends GetxController with WidgetsBindingObserver 
 
   Future<void> disconnect() async {
     _manualDisconnectRequested = true;
+    unawaited(
+      _analyticsService.logEvent(
+        'connection_disconnect',
+        params: <String, Object?>{
+          'screen_name': 'TvConnectionController',
+          'device_name': currentDevice.value?.name,
+        },
+      ),
+    );
     _activeReconnectGeneration++;
     _resumeDebounceTimer?.cancel();
     _resumeDebounceTimer = null;

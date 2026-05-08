@@ -101,8 +101,14 @@ class RemoteScreen extends GetView<RemoteController> {
           final kbController = Get.find<KeyboardController>();
           final hasBufferedText = kbController.buffer.value.trim().isNotEmpty;
           if (hasBufferedText) {
-            final submitted = await kbController.enter();
-            if (submitted) {
+            final sent = await kbController.enter();
+            if (sent) {
+              // `KeyboardController.enter()` only sends the text payload.
+              // We still need to "submit" the focused field on TV.
+              await Future<void>.delayed(const Duration(milliseconds: 120));
+              await controller.send('KEY_IME_ENTER');
+              await Future<void>.delayed(const Duration(milliseconds: 80));
+              await controller.send('KEY_ENTER');
               return;
             }
           }

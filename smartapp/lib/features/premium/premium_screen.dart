@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/utils/settings_actions.dart';
@@ -33,10 +35,33 @@ class _PremiumScreenState extends State<PremiumScreen> {
     super.initState();
     final premiumController = Get.find<PremiumController>();
     final iapService = Get.find<SubscriptionIAPService>();
+    final analytics = Get.find<AnalyticsService>();
     _wasPremiumOnOpen = premiumController.isPremium.value;
+
+    unawaited(
+      analytics.logScreen(
+        screenName: 'PremiumScreen',
+        screenClass: 'PremiumScreen',
+      ),
+    );
+    unawaited(
+      analytics.logEvent(
+        'premium_paywall_open',
+        params: <String, Object?>{
+          'screen_name': 'PremiumScreen',
+          'was_premium': _wasPremiumOnOpen,
+        },
+      ),
+    );
 
     _premiumStateWorker = ever<bool>(premiumController.isPremium, (isPremium) {
       if (!isPremium || _wasPremiumOnOpen) return;
+      unawaited(
+        analytics.logEvent(
+          'premium_activated',
+          params: const <String, Object?>{'screen_name': 'PremiumScreen'},
+        ),
+      );
       _showSnackbar('Premium', 'Subscription activated successfully.');
       _goToRemoteScreen();
     });
@@ -187,7 +212,15 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     ),
                                     splashRadius: 18,
                                     iconSize: 22,
-                                    onPressed: () => Get.back<void>(),
+                                    onPressed: () {
+                                      unawaited(
+                                        Get.find<AnalyticsService>().trackClick(
+                                          'ClosePaywall',
+                                          screenName: 'PremiumScreen',
+                                        ),
+                                      );
+                                      Get.back<void>();
+                                    },
                                     icon: const Icon(
                                       Icons.close,
                                       color: Colors.white,
@@ -268,8 +301,19 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                           durationLine: 'per month',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.monthly,
-                                          onTap: () => _selectedPlan.value =
-                                              _PremiumPlanType.monthly,
+                                          onTap: () {
+                                            _selectedPlan.value =
+                                                _PremiumPlanType.monthly;
+                                            unawaited(
+                                              Get.find<AnalyticsService>().logEvent(
+                                                'premium_plan_selected',
+                                                params: const <String, Object?>{
+                                                  'screen_name': 'PremiumScreen',
+                                                  'plan': 'monthly',
+                                                },
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
                                       const SizedBox(width: 10),
@@ -285,8 +329,19 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                           durationLine: 'per week',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.weekly,
-                                          onTap: () => _selectedPlan.value =
-                                              _PremiumPlanType.weekly,
+                                          onTap: () {
+                                            _selectedPlan.value =
+                                                _PremiumPlanType.weekly;
+                                            unawaited(
+                                              Get.find<AnalyticsService>().logEvent(
+                                                'premium_plan_selected',
+                                                params: const <String, Object?>{
+                                                  'screen_name': 'PremiumScreen',
+                                                  'plan': 'weekly',
+                                                },
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
                                       const SizedBox(width: 10),
@@ -302,8 +357,19 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                           durationLine: 'per year',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.yearly,
-                                          onTap: () => _selectedPlan.value =
-                                              _PremiumPlanType.yearly,
+                                          onTap: () {
+                                            _selectedPlan.value =
+                                                _PremiumPlanType.yearly;
+                                            unawaited(
+                                              Get.find<AnalyticsService>().logEvent(
+                                                'premium_plan_selected',
+                                                params: const <String, Object?>{
+                                                  'screen_name': 'PremiumScreen',
+                                                  'plan': 'yearly',
+                                                },
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
                                     ],
@@ -361,6 +427,17 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             onPressed: isBusy
                                 ? null
                                 : () async {
+                                    unawaited(
+                                      Get.find<AnalyticsService>().logEvent(
+                                        'premium_continue_clicked',
+                                        params: <String, Object?>{
+                                          'screen_name': 'PremiumScreen',
+                                          'plan': _selectedPlan.value.name,
+                                          'is_premium': premiumController
+                                              .isPremium.value,
+                                        },
+                                      ),
+                                    );
                                     final products = iapService.products;
                                     if (products.isEmpty) {
                                       Get.snackbar(
@@ -376,12 +453,30 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                       product.productDetails,
                                     );
                                     if (!launched) {
+                                      unawaited(
+                                        Get.find<AnalyticsService>().logEvent(
+                                          'premium_purchase_launch_failed',
+                                          params: <String, Object?>{
+                                            'screen_name': 'PremiumScreen',
+                                            'product_id': product.id,
+                                          },
+                                        ),
+                                      );
                                       Get.snackbar(
                                         'Premium',
                                         'Could not start purchase flow.',
                                       );
                                       return;
                                     }
+                                    unawaited(
+                                      Get.find<AnalyticsService>().logEvent(
+                                        'premium_purchase_flow_started',
+                                        params: <String, Object?>{
+                                          'screen_name': 'PremiumScreen',
+                                          'product_id': product.id,
+                                        },
+                                      ),
+                                    );
                                     // If premium was already active by the time
                                     // buy() returned (rare race), short-circuit
                                     // to the Remote screen instead of relying on

@@ -9,6 +9,7 @@ import '../services/android_tv/android_tv_keycodes.dart';
 import '../services/tv_service_interface.dart';
 import 'remote_controller.dart';
 import 'tv_connection_controller.dart';
+import '../services/analytics_service.dart';
 
 enum VoiceSessionState {
   idle,
@@ -23,13 +24,16 @@ class VoiceController extends GetxController {
   VoiceController({
     TvConnectionController? connectionController,
     RemoteController? remoteController,
+    AnalyticsService? analyticsService,
   })
       : _connectionController =
             connectionController ?? Get.find<TvConnectionController>(),
-        _remoteController = remoteController ?? Get.find<RemoteController>();
+        _remoteController = remoteController ?? Get.find<RemoteController>(),
+        _analyticsService = analyticsService ?? Get.find<AnalyticsService>();
 
   final TvConnectionController _connectionController;
   final RemoteController _remoteController;
+  final AnalyticsService _analyticsService;
   final SpeechToText _speech = SpeechToText();
 
   final Rx<VoiceSessionState> sessionState = VoiceSessionState.idle.obs;
@@ -48,6 +52,15 @@ class VoiceController extends GetxController {
 
   Future<void> startListening() async {
     if (isListening.value) return;
+    unawaited(
+      _analyticsService.logEvent(
+        'voice_mic_start',
+        params: <String, Object?>{
+          'screen_name': 'VoiceController',
+          'connection_state': _connectionController.connectionState.value.name,
+        },
+      ),
+    );
     if (_connectionController.connectionState.value != TvConnectionState.connected) {
       _setErrorState('Connect to TV before using voice input.');
       return;
@@ -112,6 +125,15 @@ class VoiceController extends GetxController {
 
   Future<void> stopListening() async {
     if (!isListening.value) return;
+    unawaited(
+      _analyticsService.logEvent(
+        'voice_mic_stop',
+        params: <String, Object?>{
+          'screen_name': 'VoiceController',
+          'reason': 'manual_stop',
+        },
+      ),
+    );
     _silenceFinalizeTimer?.cancel();
     sessionState.value = VoiceSessionState.processing;
     statusText.value = 'Processing speech...';
@@ -139,6 +161,15 @@ class VoiceController extends GetxController {
     if (status == 'done' || status == 'notListening') {
       _silenceFinalizeTimer?.cancel();
       isListening.value = false;
+      unawaited(
+        _analyticsService.logEvent(
+          'voice_mic_status',
+          params: <String, Object?>{
+            'screen_name': 'VoiceController',
+            'status': status,
+          },
+        ),
+      );
       if (!_finalResultReceived) {
         await _finalizeAndSend(reason: status);
       }
@@ -150,6 +181,16 @@ class VoiceController extends GetxController {
       // ignore: avoid_print
       print('VoiceController speech error: ${error.errorMsg}');
     }
+    unawaited(
+      _analyticsService.logEvent(
+        'voice_mic_error',
+        params: <String, Object?>{
+          'screen_name': 'VoiceController',
+          'error': error.errorMsg,
+          'permanent': error.permanent,
+        },
+      ),
+    );
     final msg = error.errorMsg.toLowerCase();
     final isNoSpeechTimeout = msg.contains('error_speech_timeout') ||
         msg.contains('no match') ||
@@ -178,10 +219,28 @@ class VoiceController extends GetxController {
     try {
       final text = _latestTranscript.trim();
       if (text.isEmpty) {
+        unawaited(
+          _analyticsService.logEvent(
+            'voice_transcript_empty',
+            params: <String, Object?>{
+              'screen_name': 'VoiceController',
+              'reason': reason,
+            },
+          ),
+        );
         _setErrorState('No speech detected. Please try again.');
         return;
       }
       if (text == _lastSentText) {
+        unawaited(
+          _analyticsService.logEvent(
+            'voice_transcript_duplicate',
+            params: <String, Object?>{
+              'screen_name': 'VoiceController',
+              'reason': reason,
+            },
+          ),
+        );
         sessionState.value = VoiceSessionState.sent;
         statusText.value = 'Already sent.';
         return;
@@ -199,6 +258,16 @@ class VoiceController extends GetxController {
         sent = await _sendPerKeyFallback(text);
       }
       if (!sent) {
+        unawaited(
+          _analyticsService.logEvent(
+            'voice_send_failed',
+            params: <String, Object?>{
+              'screen_name': 'VoiceController',
+              'reason': reason,
+              'length': text.length,
+            },
+          ),
+        );
         _setErrorState(
           'Could not send voice text to TV. Search will open automatically when supported.',
         );
@@ -207,6 +276,16 @@ class VoiceController extends GetxController {
 
       _lastSentText = text;
       _hasSentForCurrentSession = true;
+      unawaited(
+        _analyticsService.logEvent(
+          'voice_send_success',
+          params: <String, Object?>{
+            'screen_name': 'VoiceController',
+            'reason': reason,
+            'length': text.length,
+          },
+        ),
+      );
       sessionState.value = VoiceSessionState.sent;
       statusText.value = 'Sent to TV';
       if (kDebugMode) {

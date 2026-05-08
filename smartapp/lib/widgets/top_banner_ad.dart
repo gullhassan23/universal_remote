@@ -63,9 +63,12 @@ class _TopBannerAdState extends State<TopBannerAd> {
             _isLoading = false;
           });
           unawaited(
-            _analyticsService.logEvent(
-              'admob_banner_top_loaded',
-              params: {'screen_name': 'TopBannerAd', 'ad_unit': 'banner_top'},
+            _analyticsService.logAdEvent(
+              action: 'loaded',
+              adType: 'banner',
+              adSdkName: 'admob',
+              adPlacement: 'banner_top',
+              params: {'screen_name': 'TopBannerAd'},
             ),
           );
         },
@@ -80,11 +83,13 @@ class _TopBannerAdState extends State<TopBannerAd> {
             _isLoading = false;
           });
           unawaited(
-            _analyticsService.logEvent(
-              'admob_banner_top_failed_load',
+            _analyticsService.logAdEvent(
+              action: 'failed_load',
+              adType: 'banner',
+              adSdkName: 'admob',
+              adPlacement: 'banner_top',
               params: {
                 'screen_name': 'TopBannerAd',
-                'ad_unit': 'banner_top',
                 'error_code': error.code,
                 'error_domain': error.domain,
               },
@@ -92,15 +97,21 @@ class _TopBannerAdState extends State<TopBannerAd> {
           );
         },
         onAdImpression: (_) => unawaited(
-          _analyticsService.logEvent(
-            'admob_banner_top_impression',
-            params: {'screen_name': 'TopBannerAd', 'ad_unit': 'banner_top'},
+          _analyticsService.logAdEvent(
+            action: 'impression',
+            adType: 'banner',
+            adSdkName: 'admob',
+            adPlacement: 'banner_top',
+            params: {'screen_name': 'TopBannerAd'},
           ),
         ),
         onAdClicked: (_) => unawaited(
-          _analyticsService.logEvent(
-            'admob_banner_top_clicked',
-            params: {'screen_name': 'TopBannerAd', 'ad_unit': 'banner_top'},
+          _analyticsService.logAdEvent(
+            action: 'clicked',
+            adType: 'banner',
+            adSdkName: 'admob',
+            adPlacement: 'banner_top',
+            params: {'screen_name': 'TopBannerAd'},
           ),
         ),
       ),

@@ -1,9 +1,25 @@
+import 'dart:async';
+
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+import 'analytics/app_analytics.dart';
+import 'analytics/analytics_debug.dart';
+import 'analytics/analytics_dedupe.dart';
+import 'analytics/composite_analytics.dart';
+import 'analytics/firebase_analytics_backend.dart';
+import 'analytics/game_analytics_backend.dart';
 
 class AnalyticsService extends GetxService {
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
   String? _lastScreenKey;
+  int _lastScreenAtMs = 0;
+  final AnalyticsDedupe _eventDedupe = AnalyticsDedupe(minIntervalMs: 250);
+  late final AnalyticsDebug _debug;
+  AppAnalytics? _fanout;
   static const Map<String, String> _screenKeyToName = <String, String>{
     'Get_Started': 'GetStarted',
     'Remote_View': 'Remote_Screen',
@@ -15,15 +31,47 @@ class AnalyticsService extends GetxService {
 
   FirebaseAnalytics get analytics => _analytics;
 
+  Future<void> initialize() async {
+    final debugEnabled =
+        (dotenv.env['ANALYTICS_DEBUG'] ?? '').trim().toLowerCase() == 'true';
+    _debug = AnalyticsDebug(enabled: debugEnabled);
+
+    final pkg = await PackageInfo.fromPlatform();
+    final build = '${pkg.version}+${pkg.buildNumber}';
+
+    final gameKey = (dotenv.env['GAME_KEY'] ?? '').trim();
+    final secretKey = (dotenv.env['SECRET_KEY'] ?? '').trim();
+
+    final targets = <AppAnalytics>[
+      FirebaseAnalyticsBackend(
+        analytics: _analytics,
+        debug: _debug,
+      ),
+      GameAnalyticsBackend(
+        gameKey: gameKey,
+        secretKey: secretKey,
+        build: build,
+        debug: _debug,
+        enabled: true,
+      ),
+    ];
+
+    _fanout = CompositeAnalytics(targets);
+    await _fanout!.init();
+    _debug.log('initialized build=$build gaKeysPresent=${gameKey.isNotEmpty && secretKey.isNotEmpty}');
+  }
+
   Future<void> logScreen({
     required String screenName,
     required String screenClass,
   }) async {
     final key = '$screenName|$screenClass';
-    if (_lastScreenKey == key) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (_lastScreenKey == key && (nowMs - _lastScreenAtMs) < 800) {
       return;
     }
     _lastScreenKey = key;
+    _lastScreenAtMs = nowMs;
 
     // Emit per-screen custom event so screens appear directly in
     // Firebase "Event count by event name" list.
@@ -32,6 +80,15 @@ class AnalyticsService extends GetxService {
       screenEventName,
       params: _baseParams(screenName: screenName),
     );
+
+    final fanout = _fanout;
+    if (fanout != null) {
+      await fanout.screenView(
+        screenName: screenName,
+        screenClass: screenClass,
+        params: _baseParams(screenName: screenName),
+      );
+    }
   }
 
   Future<void> trackScreenByKey(String screenKey) async {
@@ -89,6 +146,13 @@ class AnalyticsService extends GetxService {
     String name, {
     Map<String, Object?>? params,
   }) async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final dropKey = '${_normalizeEventName(name)}|${params?['screen_name'] ?? ''}|${params?['button_name'] ?? ''}';
+    if (_eventDedupe.shouldDrop(dropKey, nowMs)) {
+      _debug.log('dedupe drop event=$name');
+      return;
+    }
+
     final normalizedName = _normalizeEventName(name);
     final sanitizedParams = params == null
         ? null
@@ -99,6 +163,77 @@ class AnalyticsService extends GetxService {
           );
 
     await _analytics.logEvent(name: normalizedName, parameters: sanitizedParams);
+
+    final fanout = _fanout;
+    if (fanout != null) {
+      unawaited(
+        fanout.event(
+          normalizedName,
+          params: sanitizedParams,
+        ),
+      );
+    } else if (kDebugMode) {
+      // Useful during early startup if initialize() wasn't called yet.
+      _debug.log('fanout not ready: event=$normalizedName');
+    }
+  }
+
+  Future<void> logAdEvent({
+    required String action,
+    required String adType,
+    required String adSdkName,
+    required String adPlacement,
+    Map<String, Object?>? params,
+  }) async {
+    final base = <String, Object?>{
+      'ad_action': action,
+      'ad_type': adType,
+      'ad_sdk': adSdkName,
+      'ad_placement': adPlacement,
+      ...?params,
+    };
+    await logEvent(
+      'ad_${_sanitizeToken(adSdkName)}_${_sanitizeToken(action)}',
+      params: base,
+    );
+
+    final fanout = _fanout;
+    if (fanout != null) {
+      unawaited(
+        fanout.adEvent(
+          action: action,
+          adType: adType,
+          adSdkName: adSdkName,
+          adPlacement: adPlacement,
+          params: base,
+        ),
+      );
+    }
+  }
+
+  Future<void> logError(
+    String message, {
+    String severity = 'error',
+    Map<String, Object?>? params,
+  }) async {
+    await logEvent(
+      'app_error',
+      params: <String, Object?>{
+        'message': message,
+        'severity': severity,
+        ...?params,
+      },
+    );
+    final fanout = _fanout;
+    if (fanout != null) {
+      unawaited(
+        fanout.error(
+          message: message,
+          severity: severity,
+          params: params,
+        ),
+      );
+    }
   }
 
   void trackRouteFromGetX(Routing? routing) {
@@ -127,6 +262,9 @@ class AnalyticsService extends GetxService {
     if (trimmed == '/home') {
       final screenName = _screenKeyToName['bottom_nav']!;
       return (screenName, screenName);
+    }
+    if (trimmed == '/premium' || trimmed == '/pro' || trimmed.contains('premium')) {
+      return ('PremiumScreen', 'PremiumScreen');
     }
 
     final cleaned = trimmed.split('?').first;

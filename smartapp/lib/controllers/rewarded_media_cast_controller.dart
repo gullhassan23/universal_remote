@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -230,6 +229,7 @@ class RewardedMediaCastController extends GetxController {
         name,
         params: <String, Object?>{
           'screen_name': _logScreen,
+          'state': _state.name,
           ...?extra,
         },
       ),

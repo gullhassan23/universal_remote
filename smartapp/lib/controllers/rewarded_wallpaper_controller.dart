@@ -118,6 +118,7 @@ class RewardedWallpaperController extends GetxController {
         name,
         params: <String, Object?>{
           'screen_name': _logScreen,
+          'is_premium': _premiumController.isPremium.value,
           ...?extra,
         },
       ),

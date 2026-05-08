@@ -65,9 +65,12 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
             _isLoading = false;
           });
           unawaited(
-            _analyticsService.logEvent(
-              'admob_banner_loaded',
-              params: {'screen_name': 'PremiumAwareBannerAd', 'ad_unit': 'banner'},
+            _analyticsService.logAdEvent(
+              action: 'loaded',
+              adType: 'banner',
+              adSdkName: 'admob',
+              adPlacement: 'banner',
+              params: {'screen_name': 'PremiumAwareBannerAd'},
             ),
           );
         },
@@ -82,11 +85,13 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
             _isLoading = false;
           });
           unawaited(
-            _analyticsService.logEvent(
-              'admob_banner_failed_load',
+            _analyticsService.logAdEvent(
+              action: 'failed_load',
+              adType: 'banner',
+              adSdkName: 'admob',
+              adPlacement: 'banner',
               params: {
                 'screen_name': 'PremiumAwareBannerAd',
-                'ad_unit': 'banner',
                 'error_code': error.code,
                 'error_domain': error.domain,
               },
@@ -94,15 +99,21 @@ class _PremiumAwareBannerAdState extends State<PremiumAwareBannerAd> {
           );
         },
         onAdImpression: (_) => unawaited(
-          _analyticsService.logEvent(
-            'admob_banner_impression',
-            params: {'screen_name': 'PremiumAwareBannerAd', 'ad_unit': 'banner'},
+          _analyticsService.logAdEvent(
+            action: 'impression',
+            adType: 'banner',
+            adSdkName: 'admob',
+            adPlacement: 'banner',
+            params: {'screen_name': 'PremiumAwareBannerAd'},
           ),
         ),
         onAdClicked: (_) => unawaited(
-          _analyticsService.logEvent(
-            'admob_banner_clicked',
-            params: {'screen_name': 'PremiumAwareBannerAd', 'ad_unit': 'banner'},
+          _analyticsService.logAdEvent(
+            action: 'clicked',
+            adType: 'banner',
+            adSdkName: 'admob',
+            adPlacement: 'banner',
+            params: {'screen_name': 'PremiumAwareBannerAd'},
           ),
         ),
       ),

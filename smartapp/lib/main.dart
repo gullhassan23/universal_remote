@@ -58,6 +58,7 @@ Future<void> main() async {
 /// [HomeBinding] on the `/home` route.
 Future<void> _registerCoreDependencies() async {
   Get.put(AnalyticsService(), permanent: true);
+  await Get.find<AnalyticsService>().initialize();
   final tvService = UnifiedTvService();
   Get.put(NetworkContextService(), permanent: true);
   Get.put<ITvService>(tvService, permanent: true);
