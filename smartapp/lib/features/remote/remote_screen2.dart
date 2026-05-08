@@ -50,8 +50,8 @@ class RemoteScreen2 extends GetView<RemoteController> {
   }
 
   static const double _wallpaper1DpadSize = 228;
-
-  /// D-pad / 123 mode images ([6.png] / [5.png]) — aligned with Remote-Skin-1.
+  static const double _wallpaper1ModeImageHeight = 80;
+  static const double _wallpaper1ModeImageWidth = 160;
 
   void _handleWallpaper1DpadTap(Offset local) {
     const size = Size(_wallpaper1DpadSize, _wallpaper1DpadSize);
@@ -117,7 +117,7 @@ class RemoteScreen2 extends GetView<RemoteController> {
   @override
   Widget build(BuildContext context) {
     const RemoteWallpaperButtonAssets activeButtonAssets =
-        RemoteWallpaper2ButtonAssets.set;
+        RemoteWallpaper1ButtonAssets.set;
     return Scaffold(
       backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,
@@ -162,7 +162,7 @@ class RemoteScreen2 extends GetView<RemoteController> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Colors.black,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.5,
@@ -280,12 +280,6 @@ class RemoteScreen2 extends GetView<RemoteController> {
                         // width: 100,
                         imageAsset,
                         fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.broken_image_outlined,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          size: min(width, height) * 0.35,
-                        ),
                       ),
                     )
                   : Icon(icon!, color: iconColor, size: 30),
@@ -350,22 +344,17 @@ class RemoteScreen2 extends GetView<RemoteController> {
         children: [
           // Volume Up (Top Center)
           Positioned(
-            top: 2.8,
-            left: 6,
+            top: 4,
+            right: 6,
             child: Container(
-              // decoration:
-              //     BoxDecoration(border: Border.all(color: Colors.white)),
+              // decoration: BoxDecoration(border: Border.all(color: Colors.red)),
               child: GestureDetector(
                 onTap: _sendKeyTap('KEY_VOLUP'),
                 child: SizedBox(
-                  // height: 81.5,
-                  // width: 70,
+                  height: 81.5,
+                  width: 80,
                   child: Image.asset(
-                    width: 72,
                     buttonAssets.volUp,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                   ),
                 ),
               ),
@@ -373,21 +362,18 @@ class RemoteScreen2 extends GetView<RemoteController> {
           ),
 
           Positioned(
-            top: 77,
-            left: 6,
+            top: 84,
+            left: 0.2,
             child: Container(
               // decoration: BoxDecoration(border: Border.all(color: Colors.blue)),
               child: GestureDetector(
                 onTap: _sendKeyTap('KEY_MUTE'),
                 child: SizedBox(
-                  // width: 75,
-                  // height: 63.9,
+                  width: 80.8,
+                  height: 63.9,
                   child: Image.asset(
-                    width: 72,
                     buttonAssets.mute,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    fit: BoxFit.fitWidth,
                   ),
                 ),
               ),
@@ -395,19 +381,20 @@ class RemoteScreen2 extends GetView<RemoteController> {
           ),
           // Volume Down (Bottom Center)
           Positioned(
-            top: 147.8,
+            top: 148.1,
             bottom: 0,
-            right: 7,
+            left: 5.6,
             child: Container(
+              // decoration:
+              //     BoxDecoration(border: Border.all(color: Colors.black)),
               child: GestureDetector(
                 onTap: _sendKeyTap('KEY_VOLDOWN'),
                 child: SizedBox(
+                  width: 83,
+                  height: 75,
                   child: Image.asset(
-                    width: 83,
                     buttonAssets.volDown,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    fit: BoxFit.fitWidth,
                   ),
                 ),
               ),
@@ -425,7 +412,27 @@ class RemoteScreen2 extends GetView<RemoteController> {
     final voiceController = Get.find<VoiceController>();
     return Obx(() {
       final isListening = voiceController.isListening.value;
-
+      // return _roundedActionButton(
+      //   icon: isListening ? Icons.mic : Icons.mic_none,
+      //   iconColor: isListening ? const Color(0xFFFFE082) : Colors.white,
+      //   onTap: () {
+      //     unawaited(
+      //       controller.handleButtonTap(
+      //         buttonKey: 'KEY_MIC',
+      //         action: isListening ? 'stop_voice' : 'start_voice',
+      //         onTap: () async {
+      //           if (isListening) {
+      //             await voiceController.stopListening();
+      //           } else {
+      //             await voiceController.startListening();
+      //           }
+      //         },
+      //       ),
+      //     );
+      //   },
+      //   width: 88,
+      //   height: 50,
+      // );
       return _roundedActionButton(
         icon: buttonAssets != null ? null : Icons.power_settings_new,
         imageAsset: buttonAssets?.mic,
@@ -505,74 +512,43 @@ class RemoteScreen2 extends GetView<RemoteController> {
 
   Widget _buildModeToggle(RemoteWallpaperButtonAssets? buttonAssets) {
     if (buttonAssets != null) {
-      // Wallpaper-2 uses a single togglebar background image.
-      // We overlay the 2 tap targets (gamepad + "123") on top of it.
-      return SizedBox(
-        height: 62,
-        child: Stack(
-          alignment: Alignment.center,
+      return Obx(
+        () => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/remote_wallpapers/wallpaper2/togglebar.png',
-                fit: BoxFit.contain,
-              ),
+            _wallpaper1ModeToggleImage(
+              height: 71,
+              width: 147,
+              asset: buttonAssets.modeDpad,
+              isActive: controller.selectedTab.value == 0,
+              inactiveOpacity: 1.0,
+              onTap: () {
+                if (controller.selectedTab.value == 0) return;
+                controller.selectedTab.value = 0;
+                unawaited(
+                  _analyticsService.trackTab(
+                    'Dpad',
+                    screenName: 'Remote_Screen',
+                  ),
+                );
+              },
             ),
-            Positioned.fill(
-              child: Obx(
-                () => Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          if (controller.selectedTab.value == 0) return;
-                          controller.selectedTab.value = 0;
-                          unawaited(
-                            _analyticsService.trackTab(
-                              'Dpad',
-                              screenName: 'Remote_Screen',
-                            ),
-                          );
-                        },
-                        child: Center(
-                          child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 140),
-                              opacity: controller.selectedTab.value == 0
-                                  ? 1.0
-                                  : 0.65,
-                              child: Image.asset(
-                                  height: 30, width: 30, buttonAssets.gamepad)),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          if (controller.selectedTab.value == 1) return;
-                          controller.selectedTab.value = 1;
-                          unawaited(
-                            _analyticsService.trackTab(
-                              'NumberPad',
-                              screenName: 'Remote_Screen',
-                            ),
-                          );
-                        },
-                        child: Center(
-                          child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 140),
-                              opacity: controller.selectedTab.value == 1
-                                  ? 1.0
-                                  : 0.65,
-                              child: Image.asset(
-                                  height: 30, width: 60, buttonAssets.number)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            _wallpaper1ModeToggleImage(
+              asset: buttonAssets.modeNumbers,
+              height: _wallpaper1ModeImageHeight,
+              width: _wallpaper1ModeImageWidth,
+              isActive: controller.selectedTab.value == 1,
+              inactiveOpacity: 1.0,
+              onTap: () {
+                if (controller.selectedTab.value == 1) return;
+                controller.selectedTab.value = 1;
+                unawaited(
+                  _analyticsService.trackTab(
+                    'NumberPad',
+                    screenName: 'Remote_Screen',
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -631,6 +607,26 @@ class RemoteScreen2 extends GetView<RemoteController> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _wallpaper1ModeToggleImage({
+    required String asset,
+    required bool isActive,
+    required double height,
+    required double width,
+    double inactiveOpacity = 0.4,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 160),
+        opacity: isActive ? 1.0 : inactiveOpacity,
+        child: Image.asset(
+            height: height, width: width, asset, fit: BoxFit.contain),
+      ),
     );
   }
 
@@ -757,12 +753,12 @@ class RemoteScreen2 extends GetView<RemoteController> {
                     fit: BoxFit.cover,
                   ),
                   Positioned(
-                    top: 14,
+                    top: 17,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_UP'),
                       child: Image.asset(
-                        buttonAssets.dpadUp,
+                        'assets/images/remote_wallpapers/wallpaper1/uparrow.png',
                         width: 30,
                         height: 30,
                         fit: BoxFit.contain,
@@ -770,12 +766,12 @@ class RemoteScreen2 extends GetView<RemoteController> {
                     ),
                   ),
                   Positioned(
-                    bottom: 14,
+                    bottom: 17,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_DOWN'),
                       child: Image.asset(
-                        buttonAssets.dpadDown,
+                        'assets/images/remote_wallpapers/wallpaper1/downarrow.png',
                         width: 30,
                         height: 30,
                         fit: BoxFit.contain,
@@ -783,12 +779,12 @@ class RemoteScreen2 extends GetView<RemoteController> {
                     ),
                   ),
                   Positioned(
-                    left: 14,
+                    left: 17,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_LEFT'),
                       child: Image.asset(
-                        buttonAssets.dpadLeft,
+                        'assets/images/remote_wallpapers/wallpaper1/leftarrow.png',
                         width: 30,
                         height: 30,
                         fit: BoxFit.contain,
@@ -796,12 +792,12 @@ class RemoteScreen2 extends GetView<RemoteController> {
                     ),
                   ),
                   Positioned(
-                    right: 14,
+                    right: 17,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _sendKeyTap('KEY_RIGHT'),
                       child: Image.asset(
-                        buttonAssets.dpadRight,
+                        'assets/images/remote_wallpapers/wallpaper1/rightarrow.png',
                         width: 30,
                         height: 30,
                         fit: BoxFit.contain,
@@ -947,15 +943,15 @@ class RemoteScreen2 extends GetView<RemoteController> {
           icon: buttonAssets != null ? null : Icons.arrow_back,
           imageAsset: buttonAssets?.back,
           onTap: _sendKeyTap('KEY_RETURN'),
-          width: MediaQuery.of(context).size.width * 0.20,
-          height: MediaQuery.of(context).size.width * 0.20,
+          width: 78,
+          height: 50,
         ),
         _roundedActionButton(
           icon: buttonAssets != null ? null : Icons.home,
           imageAsset: buttonAssets?.home,
           onTap: _sendKeyTap('KEY_HOME'),
-          width: MediaQuery.of(context).size.width * 0.20,
-          height: MediaQuery.of(context).size.width * 0.20,
+          width: MediaQuery.of(context).size.width * 0.18,
+          height: MediaQuery.of(context).size.width * 0.18,
         ),
         // _roundedActionButton(
         //   icon: Icons.menu,

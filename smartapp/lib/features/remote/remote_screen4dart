@@ -1,24 +1,26 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:smartapp/controllers/voice_controller.dart';
 import 'package:smartapp/utils/constant.dart';
 import 'package:smartapp/widgets/volumetile.dart';
-import '../../services/analytics_service.dart';
 
 import '../../controllers/keyboard_controller.dart';
 import '../../controllers/remote_controller.dart';
+import '../../services/analytics_service.dart';
 import '../../services/tv_service_interface.dart';
-import '../cast/cast_session_banner.dart';
 import '../../widgets/top_banner_ad.dart';
+import '../cast/cast_session_banner.dart';
 import 'keyboard_debug_log_screen.dart';
 
 // ignore: must_be_immutable
-class RemoteScreen6 extends GetView<RemoteController> {
-  RemoteScreen6({super.key});
+class RemoteScreen4 extends GetView<RemoteController> {
+  RemoteScreen4({super.key});
 
   static const Color _fallbackBackgroundColor = Color(0xFF0B1B25);
 
@@ -53,16 +55,6 @@ class RemoteScreen6 extends GetView<RemoteController> {
   static const double _wallpaper1DpadSize = 228;
 
   /// Radial nudge for U/D/L/R — keep small so wedges meet without diagonal gaps.
-  static const double _wallpaper1DpadRingOutset = 4;
-
-  static const double _wallpaper1DpadUdHeightBoost = 0;
-
-  /// Pulls wedge art toward the outer rim (see Remote-Skin); -1…1 like [Alignment].
-  static const double _wallpaper1DpadWedgeAlign = 0.62;
-
-  /// D-pad / 123 mode images ([6.png] / [5.png]) — aligned with Remote-Skin-1.
-  static const double _wallpaper1ModeImageHeight = 80;
-  static const double _wallpaper1ModeImageWidth = 160;
 
   void _handleWallpaper1DpadTap(Offset local) {
     const size = Size(_wallpaper1DpadSize, _wallpaper1DpadSize);
@@ -128,7 +120,7 @@ class RemoteScreen6 extends GetView<RemoteController> {
   @override
   Widget build(BuildContext context) {
     const RemoteWallpaperButtonAssets activeButtonAssets =
-        RemoteWallpaper6ButtonAssets.set;
+        RemoteWallpaper3ButtonAssets.set;
     return Scaffold(
       backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,
@@ -137,7 +129,7 @@ class RemoteScreen6 extends GetView<RemoteController> {
         decoration: const BoxDecoration(
           color: _fallbackBackgroundColor,
           image: DecorationImage(
-            image: AssetImage(RemoteWallpaperAssets.wallpaper6),
+            image: AssetImage(RemoteWallpaperAssets.wallpaper4),
             fit: BoxFit.cover,
           ),
         ),
@@ -311,7 +303,10 @@ class RemoteScreen6 extends GetView<RemoteController> {
     );
   }
 
+  /// Light grey vertical rail with three white capsule buttons (+, mute, −).
   Widget _buildVolumeColumn(RemoteWallpaperButtonAssets? buttonAssets) {
+    // Keep the rail width tighst to avoid extra blank space in the Row.
+
     const railH = 220.0;
 
     final assets = buttonAssets!;
@@ -460,43 +455,74 @@ class RemoteScreen6 extends GetView<RemoteController> {
 
   Widget _buildModeToggle(RemoteWallpaperButtonAssets? buttonAssets) {
     if (buttonAssets != null) {
-      return Obx(
-        () => Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+      // Wallpaper-2 uses a single togglebar background image.
+      // We overlay the 2 tap targets (gamepad + "123") on top of it.
+      return SizedBox(
+        height: 62,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            _wallpaper1ModeToggleImage(
-              height: 71,
-              width: 147,
-              asset: buttonAssets.modeDpad,
-              isActive: controller.selectedTab.value == 0,
-              inactiveOpacity: 1.0,
-              onTap: () {
-                if (controller.selectedTab.value == 0) return;
-                controller.selectedTab.value = 0;
-                unawaited(
-                  _analyticsService.trackTab(
-                    'Dpad',
-                    screenName: 'Remote_Screen',
-                  ),
-                );
-              },
+            Positioned.fill(
+              child: Image.asset(
+                buttonAssets.togglebar,
+                fit: BoxFit.contain,
+              ),
             ),
-            _wallpaper1ModeToggleImage(
-              asset: buttonAssets.modeNumbers,
-              height: _wallpaper1ModeImageHeight,
-              width: _wallpaper1ModeImageWidth,
-              isActive: controller.selectedTab.value == 1,
-              inactiveOpacity: 1.0,
-              onTap: () {
-                if (controller.selectedTab.value == 1) return;
-                controller.selectedTab.value = 1;
-                unawaited(
-                  _analyticsService.trackTab(
-                    'NumberPad',
-                    screenName: 'Remote_Screen',
-                  ),
-                );
-              },
+            Positioned.fill(
+              child: Obx(
+                () => Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (controller.selectedTab.value == 0) return;
+                          controller.selectedTab.value = 0;
+                          unawaited(
+                            _analyticsService.trackTab(
+                              'Dpad',
+                              screenName: 'Remote_Screen',
+                            ),
+                          );
+                        },
+                        child: Center(
+                          child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 140),
+                              opacity: controller.selectedTab.value == 0
+                                  ? 1.0
+                                  : 0.65,
+                              child: Image.asset(
+                                  height: 30, width: 30, buttonAssets.gamepad)),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (controller.selectedTab.value == 1) return;
+                          controller.selectedTab.value = 1;
+                          unawaited(
+                            _analyticsService.trackTab(
+                              'NumberPad',
+                              screenName: 'Remote_Screen',
+                            ),
+                          );
+                        },
+                        child: Center(
+                          child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 140),
+                              opacity: controller.selectedTab.value == 1
+                                  ? 1.0
+                                  : 0.65,
+                              child: Image.asset(
+                                  height: 30, width: 60, buttonAssets.number)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -555,26 +581,6 @@ class RemoteScreen6 extends GetView<RemoteController> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _wallpaper1ModeToggleImage({
-    required String asset,
-    required bool isActive,
-    required double height,
-    required double width,
-    double inactiveOpacity = 0.4,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 160),
-        opacity: isActive ? 1.0 : inactiveOpacity,
-        child: Image.asset(
-            height: height, width: width, asset, fit: BoxFit.contain),
-      ),
     );
   }
 
@@ -681,105 +687,86 @@ class RemoteScreen6 extends GetView<RemoteController> {
 
   Widget _buildDpad(RemoteWallpaperButtonAssets? buttonAssets) {
     if (buttonAssets != null) {
-      const half = _wallpaper1DpadSize / 2;
-
-      final udSlotHeight = half + _wallpaper1DpadUdHeightBoost;
       return Center(
         key: const ValueKey('dpad_wp1'),
         child: SizedBox(
-          width: 215,
-          height: 210,
+          width: _wallpaper1DpadSize,
+          height: _wallpaper1DpadSize,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTapUp: (details) {
-              _handleWallpaper1DpadTap(details.localPosition);
-            },
+            onTapUp: (details) =>
+                _handleWallpaper1DpadTap(details.localPosition),
             child: ClipOval(
               child: Stack(
-                clipBehavior: Clip.hardEdge,
                 alignment: Alignment.center,
                 children: [
+                  Image.asset(
+                    buttonAssets.dpadcircle,
+                    width: _wallpaper1DpadSize,
+                    height: _wallpaper1DpadSize,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    top: 14,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_UP'),
+                      child: Image.asset(
+                        buttonAssets.dpadUp,
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 14,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_DOWN'),
+                      child: Image.asset(
+                        buttonAssets.dpadDown,
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 14,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_LEFT'),
+                      child: Image.asset(
+                        buttonAssets.dpadLeft,
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 14,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_RIGHT'),
+                      child: Image.asset(
+                        buttonAssets.dpadRight,
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
                   Align(
-                    alignment: Alignment.topCenter,
-                    child: Transform.translate(
-                      offset: const Offset(0, -_wallpaper1DpadRingOutset),
-                      child: SizedBox(
-                        width: _wallpaper1DpadSize,
-                        height: udSlotHeight,
-                        child: Image.asset(
-                          buttonAssets.dpadUp,
-                          fit: BoxFit.contain,
-                          alignment: Alignment(0, -_wallpaper1DpadWedgeAlign),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    bottom: 19,
-                    right: 0,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Transform.translate(
-                        offset: const Offset(0, _wallpaper1DpadRingOutset),
-                        child: SizedBox(
-                          width: _wallpaper1DpadSize - 57,
-                          height: udSlotHeight,
-                          child: Image.asset(
-                            buttonAssets.dpadDown,
-                            fit: BoxFit.contain,
-                            alignment: Alignment(0, _wallpaper1DpadWedgeAlign),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 108,
-                    bottom: 10,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Transform.translate(
-                        offset: const Offset(-_wallpaper1DpadRingOutset, 0),
-                        child: SizedBox(
-                          width: 150,
-                          height: 200,
-                          child: Image.asset(
-                            buttonAssets.dpadLeft,
-                            fit: BoxFit.contain,
-                            alignment: Alignment(-_wallpaper1DpadWedgeAlign, 0),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 112,
-                    bottom: 10,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Transform.translate(
-                        offset: const Offset(_wallpaper1DpadRingOutset, 0),
-                        child: SizedBox(
-                          // width: lrSlotWidth,
-                          // height: _wallpaper1DpadSize,
-                          width: 150,
-                          height: 200,
-                          child: Image.asset(
-                            buttonAssets.dpadRight,
-                            fit: BoxFit.contain,
-                            alignment: Alignment(_wallpaper1DpadWedgeAlign, 0),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: SizedBox(
-                      width: 58,
-                      height: 58,
+                    alignment: Alignment.center,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _sendKeyTap('KEY_ENTER'),
                       child: Image.asset(
                         buttonAssets.dpadOk,
+                        width: 50,
+                        height: 50,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -910,15 +897,15 @@ class RemoteScreen6 extends GetView<RemoteController> {
           icon: buttonAssets != null ? null : Icons.arrow_back,
           imageAsset: buttonAssets?.back,
           onTap: _sendKeyTap('KEY_RETURN'),
-          width: 78,
-          height: 50,
+          width: MediaQuery.of(context).size.width * 0.24,
+          height: MediaQuery.of(context).size.width * 0.23,
         ),
         _roundedActionButton(
           icon: buttonAssets != null ? null : Icons.home,
           imageAsset: buttonAssets?.home,
           onTap: _sendKeyTap('KEY_HOME'),
-          width: 78,
-          height: 50,
+          width: MediaQuery.of(context).size.width * 0.24,
+          height: MediaQuery.of(context).size.width * 0.23,
         ),
         // _roundedActionButton(
         //   icon: Icons.menu,
@@ -973,3 +960,4 @@ class RemoteScreen6 extends GetView<RemoteController> {
     );
   }
 }
+

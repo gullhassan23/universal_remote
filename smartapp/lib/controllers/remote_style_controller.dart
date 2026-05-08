@@ -7,10 +7,10 @@ class RemoteStyleController extends GetxController {
   static const String _prefsPendingWallpaperKey = 'remote_wallpaper_pending_v1';
 
   final List<String> wallpapers = <String>[
-    RemoteWallpaperAssets.wallpaper6,
-    RemoteWallpaperAssets.wallpaper1,
+    RemoteWallpaperAssets.wallpaper,
     RemoteWallpaperAssets.wallpaper2,
     RemoteWallpaperAssets.wallpaper3,
+    RemoteWallpaperAssets.wallpaper4,
   ];
 
   final RxString appliedWallpaper = ImageRes.kGetStartedBackgroundAsset2.obs;
@@ -19,13 +19,13 @@ class RemoteStyleController extends GetxController {
 
   RemoteWallpaperButtonAssets? get activeButtonAssets {
     switch (appliedWallpaper.value) {
-      case RemoteWallpaperAssets.wallpaper1:
-        return RemoteWallpaper1ButtonAssets.set;
       case RemoteWallpaperAssets.wallpaper2:
-        return RemoteWallpaper2ButtonAssets.set;
+        return RemoteWallpaper1ButtonAssets.set;
       case RemoteWallpaperAssets.wallpaper3:
+        return RemoteWallpaper2ButtonAssets.set;
+      case RemoteWallpaperAssets.wallpaper4:
         return RemoteWallpaper3ButtonAssets.set;
-      case RemoteWallpaperAssets.wallpaper6:
+      case RemoteWallpaperAssets.wallpaper:
         return RemoteWallpaper6ButtonAssets.set;
       default:
         return null;

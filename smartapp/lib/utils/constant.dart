@@ -18,14 +18,14 @@ class ImageRes {
 class RemoteWallpaperAssets {
   RemoteWallpaperAssets._();
 
-  static const String wallpaper1 =
-      'assets/images/remote_wallpapers/wallpaper_1.png';
   static const String wallpaper2 =
       'assets/images/remote_wallpapers/wallpaper_2.png';
   static const String wallpaper3 =
       'assets/images/remote_wallpapers/wallpaper_3.png';
-  static const String wallpaper6 =
-      'assets/images/remote_wallpapers/wallpaper_6.png';
+  static const String wallpaper4 =
+      'assets/images/remote_wallpapers/wallpaper_4.png';
+  static const String wallpaper =
+      'assets/images/remote_wallpapers/wallpaper_1.png';
 }
 
 class RemoteWallpaperButtonAssets {

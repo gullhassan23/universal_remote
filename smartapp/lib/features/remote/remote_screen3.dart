@@ -1,21 +1,18 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import 'package:smartapp/controllers/voice_controller.dart';
 import 'package:smartapp/utils/constant.dart';
-import 'package:smartapp/widgets/volumetile.dart';
+import '../../services/analytics_service.dart';
 
 import '../../controllers/keyboard_controller.dart';
 import '../../controllers/remote_controller.dart';
-import '../../services/analytics_service.dart';
 import '../../services/tv_service_interface.dart';
-import '../../widgets/top_banner_ad.dart';
 import '../cast/cast_session_banner.dart';
+import '../../widgets/top_banner_ad.dart';
 import 'keyboard_debug_log_screen.dart';
 
 // ignore: must_be_immutable
@@ -54,7 +51,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
 
   static const double _wallpaper1DpadSize = 228;
 
-  /// Radial nudge for U/D/L/R — keep small so wedges meet without diagonal gaps.
+  /// D-pad / 123 mode images ([6.png] / [5.png]) — aligned with Remote-Skin-1.
 
   void _handleWallpaper1DpadTap(Offset local) {
     const size = Size(_wallpaper1DpadSize, _wallpaper1DpadSize);
@@ -120,7 +117,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
   @override
   Widget build(BuildContext context) {
     const RemoteWallpaperButtonAssets activeButtonAssets =
-        RemoteWallpaper3ButtonAssets.set;
+        RemoteWallpaper2ButtonAssets.set;
     return Scaffold(
       backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,
@@ -283,6 +280,12 @@ class RemoteScreen3 extends GetView<RemoteController> {
                         // width: 100,
                         imageAsset,
                         fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          size: min(width, height) * 0.35,
+                        ),
                       ),
                     )
                   : Icon(icon!, color: iconColor, size: 30),
@@ -305,41 +308,108 @@ class RemoteScreen3 extends GetView<RemoteController> {
 
   /// Light grey vertical rail with three white capsule buttons (+, mute, −).
   Widget _buildVolumeColumn(RemoteWallpaperButtonAssets? buttonAssets) {
-    // Keep the rail width tighst to avoid extra blank space in the Row.
+    if (buttonAssets == null) {
+      return SizedBox(
+        width: 90,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _roundedActionButton(
+              icon: Icons.volume_up,
+              onTap: _sendKeyTap('KEY_VOLUP'),
+              width: 82,
+              height: 58,
+            ),
+            const SizedBox(height: 6),
+            _roundedActionButton(
+              icon: Icons.volume_off,
+              onTap: _sendKeyTap('KEY_MUTE'),
+              width: 82,
+              height: 58,
+            ),
+            const SizedBox(height: 6),
+            _roundedActionButton(
+              icon: Icons.volume_down,
+              onTap: _sendKeyTap('KEY_VOLDOWN'),
+              width: 82,
+              height: 58,
+            ),
+          ],
+        ),
+      );
+    }
 
-    const railH = 220.0;
-
-    final assets = buttonAssets!;
+    // Keep the rail width tight to avoid extra blank space in the Row.
+    const railW = 90.0;
+    const railH = 222.0;
 
     return SizedBox(
+      width: railW,
       height: railH,
       child: Stack(
-        alignment: Alignment.center,
         children: [
-          Image.asset(
-            assets.volumebar,
-            height: railH,
-            fit: BoxFit.contain,
+          // Volume Up (Top Center)
+          Positioned(
+            top: 2.8,
+            left: 6,
+            child: Container(
+              // decoration:
+              //     BoxDecoration(border: Border.all(color: Colors.white)),
+              child: GestureDetector(
+                onTap: _sendKeyTap('KEY_VOLUP'),
+                child: SizedBox(
+                  // height: 81.5,
+                  // width: 70,
+                  child: Image.asset(
+                    width: 72,
+                    buttonAssets.volUp,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
           ),
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  VolumeRailIcon(
-                    asset: buttonAssets.plus,
-                    ontap: _sendKeyTap('KEY_VOLUP'),
+
+          Positioned(
+            top: 77,
+            left: 6,
+            child: Container(
+              // decoration: BoxDecoration(border: Border.all(color: Colors.blue)),
+              child: GestureDetector(
+                onTap: _sendKeyTap('KEY_MUTE'),
+                child: SizedBox(
+                  // width: 75,
+                  // height: 63.9,
+                  child: Image.asset(
+                    width: 72,
+                    buttonAssets.mute,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                   ),
-                  VolumeRailIcon(
-                    asset: buttonAssets.sound,
-                    ontap: _sendKeyTap('KEY_MUTE'),
+                ),
+              ),
+            ),
+          ),
+          // Volume Down (Bottom Center)
+          Positioned(
+            top: 147.8,
+            bottom: 0,
+            right: 7,
+            child: Container(
+              child: GestureDetector(
+                onTap: _sendKeyTap('KEY_VOLDOWN'),
+                child: SizedBox(
+                  child: Image.asset(
+                    width: 83,
+                    buttonAssets.volDown,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                   ),
-                  VolumeRailIcon(
-                    asset: buttonAssets.minus,
-                    ontap: _sendKeyTap('KEY_VOLDOWN'),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -355,27 +425,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
     final voiceController = Get.find<VoiceController>();
     return Obx(() {
       final isListening = voiceController.isListening.value;
-      // return _roundedActionButton(
-      //   icon: isListening ? Icons.mic : Icons.mic_none,
-      //   iconColor: isListening ? const Color(0xFFFFE082) : Colors.white,
-      //   onTap: () {
-      //     unawaited(
-      //       controller.handleButtonTap(
-      //         buttonKey: 'KEY_MIC',
-      //         action: isListening ? 'stop_voice' : 'start_voice',
-      //         onTap: () async {
-      //           if (isListening) {
-      //             await voiceController.stopListening();
-      //           } else {
-      //             await voiceController.startListening();
-      //           }
-      //         },
-      //       ),
-      //     );
-      //   },
-      //   width: 88,
-      //   height: 50,
-      // );
+
       return _roundedActionButton(
         icon: buttonAssets != null ? null : Icons.power_settings_new,
         imageAsset: buttonAssets?.mic,
@@ -464,7 +514,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
           children: [
             Positioned.fill(
               child: Image.asset(
-                buttonAssets.togglebar,
+                'assets/images/remote_wallpapers/wallpaper2/togglebar.png',
                 fit: BoxFit.contain,
               ),
             ),
@@ -765,8 +815,8 @@ class RemoteScreen3 extends GetView<RemoteController> {
                       onTap: _sendKeyTap('KEY_ENTER'),
                       child: Image.asset(
                         buttonAssets.dpadOk,
-                        width: 50,
-                        height: 50,
+                        width: 70,
+                        height: 70,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -897,15 +947,15 @@ class RemoteScreen3 extends GetView<RemoteController> {
           icon: buttonAssets != null ? null : Icons.arrow_back,
           imageAsset: buttonAssets?.back,
           onTap: _sendKeyTap('KEY_RETURN'),
-          width: MediaQuery.of(context).size.width * 0.24,
-          height: MediaQuery.of(context).size.width * 0.23,
+          width: MediaQuery.of(context).size.width * 0.20,
+          height: MediaQuery.of(context).size.width * 0.20,
         ),
         _roundedActionButton(
           icon: buttonAssets != null ? null : Icons.home,
           imageAsset: buttonAssets?.home,
           onTap: _sendKeyTap('KEY_HOME'),
-          width: MediaQuery.of(context).size.width * 0.24,
-          height: MediaQuery.of(context).size.width * 0.23,
+          width: MediaQuery.of(context).size.width * 0.20,
+          height: MediaQuery.of(context).size.width * 0.20,
         ),
         // _roundedActionButton(
         //   icon: Icons.menu,
@@ -960,4 +1010,3 @@ class RemoteScreen3 extends GetView<RemoteController> {
     );
   }
 }
-
