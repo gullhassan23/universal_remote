@@ -74,7 +74,6 @@ class AdController extends GetxController {
       _disposeInterstitial();
       return;
     }
-    unawaited(loadBannerAd());
     unawaited(loadInterstitialAd());
     if (_connectionController.connectionState.value ==
         TvConnectionState.connected) {

@@ -17,6 +17,7 @@ class BottomNav extends StatefulWidget {
 class _BottomNavState extends State<BottomNav> {
   int _selectedIndex = 0;
   late final AnalyticsService _analyticsService;
+  late final List<bool> _initializedTabs;
   static const List<String> _tabScreenKeys = <String>[
     'Remote_View',
     'Streaming_App_Screen',
@@ -29,18 +30,19 @@ class _BottomNavState extends State<BottomNav> {
     'Cast',
     'Settings',
   ];
-
-  static  List<Widget> _tabs = <Widget>[
-    const RemoteScreenSwitcher(),
-    StreamingAppsScreen(),
-    CastScreen(),
-    SettingsScreen(),
+  late final List<Widget Function()> _tabBuilders = <Widget Function()>[
+    () => const RemoteScreenSwitcher(),
+    () => const StreamingAppsScreen(),
+    () => const CastScreen(),
+    () => const SettingsScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
     _analyticsService = Get.find<AnalyticsService>();
+    _initializedTabs = List<bool>.filled(_tabBuilders.length, false);
+    _initializedTabs[_selectedIndex] = true;
     _trackTab(_selectedIndex);
   }
 
@@ -49,7 +51,12 @@ class _BottomNavState extends State<BottomNav> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _tabs,
+        children: List<Widget>.generate(_tabBuilders.length, (index) {
+          if (!_initializedTabs[index]) {
+            return const SizedBox.shrink();
+          }
+          return _tabBuilders[index]();
+        }),
       ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF242b34),
@@ -66,6 +73,7 @@ class _BottomNavState extends State<BottomNav> {
           final previousIndex = _selectedIndex;
           setState(() {
             _selectedIndex = index;
+            _initializedTabs[index] = true;
           });
           if (previousIndex != index) {
             _analyticsService.trackBottomNav(

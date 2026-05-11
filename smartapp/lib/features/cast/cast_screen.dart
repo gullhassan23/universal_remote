@@ -336,30 +336,6 @@ class _CastScreenState extends State<CastScreen> {
                   }),
                 ),
                 const SizedBox(height: 2),
-                // LayoutBuilder(
-                //   builder: (context, constraints) {
-                //     // MREC inventory uses 300x250; keep the same aspect ratio to
-                //     // reserve full space and prevent overlap with content above.
-
-                //     return Center(
-                //       child: SizedBox(
-                //         width: double.infinity,
-                //         height: 20,
-                //         child: const FittedBox(
-                //           fit: BoxFit.contain,
-                //           child: SizedBox(
-                //             width: 300,
-                //             height: 20,
-                //             child: StreamingMrecAd(),
-                //           ),
-                //         ),
-                //       ),
-                //     );
-                //   },
-                // ),
-                Center(
-                  child: TopBannerAd(),
-                ),
               ],
             ),
           ),
