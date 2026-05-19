@@ -20,7 +20,7 @@ import 'keyboard_debug_log_screen.dart';
 
 // ignore: must_be_immutable
 class RemoteScreen4 extends GetView<RemoteController> {
-  RemoteScreen4({super.key});
+  const RemoteScreen4({super.key});
 
   static const Color _fallbackBackgroundColor = Color(0xFF0B1B25);
   static const String _screenName = 'Remote_Screen_4';
@@ -127,12 +127,6 @@ class RemoteScreen4 extends GetView<RemoteController> {
   Widget build(BuildContext context) {
     const RemoteWallpaperButtonAssets activeButtonAssets =
         RemoteWallpaper3ButtonAssets.set;
-    unawaited(
-      _analyticsService.logScreen(
-        screenName: _screenName,
-        screenClass: 'RemoteScreen4',
-      ),
-    );
     return Scaffold(
       backgroundColor: _fallbackBackgroundColor,
       resizeToAvoidBottomInset: true,

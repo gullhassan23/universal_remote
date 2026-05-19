@@ -8,13 +8,20 @@ class bg_container extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final backgroundCacheWidth = (size.width * devicePixelRatio).round();
+    final backgroundCacheHeight = (size.height * devicePixelRatio).round();
+
     return Stack(
       fit: StackFit.expand,
       children: [
         Image.asset(
           ImageRes.kGetStartedBackgroundAsset,
           fit: BoxFit.cover,
-          filterQuality: FilterQuality.high,
+          cacheWidth: backgroundCacheWidth,
+          cacheHeight: backgroundCacheHeight,
+          filterQuality: FilterQuality.medium,
           gaplessPlayback: true,
           errorBuilder: (context, error, stackTrace) {
             return const ColoredBox(color: Color(0xFF0B56D0));

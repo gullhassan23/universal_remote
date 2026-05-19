@@ -19,6 +19,10 @@ class GetStarted extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final size = MediaQuery.sizeOf(context);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final backgroundCacheWidth = (size.width * devicePixelRatio).round();
+    final backgroundCacheHeight = (size.height * devicePixelRatio).round();
 
     return Scaffold(
       backgroundColor: kGradientBottom,
@@ -31,7 +35,9 @@ class GetStarted extends StatelessWidget {
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            filterQuality: FilterQuality.high,
+            cacheWidth: backgroundCacheWidth,
+            cacheHeight: backgroundCacheHeight,
+            filterQuality: FilterQuality.medium,
             gaplessPlayback: true,
           ),
           // Your two colors on top — semi-transparent so image + gradient dono mix.

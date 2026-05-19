@@ -250,6 +250,11 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final backgroundCacheWidth = (size.width * devicePixelRatio).round();
+    final backgroundCacheHeight = (size.height * devicePixelRatio).round();
+
     return Scaffold(
       backgroundColor: kGradientBottom,
       body: Stack(
@@ -260,7 +265,9 @@ class _SplashScreenState extends State<SplashScreen>
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            filterQuality: FilterQuality.high,
+            cacheWidth: backgroundCacheWidth,
+            cacheHeight: backgroundCacheHeight,
+            filterQuality: FilterQuality.medium,
             gaplessPlayback: true,
           ),
           DecoratedBox(
