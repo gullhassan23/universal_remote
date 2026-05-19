@@ -14,12 +14,16 @@ class PremiumController extends GetxController {
   final RxBool isSyncingPremium = false.obs;
   final RxnString premiumSyncError = RxnString();
   bool _isCacheRestored = false;
+  Future<void>? _bootstrapFuture;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _premiumDocSub;
 
   @override
   void onInit() {
     super.onInit();
-    unawaited(_bootstrapPremiumState());
+  }
+
+  Future<void> startPremiumBootstrap() {
+    return _bootstrapFuture ??= _bootstrapPremiumState();
   }
 
   Future<void> _bootstrapPremiumState() async {

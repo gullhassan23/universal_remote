@@ -18,7 +18,7 @@ class AnalyticsService extends GetxService {
   String? _lastScreenKey;
   int _lastScreenAtMs = 0;
   final AnalyticsDedupe _eventDedupe = AnalyticsDedupe(minIntervalMs: 250);
-  late final AnalyticsDebug _debug;
+  AnalyticsDebug _debug = AnalyticsDebug(enabled: false);
   AppAnalytics? _fanout;
   static const Map<String, String> _screenKeyToName = <String, String>{
     'Get_Started': 'GetStarted',
