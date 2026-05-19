@@ -1,9 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:get/get.dart';
-import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/utils/userId.dart';
 
 /// Matches [AndroidManifest] `com.google.firebase.messaging.default_notification_channel_id`.
@@ -11,6 +11,7 @@ const String _androidFcmChannelId = 'smartapp_fcm';
 
 final FlutterLocalNotificationsPlugin _localNotifications =
     FlutterLocalNotificationsPlugin();
+bool _fcmListenersRegistered = false;
 
 /// Background handler (must be a top-level function).
 @pragma('vm:entry-point')
@@ -38,9 +39,6 @@ Future<String?> getFcmTokenWithRetry(
 
 Future<void> updateFcmTokenInFirestore() async {
   try {
-    if (Get.isRegistered<PremiumController>()) {
-      await Get.find<PremiumController>().syncPremiumFromFirestore();
-    }
     final userId = await getOrCreateUserId();
     final token = await getFcmTokenWithRetry();
     if (token == null || token.isEmpty) {
@@ -92,31 +90,41 @@ Future<void> _initializeLocalNotifications() async {
 }
 
 Future<void> _showForegroundAndroidNotification(RemoteMessage message) async {
-  final notification = message.notification;
-  if (notification == null) return;
+  try {
+    final notification = message.notification;
+    if (notification == null) return;
 
-  final id = Object.hash(message.messageId, message.sentTime?.millisecondsSinceEpoch);
+    final id =
+        Object.hash(message.messageId, message.sentTime?.millisecondsSinceEpoch);
 
-  await _localNotifications.show(
-    id,
-    notification.title,
-    notification.body,
-    NotificationDetails(
-      android: AndroidNotificationDetails(
-        _androidFcmChannelId,
-        'Push notifications',
-        channelDescription: 'Firebase Cloud Messaging',
-        importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+    await _localNotifications.show(
+      id,
+      notification.title,
+      notification.body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _androidFcmChannelId,
+          'Push notifications',
+          channelDescription: 'Firebase Cloud Messaging',
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
       ),
-    ),
-  );
+    );
+  } catch (error) {
+    debugPrint('[FCM] Failed to show foreground notification: $error');
+  }
 }
 
 Future<void> initializeFcmAndUploadToken() async {
   try {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    if (_fcmListenersRegistered) {
+      return;
+    }
+    _fcmListenersRegistered = true;
 
     // Ensure FCM auto-init is enabled.
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
@@ -141,13 +149,13 @@ Future<void> initializeFcmAndUploadToken() async {
     }
 
     // Log all incoming messages (foreground). Android: show tray notification (FCM does not by default).
-    FirebaseMessaging.onMessage.listen((message) async {
+    FirebaseMessaging.onMessage.listen((message) {
       debugPrint(
         '[FCM][FG] messageId=${message.messageId} '
         'title=${message.notification?.title} body=${message.notification?.body} data=${message.data}',
       );
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        await _showForegroundAndroidNotification(message);
+        unawaited(_showForegroundAndroidNotification(message));
       }
     });
 
@@ -172,6 +180,7 @@ Future<void> initializeFcmAndUploadToken() async {
       }
     });
   } catch (e) {
+    _fcmListenersRegistered = false;
     debugPrint('[FCM] initializeFcmAndUploadToken error: $e');
   }
 }

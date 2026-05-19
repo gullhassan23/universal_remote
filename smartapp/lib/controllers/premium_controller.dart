@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
 
@@ -164,7 +163,6 @@ class PremiumController extends GetxController {
     try {
       final String deviceId = await getOrCreateUserId();
       final bool premiumEnabled = isPremium.value;
-      final String? resolvedFcmToken = fcmToken ?? await getFcmTokenWithRetry();
 
       final Map<String, dynamic> payload = buildPremiumFirestorePayload(
         userId: deviceId,
@@ -174,7 +172,7 @@ class PremiumController extends GetxController {
         autoRenew: autoRenew,
         purchaseDate: purchaseDate,
         expiryDate: expiryDate,
-        fcmToken: resolvedFcmToken,
+        fcmToken: fcmToken,
       );
 
       await FirebaseFirestore.instance.collection('Users').doc(deviceId).set(

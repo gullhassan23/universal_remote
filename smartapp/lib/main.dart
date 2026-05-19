@@ -94,7 +94,8 @@ void _initializeDeferredStartupServices() {
   unawaited(_initializeAnalytics());
   unawaited(_initializePremiumState());
   unawaited(_initializeFcm());
-  unawaited(_initializeCommerceServices());
+  unawaited(_initializeAdaptyService());
+  unawaited(_initializeIapService());
 }
 
 Future<void> _initializeMobileAds() async {
@@ -135,18 +136,24 @@ Future<void> _initializeFcm() async {
   }
 }
 
-Future<void> _initializeCommerceServices() async {
+Future<void> _initializeAdaptyService() async {
   try {
-    final adaptyService = Get.find<AdaptyService>();
-    final iapService = Get.find<SubscriptionIAPService>();
+    await Get.find<AdaptyService>().initialize();
+  } catch (error) {
+    debugPrint('[ADAPTY] Deferred initialization failed: $error');
+  }
+}
 
-    await adaptyService.initialize();
-    await iapService.initialize(
+Future<void> _initializeIapService() async {
+  try {
+    await Get.find<SubscriptionIAPService>().initialize(
       premiumActivationHook: (String productId) async {
         debugPrint('[IAP] Premium activated for product=$productId');
-        await adaptyService.syncProfileToPremiumState(
-          source: 'iap_activation_hook',
-        );
+        if (Get.isRegistered<AdaptyService>()) {
+          await Get.find<AdaptyService>().syncProfileToPremiumState(
+            source: 'iap_activation_hook',
+          );
+        }
         if (Get.isRegistered<RemoteStyleController>()) {
           await Get.find<RemoteStyleController>()
               .applyPendingPremiumWallpaperIfAny();
@@ -154,6 +161,6 @@ Future<void> _initializeCommerceServices() async {
       },
     );
   } catch (error) {
-    debugPrint('[IAP] Deferred commerce initialization failed: $error');
+    debugPrint('[IAP] Deferred initialization failed: $error');
   }
 }
