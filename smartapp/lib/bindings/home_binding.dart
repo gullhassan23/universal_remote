@@ -24,11 +24,37 @@ import 'package:smartapp/controllers/voice_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/features/device_discovery/device_discovery_controller.dart';
 import 'package:smartapp/services/local_storage_service.dart';
+import 'package:smartapp/services/network_context_service.dart';
 import 'package:smartapp/services/rewarded_ad_service.dart';
+import 'package:smartapp/services/tv_service_interface.dart';
 
 class HomeBinding extends Bindings {
+  /// Re-register session controllers if a prior route stack reset disposed them.
+  static void ensureSessionControllers() {
+    final ITvService tvService = Get.find<ITvService>();
+    if (!Get.isRegistered<TvConnectionController>()) {
+      Get.put<TvConnectionController>(
+        TvConnectionController(
+          tvService: tvService,
+          networkContextService: Get.find<NetworkContextService>(),
+        ),
+        permanent: true,
+      );
+    }
+    if (!Get.isRegistered<DeviceDiscoveryController>()) {
+      Get.put<DeviceDiscoveryController>(
+        DeviceDiscoveryController(
+          tvService: tvService,
+          connectionController: Get.find<TvConnectionController>(),
+        ),
+        permanent: true,
+      );
+    }
+  }
+
   @override
   void dependencies() {
+    ensureSessionControllers();
     if (!Get.isRegistered<LocalStorageService>()) {
       Get.lazyPut<LocalStorageService>(() => LocalStorageService(), fenix: true);
     }

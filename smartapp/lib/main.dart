@@ -65,19 +65,21 @@ void _registerCoreDependencies() {
   Get.put(AdaptyService(), permanent: true);
   Get.put(SubscriptionIAPService(), permanent: true);
 
-  Get.lazyPut<TvConnectionController>(
-    () => TvConnectionController(
+  // Must be permanent: paywall uses Get.offAllNamed('/home'), which disposes
+  // non-permanent lazyPut instances and breaks every tab that calls Get.find().
+  Get.put<TvConnectionController>(
+    TvConnectionController(
       tvService: tvService,
       networkContextService: Get.find<NetworkContextService>(),
     ),
-    fenix: false,
+    permanent: true,
   );
-  Get.lazyPut<DeviceDiscoveryController>(
-    () => DeviceDiscoveryController(
+  Get.put<DeviceDiscoveryController>(
+    DeviceDiscoveryController(
       tvService: tvService,
       connectionController: Get.find<TvConnectionController>(),
     ),
-    fenix: false,
+    permanent: true,
   );
 }
 

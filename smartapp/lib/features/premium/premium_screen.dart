@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:smartapp/bindings/home_binding.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
 import 'package:smartapp/services/analytics_service.dart';
@@ -79,6 +80,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
       _lastShownError = error;
       _showSnackbar('Purchase failed', error);
     });
+
+    unawaited(iapService.ensureProductsLoaded());
   }
 
   void _showSnackbar(String title, String message) {
@@ -96,6 +99,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   // subscription.
   void _goToRemoteScreen() {
     if (!mounted) return;
+    HomeBinding.ensureSessionControllers();
     Get.offAllNamed('/home');
   }
 
@@ -135,15 +139,32 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
 
     return products.firstWhereOrNull(
-      (p) => switch (plan) {
-        _PremiumPlanType.weekly => p.title.toLowerCase().contains('week') ||
-            p.id.toLowerCase().contains('week'),
-        _PremiumPlanType.monthly => p.title.toLowerCase().contains('month') ||
-            p.id.toLowerCase().contains('month'),
-        _PremiumPlanType.yearly => p.title.toLowerCase().contains('year') ||
-            p.id.toLowerCase().contains('year'),
+      (p) {
+        final id = p.id.toLowerCase();
+        final title = p.title.toLowerCase();
+        return switch (plan) {
+          _PremiumPlanType.weekly =>
+            title.contains('week') ||
+                id.contains('week') ||
+                id.contains('weakly'),
+          _PremiumPlanType.monthly =>
+            title.contains('month') || id.contains('month'),
+          _PremiumPlanType.yearly =>
+            title.contains('year') ||
+                id.contains('year') ||
+                title.contains('annual') ||
+                id.contains('annual'),
+        };
       },
     );
+  }
+
+  String _priceForPlan(SubscriptionProduct? product, String fallback) {
+    final label = product?.priceLabel.trim();
+    if (label != null && label.isNotEmpty) {
+      return label;
+    }
+    return fallback;
   }
 
   SubscriptionProduct _resolveSelectedProduct(
@@ -270,7 +291,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           const SizedBox(height: 24),
                           Obx(
                             () {
-                              final allProducts = iapService.products;
+                              final bool plansLoading = iapService.isLoading.value &&
+                                  iapService.products.isEmpty;
+                              final List<SubscriptionProduct> allProducts =
+                                  List<SubscriptionProduct>.from(
+                                iapService.products,
+                              );
                               final monthlyProduct = _matchByPlan(
                                 allProducts,
                                 _PremiumPlanType.monthly,
@@ -284,6 +310,17 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 _PremiumPlanType.yearly,
                               );
 
+                              if (plansLoading) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 32),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                );
+                              }
+
                               return Column(
                                 children: [
                                   Row(
@@ -295,9 +332,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                           subtitle:
                                               monthlyProduct?.description ??
                                                   'Billed every month',
-                                          priceLine:
-                                              monthlyProduct?.priceLabel ??
-                                                  '--',
+                                          priceLine: _priceForPlan(
+                                            monthlyProduct,
+                                            '—',
+                                          ),
                                           durationLine: 'per month',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.monthly,
@@ -324,8 +362,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                           subtitle:
                                               weeklyProduct?.description ??
                                                   'Billed every week',
-                                          priceLine:
-                                              weeklyProduct?.priceLabel ?? '--',
+                                          priceLine: _priceForPlan(
+                                            weeklyProduct,
+                                            '—',
+                                          ),
                                           durationLine: 'per week',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.weekly,
@@ -352,8 +392,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                           subtitle:
                                               yearlyProduct?.description ??
                                                   'Billed every year',
-                                          priceLine:
-                                              yearlyProduct?.priceLabel ?? '--',
+                                          priceLine: _priceForPlan(
+                                            yearlyProduct,
+                                            '—',
+                                          ),
                                           durationLine: 'per year',
                                           highlighted: _selectedPlan.value ==
                                               _PremiumPlanType.yearly,

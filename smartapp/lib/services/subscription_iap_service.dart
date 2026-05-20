@@ -47,13 +47,51 @@ class SubscriptionIAPService extends GetxService {
   final Set<String> _processedPurchaseKeys = <String>{};
   final Set<String> _inFlightPurchaseKeys = <String>{};
   bool _initialized = false;
+  Future<void>? _initializeFuture;
   PremiumActivationHook? _premiumActivationHook;
 
+  /// Waits for startup initialization and re-queries the store if products are
+  /// still empty (e.g. paywall opened before deferred init finished).
+  Future<void> ensureProductsLoaded() async {
+    await initialize();
+    if (products.isEmpty && isStoreAvailable.value) {
+      await refreshProducts();
+    }
+  }
+
   Future<void> initialize(
-      {PremiumActivationHook? premiumActivationHook}) async {
-    if (_initialized) return;
-    _premiumActivationHook = premiumActivationHook;
-    _initialized = true;
+      {PremiumActivationHook? premiumActivationHook}) {
+    if (premiumActivationHook != null) {
+      _premiumActivationHook = premiumActivationHook;
+    }
+    return _initializeFuture ??= _runInitialize();
+  }
+
+  Future<void> refreshProducts() async {
+    if (!_initialized) {
+      await initialize();
+      return;
+    }
+    if (!isStoreAvailable.value) {
+      isStoreAvailable.value = await _inAppPurchase.isAvailable();
+    }
+    if (!isStoreAvailable.value) {
+      return;
+    }
+
+    isLoading.value = true;
+    lastError.value = null;
+    try {
+      await _queryStoreProducts();
+    } catch (error) {
+      lastError.value = error.toString();
+      _log('refreshProducts failed: $error');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _runInitialize() async {
     isLoading.value = true;
     lastError.value = null;
 
@@ -62,10 +100,11 @@ class SubscriptionIAPService extends GetxService {
       if (!isStoreAvailable.value) {
         _log('Store is not available on this device.');
         lastError.value = 'Store is not available';
+        _initializeFuture = null;
         return;
       }
 
-      _purchaseSubscription = _inAppPurchase.purchaseStream.listen(
+      _purchaseSubscription ??= _inAppPurchase.purchaseStream.listen(
         _onPurchaseUpdated,
         onError: (Object error, StackTrace stackTrace) {
           _log('purchaseStream error: $error');
@@ -73,46 +112,55 @@ class SubscriptionIAPService extends GetxService {
         },
       );
 
-      final Set<String> productIds = _loadProductIdsFromEnv();
-      final ProductDetailsResponse response =
-          await _inAppPurchase.queryProductDetails(productIds);
-
-      if (response.error != null) {
-        lastError.value = response.error!.message;
-        _log('queryProductDetails error: ${response.error}');
-      }
-      if (response.notFoundIDs.isNotEmpty) {
-        notFoundProductIds.assignAll(response.notFoundIDs);
-        _log('Product IDs not found: ${response.notFoundIDs.join(', ')}');
-      } else {
-        notFoundProductIds.clear();
-      }
-
-      final List<SubscriptionProduct> loaded = response.productDetails
-          .map(
-            (ProductDetails p) => SubscriptionProduct(
-              id: p.id,
-              title: p.title,
-              description: p.description,
-              priceLabel: p.price,
-              productDetails: p,
-            ),
-          )
-          .toList()
-        ..sort((SubscriptionProduct a, SubscriptionProduct b) =>
-            a.id.compareTo(b.id));
-      products.assignAll(loaded);
-      if (loaded.isEmpty) {
-        lastError.value =
-            'No subscription products returned by the store. Check App Store Connect status, bundle ID, and Sandbox account.';
-      }
-      _log('Loaded ${products.length} subscription products.');
+      await _queryStoreProducts();
+      _initialized = true;
     } catch (error) {
       lastError.value = error.toString();
       _log('initialize failed: $error');
+      if (!_initialized) {
+        _initializeFuture = null;
+      }
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _queryStoreProducts() async {
+    final Set<String> productIds = _loadProductIdsFromEnv();
+    final ProductDetailsResponse response =
+        await _inAppPurchase.queryProductDetails(productIds);
+
+    if (response.error != null) {
+      lastError.value = response.error!.message;
+      _log('queryProductDetails error: ${response.error}');
+    }
+    if (response.notFoundIDs.isNotEmpty) {
+      notFoundProductIds.assignAll(response.notFoundIDs);
+      _log('Product IDs not found: ${response.notFoundIDs.join(', ')}');
+    } else {
+      notFoundProductIds.clear();
+    }
+
+    final List<SubscriptionProduct> loaded = response.productDetails
+        .map(
+          (ProductDetails p) => SubscriptionProduct(
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            priceLabel: p.price,
+            productDetails: p,
+          ),
+        )
+        .toList()
+      ..sort((SubscriptionProduct a, SubscriptionProduct b) =>
+          a.id.compareTo(b.id));
+    products.assignAll(loaded);
+    products.refresh();
+    if (loaded.isEmpty) {
+      lastError.value =
+          'No subscription products returned by the store. Check App Store Connect status, bundle ID, and Sandbox account.';
+    }
+    _log('Loaded ${products.length} subscription products.');
   }
 
   Future<bool> buy(ProductDetails product) async {
