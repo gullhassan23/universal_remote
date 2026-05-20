@@ -74,7 +74,7 @@ class _RemoteScreenSwitcherState extends State<RemoteScreenSwitcher> {
     return Obx(() {
       final wallpaper = _styleController.appliedWallpaper.value;
       return AnimatedSwitcher(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 360),
         switchInCurve: Curves.easeOut,
         switchOutCurve: Curves.easeIn,
         child: RepaintBoundary(

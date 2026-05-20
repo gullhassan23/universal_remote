@@ -520,7 +520,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
           children: [
             Positioned.fill(
               child: Image.asset(
-                'assets/images/remote_wallpapers/wallpaper2/togglebar.png',
+                buttonAssets.togglebar,
                 fit: BoxFit.contain,
               ),
             ),
