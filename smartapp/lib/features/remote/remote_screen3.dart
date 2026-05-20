@@ -155,9 +155,12 @@ class RemoteScreen3 extends GetView<RemoteController> {
                       child: TopBannerAd(),
                     ),
                     Obx(() {
-                      final isConnected = controller
-                              .connectionController.connectionState.value ==
-                          TvConnectionState.connected;
+                      final connectionState = controller
+                          .connectionController.connectionState.value;
+                      final isConnected =
+                          connectionState == TvConnectionState.connected;
+                      final isConnecting =
+                          connectionState == TvConnectionState.connecting;
                       return Row(
                         children: [
                           Expanded(
@@ -184,7 +187,7 @@ class RemoteScreen3 extends GetView<RemoteController> {
                           //       color: Color(0xFFFFD27A),
                           //     ),
                           //   ),
-                          if (isConnected) const SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           if (isConnected)
                             TextButton.icon(
                               onPressed: _loggedTap(
@@ -211,6 +214,46 @@ class RemoteScreen3 extends GetView<RemoteController> {
                               ),
                               icon: const Icon(Icons.link_off, size: 16),
                               label: const Text('Disconnect'),
+                            )
+                          else
+                            TextButton.icon(
+                              onPressed: isConnecting
+                                  ? null
+                                  : _loggedTap(
+                                      'CONNECT_TV',
+                                      () {
+                                        controller.showDevicePicker.value =
+                                            true;
+                                      },
+                                      action: 'open_device_picker',
+                                    ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor:
+                                    Colors.green.withValues(alpha: 0.28),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                disabledForegroundColor:
+                                    Colors.white.withValues(alpha: 0.5),
+                              ),
+                              icon: isConnecting
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.link, size: 16),
+                              label: Text(
+                                isConnecting ? 'Connecting...' : 'Connect',
+                              ),
                             ),
                         ],
                       );
