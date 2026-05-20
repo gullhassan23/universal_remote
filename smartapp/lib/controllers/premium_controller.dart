@@ -51,16 +51,9 @@ class PremiumController extends GetxController {
               .doc(deviceId)
               .get();
       final Map<String, dynamic>? data = snapshot.data();
-
-      print("🔥 Firestore Raw Data: $data");
-
       if (data == null) {
-        print("❌ No data found in Firestore");
         return;
       }
-      print("isPremium: ${data['isPremium']}");
-      print("expiryDate: ${data['expiryDate']}");
-      print("productId: ${data['premiumProductId']}");
       final bool remotePremium = data['isPremium'] == true;
       final DateTime? remoteExpiryDate =
           _parseDate(data['expiryDate']) ?? _parseDate(data['premiumExpiry']);

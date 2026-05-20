@@ -40,6 +40,8 @@ class GameAnalyticsBackend implements AppAnalytics {
       return;
     }
     try {
+      // Let the first frame paint before native GA init runs on the UI isolate.
+      await Future<void>.delayed(Duration.zero);
       GameAnalytics.configureBuild(_build);
       GameAnalytics.initialize(_gameKey, _secretKey);
       _initialized = true;

@@ -325,7 +325,7 @@ class SubscriptionIAPService extends GetxService {
     required bool isRestore,
   }) async {
     final String userId = await getOrCreateUserId();
-    final String? fcmToken = await getFcmTokenWithRetry();
+    final String? fcmToken = await getFcmTokenIfAvailable();
     final String platform = _platformLabel();
     final SubscriptionVerificationPayload payload =
         SubscriptionVerificationPayload(
@@ -552,7 +552,7 @@ class SubscriptionIAPService extends GetxService {
       _log('PremiumController not registered. Skipping premium unlock.');
       return;
     }
-    final String? fcmToken = await getFcmTokenWithRetry();
+    final String? fcmToken = await getFcmTokenIfAvailable();
     final DateTime? purchaseDate = _parseDate(verification.purchaseDate) ??
         _parseMillisDate(purchase.transactionDate);
     final DateTime? resolvedExpiryDate = _resolveExpiryDate(

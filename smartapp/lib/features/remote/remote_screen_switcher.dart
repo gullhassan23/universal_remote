@@ -48,8 +48,18 @@ class _RemoteScreenSwitcherState extends State<RemoteScreenSwitcher> {
     super.didChangeDependencies();
     if (_didPrecacheWallpapers) return;
     _didPrecacheWallpapers = true;
+    _scheduleWallpaperPrecache();
+  }
+
+  void _scheduleWallpaperPrecache() {
+    unawaited(_precacheWallpapersSequentially());
+  }
+
+  Future<void> _precacheWallpapersSequentially() async {
     for (final wallpaper in _wallpapersToPrecache) {
-      unawaited(precacheImage(AssetImage(wallpaper), context));
+      if (!mounted) return;
+      await precacheImage(AssetImage(wallpaper), context);
+      await Future<void>.delayed(Duration.zero);
     }
   }
 

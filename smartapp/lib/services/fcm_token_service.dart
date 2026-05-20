@@ -19,10 +19,22 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM][BG] messageId=${message.messageId} data=${message.data}');
 }
 
+/// Single non-blocking token read for purchase flows and profile sync.
+///
+/// Avoids long retry loops on the UI isolate during IAP verification/unlock.
+Future<String?> getFcmTokenIfAvailable() async {
+  try {
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token != null && token.isNotEmpty) return token;
+  } catch (e) {
+    debugPrint('[FCM] getToken skipped: $e');
+  }
+  return null;
+}
+
 /// Retries FCM `getToken()` so APNs can become ready on iOS.
 ///
-/// A direct `getToken()` during IAP or shortly after launch often throws
-/// `firebase_messaging/apns-token-not-set` — use this instead.
+/// Use only from background token upload flows (e.g. settings), not IAP.
 Future<String?> getFcmTokenWithRetry(
     {int maxAttempts = 5, Duration delay = const Duration(seconds: 2)}) async {
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {

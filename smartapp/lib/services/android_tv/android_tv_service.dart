@@ -265,6 +265,7 @@ class AndroidTvService implements ITvService {
       }));
       if (devices.isNotEmpty) {
         _lastError = null;
+        break;
       }
       // Yield so the UI isolate can process frames between subnet batches.
       await Future<void>.delayed(Duration.zero);
@@ -345,6 +346,7 @@ class AndroidTvService implements ITvService {
       _log('mDNS PTR domains discovered=${ptrDomains.length}');
 
       for (final domain in ptrDomains) {
+        await Future<void>.delayed(Duration.zero);
         try {
           await for (final srv in mdns
               .lookup<SrvResourceRecord>(
