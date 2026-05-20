@@ -312,16 +312,29 @@ class VoiceController extends GetxController {
     });
   }
 
+  static const int _perKeyFallbackMaxRunes = 256;
+  static const int _perKeyFallbackYieldEvery = 8;
+
   Future<bool> _sendPerKeyFallback(String text) async {
+    var processed = 0;
+    var keysSent = 0;
     for (final rune in text.runes) {
+      processed++;
+      if (processed > _perKeyFallbackMaxRunes) {
+        return false;
+      }
       final char = String.fromCharCode(rune);
       final mapped = mapTypedCharToRemoteKey(char);
       if (mapped == null) {
         continue;
       }
+      keysSent++;
       final sent = await _connectionController.sendKey(mapped);
       if (!sent) {
         return false;
+      }
+      if (keysSent % _perKeyFallbackYieldEvery == 0) {
+        await Future<void>.delayed(Duration.zero);
       }
     }
     return true;

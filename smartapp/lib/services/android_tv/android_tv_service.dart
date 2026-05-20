@@ -266,6 +266,8 @@ class AndroidTvService implements ITvService {
       if (devices.isNotEmpty) {
         _lastError = null;
       }
+      // Yield so the UI isolate can process frames between subnet batches.
+      await Future<void>.delayed(Duration.zero);
     }
   }
 
@@ -457,7 +459,7 @@ class AndroidTvService implements ITvService {
     _lastCertificateError = null;
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString(_prefsPkcs12);
-    if (cached != null && File(cached).existsSync()) {
+    if (cached != null && await File(cached).exists()) {
       return cached;
     }
     if (cached != null && cached.isNotEmpty) {
@@ -480,7 +482,7 @@ class AndroidTvService implements ITvService {
         return null;
       }
       final pkcs12File = File(path);
-      if (!pkcs12File.existsSync()) {
+      if (!await pkcs12File.exists()) {
         _lastCertificateError =
             'Generated PKCS12 file does not exist at path: $path';
         return null;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -26,6 +28,7 @@ class DeviceDiscoveryController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   bool _isConnectingLoaderVisible = false;
+  Future<void>? _discoverInFlight;
   static const int _maxDiscoveryAttempts = 3;
   static const Duration _discoveryRetryDelay = Duration(milliseconds: 700);
   static const int _maxConnectAttempts = 2;
@@ -54,6 +57,19 @@ class DeviceDiscoveryController extends GetxController {
   }
 
   Future<void> discoverDevices() async {
+    if (_discoverInFlight != null) {
+      await _discoverInFlight;
+      return;
+    }
+    _discoverInFlight = _discoverDevicesImpl();
+    try {
+      await _discoverInFlight;
+    } finally {
+      _discoverInFlight = null;
+    }
+  }
+
+  Future<void> _discoverDevicesImpl() async {
     isLoading.value = true;
     errorMessage.value = '';
     devices.clear();

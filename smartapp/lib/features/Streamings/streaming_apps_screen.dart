@@ -32,6 +32,7 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
   late final DeviceDiscoveryController _discoveryController;
   late final AnalyticsService _analyticsService;
   bool _requestedDiscovery = false;
+  final List<Worker> _discoveryWorkers = <Worker>[];
 
   @override
   void initState() {
@@ -40,6 +41,31 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
     _connectionController = Get.find<TvConnectionController>();
     _discoveryController = Get.find<DeviceDiscoveryController>();
     _analyticsService = Get.find<AnalyticsService>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _requestDiscoveryIfNeeded();
+      }
+    });
+    _discoveryWorkers.addAll(<Worker>[
+      ever(_discoveryController.isLoading, (_) => _scheduleDiscoveryCheck()),
+      ever(_discoveryController.devices, (_) => _scheduleDiscoveryCheck()),
+    ]);
+  }
+
+  @override
+  void dispose() {
+    for (final w in _discoveryWorkers) {
+      w.dispose();
+    }
+    super.dispose();
+  }
+
+  void _scheduleDiscoveryCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _requestDiscoveryIfNeeded();
+      }
+    });
   }
 
   Future<void> _onAppTap(BuildContext context, StreamingAppItem app) async {
@@ -232,7 +258,6 @@ class _StreamingAppsScreenState extends State<StreamingAppsScreen> {
                 Expanded(
                   child: Obx(
                     () {
-                      _requestDiscoveryIfNeeded();
                       final launchingAppId =
                           _streamingController.launchingAppId.value;
                       final isConnected = _connectionController

@@ -48,7 +48,6 @@ class ChromecastCastService {
   Future<List<GoogleCastDevice>> discoverDevices({
     required Duration timeout,
   }) async {
-    final completer = Completer<List<GoogleCastDevice>>();
     List<GoogleCastDevice> latest = <GoogleCastDevice>[];
     StreamSubscription<List<GoogleCastDevice>>? sub;
 
@@ -61,12 +60,19 @@ class ChromecastCastService {
       onError: (_) {},
     );
 
-    await Future<void>.delayed(timeout);
-    await sub.cancel();
-    if (!completer.isCompleted) {
-      completer.complete(latest);
+    final end = DateTime.now().add(timeout);
+    const poll = Duration(milliseconds: 200);
+    try {
+      while (DateTime.now().isBefore(end)) {
+        if (latest.isNotEmpty) {
+          break;
+        }
+        await Future<void>.delayed(poll);
+      }
+    } finally {
+      await sub.cancel();
     }
-    return completer.future;
+    return latest;
   }
 
   Future<void> startSessionWithDevice(GoogleCastDevice device) {

@@ -422,7 +422,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         }
     }
 
-    private fun sendKeyCode(arguments: Map<*, *>, result: MethodChannel.Result) {
+    private suspend fun sendKeyCode(arguments: Map<*, *>, result: MethodChannel.Result) {
         val code = arguments["keyCode"] as? Int
         if (code == null) {
             mainHandler.post { result.success(false) }
@@ -434,7 +434,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         var ok = remoteController?.sendKeyCode(code) == true
         if (!ok && remoteReady.get()) {
             // One quick retry handles occasional first-frame race conditions.
-            Thread.sleep(40)
+            delay(40)
             ok = remoteController?.sendKeyCode(code) == true
         }
         Logger.d(
@@ -444,7 +444,7 @@ class AndroidTvRemotePlugin(private val context: Context) {
         mainHandler.post { result.success(ok) }
     }
 
-    private fun sendText(arguments: Map<*, *>, result: MethodChannel.Result) {
+    private suspend fun sendText(arguments: Map<*, *>, result: MethodChannel.Result) {
         val text = arguments["text"] as? String
         if (text.isNullOrEmpty()) {
             mainHandler.post { result.success(false) }
@@ -453,11 +453,11 @@ class AndroidTvRemotePlugin(private val context: Context) {
         if (!remoteReady.get()) {
             waitForRemoteReady()
         }
-       val ok = sendTextWithCounterFallback(text)
-if (ok) {
-    Thread.sleep(80)
-    commitSearchAfterText(remoteController)
-}
+        val ok = sendTextWithCounterFallback(text)
+        if (ok) {
+            delay(80)
+            commitSearchAfterText(remoteController)
+        }
         mainHandler.post { result.success(ok) }
     }
 
@@ -495,7 +495,7 @@ if (ok) {
 
                 if (!sentFallback) {
                     repeat(2) { retry ->
-                        Thread.sleep(55)
+                        delay(55)
                         sentFallback = sendTextWithCounterFallback(text)
                         Logger.d("sendTextPrepared: retry=$retry sent=$sentFallback")
                         if (sentFallback) {
@@ -505,7 +505,7 @@ if (ok) {
                 }
 
                 if (sentFallback) {
-                    Thread.sleep(80)
+                    delay(80)
                     commitSearchAfterText(remote)
                     return@withLock true
                 }
@@ -515,20 +515,20 @@ if (ok) {
         mainHandler.post { result.success(sent) }
     }
 
-    private fun commitSearchAfterText(remote: RemoteController?): Boolean {
+    private suspend fun commitSearchAfterText(remote: RemoteController?): Boolean {
         if (remote == null) return false
         val imeEnterOk = remote.sendKeyCode(KEYCODE_IME_ENTER)
         if (imeEnterOk) {
             Logger.d("commitSearchAfterText: imeEnterOk=true")
             return true
         }
-        Thread.sleep(70)
+        delay(70)
         val searchOk = remote.sendKeyCode(KEYCODE_SEARCH)
         if (searchOk) {
             Logger.d("commitSearchAfterText: searchOk=true")
             return true
         }
-        Thread.sleep(70)
+        delay(70)
         val centerOk = remote.sendKeyCode(KEYCODE_ENTER)
         Logger.d(
             "commitSearchAfterText: imeEnterOk=false searchOk=false centerOk=$centerOk",
@@ -536,7 +536,7 @@ if (ok) {
         return centerOk
     }
 
-    private fun sendTextWithCounterFallback(text: String): Boolean {
+    private suspend fun sendTextWithCounterFallback(text: String): Boolean {
         val remote = remoteController ?: return false
         val currentIme = imeCounter.get()
         val currentField = imeFieldCounter.get()
@@ -570,7 +570,7 @@ if (ok) {
             if (!remoteReady.get()) {
                 break
             }
-            Thread.sleep(40)
+            delay(40)
         }
         return false
     }
@@ -635,7 +635,7 @@ if (ok) {
         return (System.currentTimeMillis() - updatedAt) <= freshnessMs
     }
 
-    private fun launchApp(arguments: Map<*, *>, result: MethodChannel.Result) {
+    private suspend fun launchApp(arguments: Map<*, *>, result: MethodChannel.Result) {
         val packageName = (arguments["packageName"] as? String)?.trim()
         if (packageName.isNullOrBlank()) {
             mainHandler.post { result.success(false) }
@@ -678,16 +678,16 @@ if (ok) {
         }
     }
 
-    private fun launchAppByAssistIntent(remote: RemoteController, query: String): Boolean {
+    private suspend fun launchAppByAssistIntent(remote: RemoteController, query: String): Boolean {
         val homeOk = remote.sendKeyCode(KEYCODE_HOME)
         Logger.d("launchAppByAssistIntent: homeOk=$homeOk query=$query")
         if (!homeOk) return false
-        Thread.sleep(180)
+        delay(180)
 
         val assistOk = remote.sendKeyCode(KEYCODE_ASSIST)
         Logger.d("launchAppByAssistIntent: assistOk=$assistOk")
         if (!assistOk) return false
-        Thread.sleep(300)
+        delay(300)
 
         val textOk =
             remote.sendText(
@@ -697,7 +697,7 @@ if (ok) {
             )
         Logger.d("launchAppByAssistIntent: textOk=$textOk")
         if (!textOk) return false
-        Thread.sleep(280)
+        delay(280)
         nudgeFocusOffLauncherTopRow(remote)
 
         val enterOk = remote.sendKeyCode(KEYCODE_ENTER)
@@ -709,31 +709,31 @@ if (ok) {
      * Many Android TV launchers keep focus on the top favourites strip after search text is entered;
      * Enter then opens that app (e.g. Xiaomi TV+) instead of the search hit. Nudge focus downward first.
      */
-    private fun nudgeFocusOffLauncherTopRow(remote: RemoteController) {
+    private suspend fun nudgeFocusOffLauncherTopRow(remote: RemoteController) {
         repeat(LAUNCH_APP_FOCUS_NUDGE_STEPS) { step ->
             if (step > 0) {
-                Thread.sleep(100)
+                delay(100)
             }
             remote.sendKeyCode(KEYCODE_DPAD_DOWN)
         }
-        Thread.sleep(120)
+        delay(120)
     }
 
-    private fun launchAppBySearch(remote: RemoteController, queries: List<String>): Boolean {
+    private suspend fun launchAppBySearch(remote: RemoteController, queries: List<String>): Boolean {
         for (query in queries) {
             repeat(2) { attempt ->
                 if (attempt > 0) {
-                    Thread.sleep(220)
+                    delay(220)
                 }
                 val homeOk = remote.sendKeyCode(KEYCODE_HOME)
                 Logger.d("launchAppBySearch: query=$query attempt=$attempt homeOk=$homeOk")
                 if (!homeOk) return@repeat
-                Thread.sleep(180)
+                delay(180)
 
                 val searchOk = remote.sendKeyCode(KEYCODE_SEARCH)
                 Logger.d("launchAppBySearch: query=$query attempt=$attempt searchOk=$searchOk")
                 if (!searchOk) return@repeat
-                Thread.sleep(280)
+                delay(280)
 
                 val textOk =
                     remote.sendText(
@@ -743,7 +743,7 @@ if (ok) {
                     )
                 Logger.d("launchAppBySearch: query=$query attempt=$attempt textOk=$textOk")
                 if (!textOk) return@repeat
-                Thread.sleep(280)
+                delay(280)
                 nudgeFocusOffLauncherTopRow(remote)
 
                 val enterOk = remote.sendKeyCode(KEYCODE_ENTER)
@@ -756,7 +756,7 @@ if (ok) {
         return false
     }
 
-    private fun openUrlOnTv(arguments: Map<*, *>, result: MethodChannel.Result) {
+    private suspend fun openUrlOnTv(arguments: Map<*, *>, result: MethodChannel.Result) {
         val url = arguments["url"] as? String
         if (url.isNullOrBlank() || remoteController == null) {
             mainHandler.post { result.success(false) }
@@ -770,7 +770,7 @@ if (ok) {
             var success = false
             repeat(3) { attempt ->
                 if (attempt > 0) {
-                    Thread.sleep(140)
+                    delay(140)
                 }
                 success = openUrlByRemoteSequence(url)
                 if (success) {
@@ -782,15 +782,15 @@ if (ok) {
         mainHandler.post { result.success(opened) }
     }
 
-    private fun openUrlByRemoteSequence(url: String): Boolean {
+    private suspend fun openUrlByRemoteSequence(url: String): Boolean {
         val remote = remoteController ?: return false
         val homeOk = remote.sendKeyCode(3)
         if (!homeOk) return false
-        Thread.sleep(180)
+        delay(180)
 
         val searchOk = remote.sendKeyCode(84)
         if (!searchOk) return false
-        Thread.sleep(220)
+        delay(220)
 
         val textOk =
             remote.sendText(
@@ -799,7 +799,7 @@ if (ok) {
                 fieldCounter = imeFieldCounter.get(),
             )
         if (!textOk) return false
-        Thread.sleep(160)
+        delay(160)
 
         return remote.sendKeyCode(23)
     }
@@ -1002,10 +1002,10 @@ if (ok) {
         }
     }
 
-    private fun waitForRemoteReady(timeoutMs: Long = 1800): Boolean {
+    private suspend fun waitForRemoteReady(timeoutMs: Long = 1800): Boolean {
         val started = System.currentTimeMillis()
         while (!remoteReady.get() && (System.currentTimeMillis() - started) < timeoutMs) {
-            Thread.sleep(30)
+            delay(30)
         }
         return remoteReady.get()
     }
