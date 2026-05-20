@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/services/analytics_service.dart';
+import 'package:smartapp/services/remote_config_service.dart';
 import 'package:smartapp/services/tv_service_interface.dart';
 
 class AdController extends GetxController {
@@ -22,7 +23,6 @@ class AdController extends GetxController {
   final AdSize adSize;
   final AdRequest adRequest;
   static const Duration _retryDelay = Duration(seconds: 30);
-  static const Duration _interstitialInterval = Duration(minutes: 2);
   static const String _logTag = '[ADS]';
 
   final RxBool isAdLoaded = false.obs;
@@ -33,6 +33,7 @@ class AdController extends GetxController {
   late final PremiumController _premiumController;
   late final TvConnectionController _connectionController;
   late final AnalyticsService _analyticsService;
+  late final RemoteConfigService _remoteConfigService;
   Worker? _premiumWorker;
   Worker? _connectionWorker;
   bool _isLoading = false;
@@ -50,6 +51,7 @@ class AdController extends GetxController {
     _premiumController = Get.find<PremiumController>();
     _connectionController = Get.find<TvConnectionController>();
     _analyticsService = Get.find<AnalyticsService>();
+    _remoteConfigService = Get.find<RemoteConfigService>();
     _premiumWorker = ever<bool>(
       _premiumController.isPremium,
       (_) => syncWithPremiumStatus(),
@@ -75,10 +77,7 @@ class AdController extends GetxController {
       return;
     }
     unawaited(loadInterstitialAd());
-    if (_connectionController.connectionState.value ==
-        TvConnectionState.connected) {
-      _startInterstitialTimer();
-    }
+    _startInterstitialTimer();
   }
 
   Future<void> loadBannerAd() async {
@@ -289,37 +288,29 @@ class AdController extends GetxController {
     final bool isConnected = state == TvConnectionState.connected;
     if (_premiumController.isPremium.value || interstitialAdUnitId.isEmpty) {
       _wasConnected = isConnected;
-      _stopInterstitialTimer();
       return;
     }
-    if (!isConnected) {
-      _stopInterstitialTimer();
-      _wasConnected = false;
-      return;
-    }
-    if (!_wasConnected) {
+    if (isConnected && !_wasConnected) {
       showConnectionInterstitial();
     }
-    _startInterstitialTimer();
-    _wasConnected = true;
+    _wasConnected = isConnected;
   }
 
   void _startInterstitialTimer() {
-    if (_interstitialTimer?.isActive ?? false) {
+    if (_premiumController.isPremium.value || interstitialAdUnitId.isEmpty) {
       return;
     }
-    _interstitialTimer = Timer.periodic(_interstitialInterval, (_) {
-      if (_isControllerClosed ||
-          _premiumController.isPremium.value ||
-          _connectionController.connectionState.value !=
-              TvConnectionState.connected) {
+    _stopInterstitialTimer();
+    final Duration interval = _remoteConfigService.adsControlInterval;
+    _interstitialTimer = Timer.periodic(interval, (_) {
+      if (_isControllerClosed || _premiumController.isPremium.value) {
         _stopInterstitialTimer();
         return;
       }
       showConnectionInterstitial();
     });
     _log(
-      'Started interstitial timer for every ${_interstitialInterval.inMinutes} minutes.',
+      'Started interstitial timer every ${interval.inSeconds}s (Remote Config).',
     );
   }
 

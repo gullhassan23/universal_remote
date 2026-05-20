@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/services/analytics_service.dart';
+import 'package:smartapp/services/mobile_ads_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   static const Duration _progressDuration = Duration(milliseconds: 3000);
+  static const Duration _appOpenMaxWait = Duration(seconds: 5);
   static const double _adTriggerProgress = 0.5;
   late final AnimationController _progressController;
   AppOpenAd? _appOpenAd;
@@ -27,6 +29,7 @@ class _SplashScreenState extends State<SplashScreen>
   bool _isAdShowing = false;
   bool _isProgressComplete = false;
   bool _isAdFlowComplete = false;
+  bool _isWaitingForAppOpen = false;
   late final bool _isPremiumUser;
   late final AnalyticsService _analyticsService;
 
@@ -71,6 +74,18 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     _hasTriedAdLoad = true;
+    unawaited(_loadAppOpenAdAfterSdkReady(adUnitId));
+  }
+
+  Future<void> _loadAppOpenAdAfterSdkReady(String adUnitId) async {
+    try {
+      await MobileAdsService.ensureInitialized();
+    } catch (_) {
+      _isAdFlowComplete = true;
+      _goToGetStartedWhenReady();
+      return;
+    }
+    if (!mounted || _isPremiumUser) return;
     unawaited(
       _analyticsService.logEvent(
         'click_SplashAppOpenAdLoad',
@@ -102,6 +117,8 @@ class _SplashScreenState extends State<SplashScreen>
           _appOpenAd?.dispose();
           _appOpenAd = ad;
           if (_hasTriggeredAdAtHalf && !_isAdShowing) {
+            _showLoadedAppOpenAd();
+          } else if (_isWaitingForAppOpen) {
             _showLoadedAppOpenAd();
           }
         },
@@ -140,12 +157,31 @@ class _SplashScreenState extends State<SplashScreen>
       _goToGetStartedWhenReady();
       return;
     }
-    if (_appOpenAd == null) {
-      _isAdFlowComplete = true;
-      _goToGetStartedWhenReady();
+    if (_appOpenAd != null) {
+      _showLoadedAppOpenAd();
       return;
     }
-    _showLoadedAppOpenAd();
+    if (_isWaitingForAppOpen) return;
+    _isWaitingForAppOpen = true;
+    unawaited(_waitForAppOpenThenContinue());
+  }
+
+  Future<void> _waitForAppOpenThenContinue() async {
+    final DateTime deadline = DateTime.now().add(_appOpenMaxWait);
+    while (mounted &&
+        !_isPremiumUser &&
+        _appOpenAd == null &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    if (!mounted) return;
+    _isWaitingForAppOpen = false;
+    if (_appOpenAd != null && !_isAdShowing) {
+      _showLoadedAppOpenAd();
+      return;
+    }
+    _isAdFlowComplete = true;
+    _goToGetStartedWhenReady();
   }
 
   void _showLoadedAppOpenAd() {

@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/rewarded_wallpaper_controller.dart';
 import 'package:smartapp/controllers/remote_style_controller.dart';
@@ -17,6 +16,8 @@ import 'package:smartapp/services/adapty_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/local_storage_service.dart';
+import 'package:smartapp/services/mobile_ads_service.dart';
+import 'package:smartapp/services/remote_config_service.dart';
 import 'package:smartapp/services/rewarded_ad_service.dart';
 import 'package:smartapp/services/subscription_iap_service.dart';
 
@@ -51,6 +52,7 @@ Future<void> main() async {
 /// [HomeBinding] on the `/home` route.
 void _registerCoreDependencies() {
   Get.put(AnalyticsService(), permanent: true);
+  Get.put(RemoteConfigService(), permanent: true);
   final tvService = UnifiedTvService();
   Get.put(NetworkContextService(), permanent: true);
   Get.put<ITvService>(tvService, permanent: true);
@@ -92,6 +94,7 @@ Future<void> _loadEnvironment() async {
 }
 
 void _initializeDeferredStartupServices() {
+  unawaited(_initializeRemoteConfig());
   unawaited(_initializeMobileAds());
   unawaited(_initializeAnalytics());
   unawaited(_initializePremiumState());
@@ -100,15 +103,17 @@ void _initializeDeferredStartupServices() {
   unawaited(_initializeIapService());
 }
 
+Future<void> _initializeRemoteConfig() async {
+  try {
+    await Get.find<RemoteConfigService>().initialize();
+  } catch (error) {
+    debugPrint('[REMOTE_CONFIG] Deferred initialization failed: $error');
+  }
+}
+
 Future<void> _initializeMobileAds() async {
   try {
-    await MobileAds.instance.initialize();
-    await MobileAds.instance.updateRequestConfiguration(
-      RequestConfiguration(
-        // iOS Simulator test device id (Google Mobile Ads docs).
-        testDeviceIds: <String>['SIMULATOR'],
-      ),
-    );
+    await MobileAdsService.ensureInitialized();
   } catch (error) {
     debugPrint('[ADS] Deferred MobileAds initialization failed: $error');
   }
