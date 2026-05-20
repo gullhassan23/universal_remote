@@ -3,11 +3,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:smartapp/config/admob_config.dart';
 import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/services/analytics_service.dart';
-import 'package:smartapp/services/mobile_ads_service.dart';
+import 'package:smartapp/services/app_open_ad_service.dart';
 import 'package:smartapp/utils/constant.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -20,23 +18,21 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   static const Duration _progressDuration = Duration(milliseconds: 3000);
-  static const Duration _appOpenMaxWait = Duration(seconds: 5);
   static const double _adTriggerProgress = 0.5;
   late final AnimationController _progressController;
-  AppOpenAd? _appOpenAd;
-  bool _hasTriedAdLoad = false;
   bool _hasTriggeredAdAtHalf = false;
-  bool _isAdShowing = false;
   bool _isProgressComplete = false;
   bool _isAdFlowComplete = false;
   bool _isWaitingForAppOpen = false;
   late final bool _isPremiumUser;
   late final AnalyticsService _analyticsService;
+  late final AppOpenAdService _appOpenAdService;
 
   @override
   void initState() {
     super.initState();
     _analyticsService = Get.find<AnalyticsService>();
+    _appOpenAdService = Get.find<AppOpenAdService>();
     unawaited(
       _analyticsService.logScreen(
         screenName: 'SplashScreen',
@@ -48,7 +44,6 @@ class _SplashScreenState extends State<SplashScreen>
     _progressController = AnimationController(vsync: this, duration: _progressDuration)
       ..addListener(_handleProgressUpdate)
       ..addStatusListener(_handleProgressStatus);
-    _loadAppOpenAdIfNeeded();
     _progressController.forward();
   }
 
@@ -65,100 +60,19 @@ class _SplashScreenState extends State<SplashScreen>
     _goToGetStartedWhenReady();
   }
 
-  void _loadAppOpenAdIfNeeded() {
-    if (_isPremiumUser || _hasTriedAdLoad) return;
-    final String adUnitId = AdMobConfig.appOpenAdUnitId;
-    if (adUnitId.isEmpty) {
-      _isAdFlowComplete = true;
-      return;
-    }
-
-    _hasTriedAdLoad = true;
-    unawaited(_loadAppOpenAdAfterSdkReady(adUnitId));
-  }
-
-  Future<void> _loadAppOpenAdAfterSdkReady(String adUnitId) async {
-    try {
-      await MobileAdsService.ensureInitialized();
-    } catch (_) {
-      _isAdFlowComplete = true;
-      _goToGetStartedWhenReady();
-      return;
-    }
-    if (!mounted || _isPremiumUser) return;
-    unawaited(
-      _analyticsService.logEvent(
-        'click_SplashAppOpenAdLoad',
-        params: {
-          'screen_name': 'SplashScreen',
-          'button_name': 'SplashAppOpenAdLoad',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
-      ),
-    );
-    AppOpenAd.load(
-      adUnitId: adUnitId,
-      request: const AdRequest(),
-      adLoadCallback: AppOpenAdLoadCallback(
-        onAdLoaded: (AppOpenAd ad) {
-          if (!mounted || _isPremiumUser) {
-            ad.dispose();
-            return;
-          }
-          unawaited(
-            _analyticsService.logEvent(
-              'admob_appopen_loaded',
-              params: {
-                'screen_name': 'SplashScreen',
-                'ad_unit': 'app_open',
-              },
-            ),
-          );
-          _appOpenAd?.dispose();
-          _appOpenAd = ad;
-          if (_hasTriggeredAdAtHalf && !_isAdShowing) {
-            _showLoadedAppOpenAd();
-          } else if (_isWaitingForAppOpen) {
-            _showLoadedAppOpenAd();
-          }
-        },
-        onAdFailedToLoad: (error) {
-          unawaited(
-            _analyticsService.logEvent(
-              'admob_appopen_failed_load',
-              params: {
-                'screen_name': 'SplashScreen',
-                'ad_unit': 'app_open',
-                'error_code': error.code,
-                'error_domain': error.domain,
-              },
-            ),
-          );
-          _isAdFlowComplete = true;
-          _goToGetStartedWhenReady();
-        },
-      ),
-    );
-  }
-
   void _showAppOpenAdIfNeeded() {
     if (_isPremiumUser) {
       _isAdFlowComplete = true;
       unawaited(
         _analyticsService.logEvent(
           'click_SplashAdFlowSkipped',
-          params: {
+          params: <String, Object?>{
             'screen_name': 'SplashScreen',
             'button_name': 'SplashAdFlowSkipped',
-            'timestamp': DateTime.now().millisecondsSinceEpoch,
           },
         ),
       );
       _goToGetStartedWhenReady();
-      return;
-    }
-    if (_appOpenAd != null) {
-      _showLoadedAppOpenAd();
       return;
     }
     if (_isWaitingForAppOpen) return;
@@ -167,110 +81,38 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _waitForAppOpenThenContinue() async {
-    final DateTime deadline = DateTime.now().add(_appOpenMaxWait);
-    while (mounted &&
-        !_isPremiumUser &&
-        _appOpenAd == null &&
-        DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+    bool shown = false;
+    try {
+      shown = await _appOpenAdService.showColdStartAd(
+        screenName: 'SplashScreen',
+      );
+    } catch (_) {
+      shown = false;
     }
+
     if (!mounted) return;
     _isWaitingForAppOpen = false;
-    if (_appOpenAd != null && !_isAdShowing) {
-      _showLoadedAppOpenAd();
-      return;
+
+    if (shown) {
+      unawaited(
+        _analyticsService.logEvent(
+          'click_SplashAdShown',
+          params: <String, Object?>{
+            'screen_name': 'SplashScreen',
+            'button_name': 'SplashAdShown',
+          },
+        ),
+      );
     }
+
     _isAdFlowComplete = true;
     _goToGetStartedWhenReady();
-  }
-
-  void _showLoadedAppOpenAd() {
-    final AppOpenAd? ad = _appOpenAd;
-    if (ad == null || _isAdShowing) return;
-    _isAdShowing = true;
-    unawaited(
-      _analyticsService.logEvent(
-        'click_SplashAdShown',
-        params: {
-          'screen_name': 'SplashScreen',
-          'button_name': 'SplashAdShown',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
-      ),
-    );
-    _appOpenAd = null;
-    ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (AppOpenAd shownAd) {
-        unawaited(
-          _analyticsService.logEvent(
-            'admob_appopen_shown',
-            params: {
-              'screen_name': 'SplashScreen',
-              'ad_unit': 'app_open',
-            },
-          ),
-        );
-      },
-      onAdDismissedFullScreenContent: (AppOpenAd shownAd) {
-        shownAd.dispose();
-        _isAdShowing = false;
-        _isAdFlowComplete = true;
-        unawaited(
-          _analyticsService.logEvent(
-            'admob_appopen_dismissed',
-            params: {
-              'screen_name': 'SplashScreen',
-              'ad_unit': 'app_open',
-            },
-          ),
-        );
-        _goToGetStartedWhenReady();
-      },
-      onAdFailedToShowFullScreenContent: (AppOpenAd shownAd, AdError error) {
-        shownAd.dispose();
-        _isAdShowing = false;
-        _isAdFlowComplete = true;
-        unawaited(
-          _analyticsService.logEvent(
-            'admob_appopen_failed_show',
-            params: {
-              'screen_name': 'SplashScreen',
-              'ad_unit': 'app_open',
-              'error_code': error.code,
-            },
-          ),
-        );
-        _goToGetStartedWhenReady();
-      },
-      onAdImpression: (AppOpenAd shownAd) {
-        unawaited(
-          _analyticsService.logEvent(
-            'admob_appopen_impression',
-            params: {
-              'screen_name': 'SplashScreen',
-              'ad_unit': 'app_open',
-            },
-          ),
-        );
-      },
-      onAdClicked: (AppOpenAd shownAd) {
-        unawaited(
-          _analyticsService.logEvent(
-            'admob_appopen_clicked',
-            params: {
-              'screen_name': 'SplashScreen',
-              'ad_unit': 'app_open',
-            },
-          ),
-        );
-      },
-    );
-    ad.show();
   }
 
   void _goToGetStartedWhenReady() {
     if (!_isProgressComplete || !_isAdFlowComplete) return;
     if (!mounted) return;
+    _appOpenAdService.markColdStartFlowFinished();
     Get.offAllNamed('/get-started');
   }
 
@@ -280,7 +122,6 @@ class _SplashScreenState extends State<SplashScreen>
       ..removeListener(_handleProgressUpdate)
       ..removeStatusListener(_handleProgressStatus)
       ..dispose();
-    _appOpenAd?.dispose();
     super.dispose();
   }
 

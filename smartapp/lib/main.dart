@@ -16,6 +16,7 @@ import 'package:smartapp/services/adapty_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/local_storage_service.dart';
+import 'package:smartapp/services/app_open_ad_service.dart';
 import 'package:smartapp/services/mobile_ads_service.dart';
 import 'package:smartapp/services/remote_config_service.dart';
 import 'package:smartapp/services/rewarded_ad_service.dart';
@@ -62,6 +63,7 @@ void _registerCoreDependencies() {
   Get.put(RemoteStyleController(), permanent: true);
   Get.put(LocalStorageService(), permanent: true);
   Get.put(RewardedAdService(), permanent: true);
+  Get.put(AppOpenAdService(), permanent: true);
   Get.put(TemporaryWallpaperTimerController(), permanent: true);
   Get.put(RewardedWallpaperController(), permanent: true);
   Get.put(AdaptyService(), permanent: true);

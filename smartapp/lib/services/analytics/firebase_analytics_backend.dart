@@ -1,5 +1,6 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 
+import 'analytics_params.dart';
 import 'app_analytics.dart';
 import 'analytics_debug.dart';
 import 'event_naming.dart';
@@ -39,13 +40,7 @@ class FirebaseAnalyticsBackend implements AppAnalytics {
     double? value,
   }) async {
     final normalizedName = EventNaming.normalizeFirebaseEventName(name);
-    final sanitizedParams = params == null
-        ? null
-        : Map<String, Object>.fromEntries(
-            params.entries.where((entry) => entry.value != null).map(
-                  (entry) => MapEntry(entry.key, entry.value as Object),
-                ),
-          );
+    final sanitizedParams = sanitizeEventParameters(params);
     _debug.log('firebase event=$normalizedName params=${sanitizedParams?.keys.toList()}');
     await _analytics.logEvent(name: normalizedName, parameters: sanitizedParams);
   }

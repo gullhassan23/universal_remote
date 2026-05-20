@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'analytics/app_analytics.dart';
 import 'analytics/analytics_debug.dart';
 import 'analytics/analytics_dedupe.dart';
+import 'analytics/analytics_params.dart';
 import 'analytics/composite_analytics.dart';
 import 'analytics/firebase_analytics_backend.dart';
 import 'analytics/game_analytics_backend.dart';
@@ -157,13 +158,7 @@ class AnalyticsService extends GetxService {
     }
 
     final normalizedName = _normalizeEventName(name);
-    final sanitizedParams = params == null
-        ? null
-        : Map<String, Object>.fromEntries(
-            params.entries.where((entry) => entry.value != null).map(
-                  (entry) => MapEntry(entry.key, entry.value as Object),
-                ),
-          );
+    final sanitizedParams = sanitizeEventParameters(params);
 
     await _analytics.logEvent(
         name: normalizedName, parameters: sanitizedParams);
