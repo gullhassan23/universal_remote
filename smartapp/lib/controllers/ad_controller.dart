@@ -8,6 +8,7 @@ import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/controllers/tv_connection_controller.dart';
 import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/remote_config_service.dart';
+import 'package:smartapp/services/mobile_ads_service.dart';
 import 'package:smartapp/services/tv_service_interface.dart';
 
 class AdController extends GetxController {
@@ -136,6 +137,7 @@ class AdController extends GetxController {
           bannerAd.value = loadedAd;
           isAdLoaded.value = true;
           _cancelRetry();
+          MobileAdsService.logMediationAdapter(loadedAd, format: 'banner');
           _trackAdEvent('admob_banner_loaded');
           _log('Banner loaded successfully.');
         },
@@ -207,6 +209,7 @@ class AdController extends GetxController {
           _interstitialAd?.dispose();
           _interstitialAd = ad;
           isInterstitialReady.value = true;
+          MobileAdsService.logMediationAdapter(ad, format: 'interstitial');
           _trackAdEvent('admob_interstitial_loaded');
           _log('Interstitial loaded successfully.');
         },

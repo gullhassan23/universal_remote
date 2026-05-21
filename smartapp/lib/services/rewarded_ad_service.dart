@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:smartapp/services/mobile_ads_service.dart';
 
 class RewardedAdService {
   Future<bool> showRewardedAd({
@@ -23,6 +24,7 @@ class RewardedAdService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (RewardedAd ad) {
+          MobileAdsService.logMediationAdapter(ad, format: 'rewarded');
           ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdShowedFullScreenContent: (_) => track('admob_rewarded_shown'),
             onAdDismissedFullScreenContent: (RewardedAd shownAd) {

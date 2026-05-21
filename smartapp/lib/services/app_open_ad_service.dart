@@ -173,6 +173,7 @@ class AppOpenAdService extends GetxService with WidgetsBindingObserver {
       request: const AdRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (AppOpenAd ad) {
+          MobileAdsService.logMediationAdapter(ad, format: 'app_open');
           _isLoading = false;
           _disposeLoadedAd();
           _appOpenAd = ad;

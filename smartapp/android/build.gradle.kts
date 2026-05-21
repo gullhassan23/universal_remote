@@ -3,6 +3,8 @@ allprojects {
         google()
         mavenCentral()
         maven(url = uri("https://maven.gameanalytics.com/release"))
+        // Mintegral SDK (AdMob mediation adapter)
+        maven(url = uri("https://dl-maven-android.mintegral.com/repository/mbridge_android_sdk_oversea"))
     }
 }
 
