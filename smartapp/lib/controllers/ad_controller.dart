@@ -61,8 +61,8 @@ class AdController extends GetxController {
       _connectionController.connectionState,
       _handleConnectionStateChanged,
     );
-    _wasConnected =
-        _connectionController.connectionState.value == TvConnectionState.connected;
+    _wasConnected = _connectionController.connectionState.value ==
+        TvConnectionState.connected;
     syncWithPremiumStatus();
     _handleConnectionStateChanged(_connectionController.connectionState.value);
   }
@@ -257,7 +257,7 @@ class AdController extends GetxController {
       onAdDismissedFullScreenContent: (InterstitialAd shownAd) {
         shownAd.dispose();
         _isInterstitialShowing = false;
-        _trackAdEvent('admob_interstitial_dismissed');
+        // _trackAdEvent('admob_interstitial_dismissed');
         onCompleted?.call();
         unawaited(loadInterstitialAd());
       },
