@@ -3,9 +3,9 @@ description: Flutter Universal TV Remote App (Samsung first, extensible to other
 publish_to: "none"
 
 # Android version
-version: 1.0.8+9
+# version: 1.0.8+9
 # IOS version
-# version: 1.0.3+4
+version: 1.0.4+5
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
