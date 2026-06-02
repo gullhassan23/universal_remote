@@ -14,6 +14,7 @@ import 'package:smartapp/controllers/premium_controller.dart';
 import 'package:smartapp/models/subscription_product.dart';
 import 'package:smartapp/models/subscription_verification_models.dart';
 import 'package:smartapp/services/adapty_service.dart';
+import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
@@ -577,6 +578,15 @@ class SubscriptionIAPService extends GetxService {
       isRestore: isRestore,
     );
 
+    // Firebase "In-app purchases" revenue comes from GA4 IAP events.
+    // We log these only for the initial purchase flow (not restore) to avoid
+    // double-counting revenue.
+    await _logInAppPurchaseRevenueToFirebase(
+      purchase: purchase,
+      productId: productId,
+      isRestore: isRestore,
+    );
+
     if (Get.isRegistered<AdaptyService>()) {
       final adaptyService = Get.find<AdaptyService>();
       final String transactionId =
@@ -591,6 +601,51 @@ class SubscriptionIAPService extends GetxService {
 
     if (_premiumActivationHook != null) {
       await _premiumActivationHook!(productId);
+    }
+  }
+
+  Future<void> _logInAppPurchaseRevenueToFirebase({
+    required PurchaseDetails purchase,
+    required String productId,
+    required bool isRestore,
+  }) async {
+    if (isRestore) return;
+    if (!Get.isRegistered<AnalyticsService>()) return;
+
+    final String? transactionId = purchase.purchaseID;
+    if (transactionId == null || transactionId.isEmpty) return;
+
+    SubscriptionProduct subscriptionProduct;
+    try {
+      subscriptionProduct = products.firstWhere((p) => p.id == productId);
+    } catch (_) {
+      _log('Firebase IAP logging skipped: unknown productId=$productId');
+      return;
+    }
+
+    final productDetails = subscriptionProduct.productDetails;
+    final double value = productDetails.rawPrice;
+    final String currency = productDetails.currencyCode;
+
+    if (value <= 0 || currency.isEmpty) return;
+
+    try {
+      await Get.find<AnalyticsService>().logEvent(
+            'in_app_purchase',
+            params: <String, Object?>{
+              'transaction_id': transactionId,
+              'product_id': productId,
+              'product_name': subscriptionProduct.title,
+              'price': value,
+              'value': value,
+              'currency': currency,
+              'quantity': 1,
+              // Used by Firebase to mark subscription vs one-time purchases.
+              'subscription': 1,
+            },
+          );
+    } catch (error) {
+      _log('Firebase in_app_purchase log failed: $error');
     }
   }
 
