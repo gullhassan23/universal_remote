@@ -18,6 +18,7 @@ import 'package:smartapp/services/analytics_service.dart';
 import 'package:smartapp/services/fcm_token_service.dart';
 import 'package:smartapp/utils/premium_firestore_payload.dart';
 import 'package:smartapp/utils/userId.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 typedef PremiumActivationHook = Future<void> Function(String productId);
 
@@ -579,8 +580,8 @@ class SubscriptionIAPService extends GetxService {
     );
 
     // Firebase "In-app purchases" revenue comes from GA4 IAP events.
-    // We log these only for the initial purchase flow (not restore) to avoid
-    // double-counting revenue.
+    // We log these for verified purchase renewals too, but skip restore to
+    // avoid double-counting revenue.
     await _logInAppPurchaseRevenueToFirebase(
       purchase: purchase,
       productId: productId,
@@ -610,9 +611,12 @@ class SubscriptionIAPService extends GetxService {
     required bool isRestore,
   }) async {
     if (isRestore) return;
+    // Firebase often auto-logs IAP on Android; we do manual logging only
+    // for iOS where StoreKit-based renewals can require explicit calls.
+    if (!Platform.isIOS) return;
     if (!Get.isRegistered<AnalyticsService>()) return;
 
-    final String? transactionId = purchase.purchaseID;
+    final String? transactionId = _extractTransactionId(purchase);
     if (transactionId == null || transactionId.isEmpty) return;
 
     SubscriptionProduct subscriptionProduct;
@@ -750,8 +754,31 @@ class SubscriptionIAPService extends GetxService {
     return null;
   }
 
+  /// Used for GA4/Firebase IAP events and for deduping purchase stream updates.
+  /// On iOS, StoreKit renewals should have unique `transactionIdentifier`.
+  String? _extractTransactionId(PurchaseDetails purchase) {
+    final String? purchaseId = purchase.purchaseID;
+    if (purchaseId != null && purchaseId.isNotEmpty) {
+      return purchaseId;
+    }
+
+    // AppStorePurchaseDetails comes from the storekit implementation shipped
+    // with `in_app_purchase`.
+    if (purchase is AppStorePurchaseDetails) {
+      final transactionIdentifier =
+          purchase.skPaymentTransaction.transactionIdentifier;
+      if (transactionIdentifier != null &&
+          transactionIdentifier.isNotEmpty) {
+        return transactionIdentifier;
+      }
+    }
+
+    return null;
+  }
+
   String _buildPurchaseKey(PurchaseDetails purchase) {
-    return '${purchase.productID}|${purchase.purchaseID ?? ''}|${purchase.transactionDate ?? ''}';
+    final String txId = _extractTransactionId(purchase) ?? '';
+    return '${purchase.productID}|$txId|${purchase.transactionDate ?? ''}';
   }
 
   void _resetProcessedStateForProduct(String productId) {
