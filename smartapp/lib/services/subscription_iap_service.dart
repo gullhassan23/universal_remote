@@ -48,6 +48,7 @@ class SubscriptionIAPService extends GetxService {
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
   final Set<String> _processedPurchaseKeys = <String>{};
   final Set<String> _inFlightPurchaseKeys = <String>{};
+  final Set<String> _loggedPurchaseTransactionIds = <String>{};
   bool _initialized = false;
   Future<void>? _initializeFuture;
   PremiumActivationHook? _premiumActivationHook;
@@ -588,6 +589,12 @@ class SubscriptionIAPService extends GetxService {
       isRestore: isRestore,
     );
 
+    await _logSubscriptionPurchaseToFirebase(
+      purchase: purchase,
+      productId: productId,
+      isRestore: isRestore,
+    );
+
     if (Get.isRegistered<AdaptyService>()) {
       final adaptyService = Get.find<AdaptyService>();
       final String transactionId =
@@ -651,6 +658,64 @@ class SubscriptionIAPService extends GetxService {
     } catch (error) {
       _log('Firebase in_app_purchase log failed: $error');
     }
+  }
+
+  Future<void> _logSubscriptionPurchaseToFirebase({
+    required PurchaseDetails purchase,
+    required String productId,
+    required bool isRestore,
+  }) async {
+    if (isRestore) return;
+    if (!Get.isRegistered<AnalyticsService>()) return;
+
+    final String? transactionId = _extractTransactionId(purchase);
+    if (transactionId == null || transactionId.isEmpty) return;
+    if (_loggedPurchaseTransactionIds.contains(transactionId)) {
+      _log('Firebase purchase log skipped: already logged $transactionId');
+      return;
+    }
+
+    SubscriptionProduct subscriptionProduct;
+    try {
+      subscriptionProduct = products.firstWhere((p) => p.id == productId);
+    } catch (_) {
+      _log('Firebase purchase log skipped: unknown productId=$productId');
+      return;
+    }
+
+    final productDetails = subscriptionProduct.productDetails;
+    final double value = productDetails.rawPrice;
+    final String currency = productDetails.currencyCode;
+    if (value <= 0 || currency.isEmpty) return;
+
+    try {
+      await Get.find<AnalyticsService>().logSubscriptionPurchase(
+        transactionId: transactionId,
+        productId: productId,
+        productName: subscriptionProduct.title,
+        subscriptionType: _subscriptionTypeFromProductId(productId),
+        platform: _platformLabel(),
+        value: value,
+        currency: currency,
+      );
+      _loggedPurchaseTransactionIds.add(transactionId);
+    } catch (error) {
+      _log('Firebase purchase log failed: $error');
+    }
+  }
+
+  String _subscriptionTypeFromProductId(String productId) {
+    final String id = productId.toLowerCase();
+    if (id.contains('weekly') || id.contains('weakly')) {
+      return 'weekly';
+    }
+    if (id.contains('monthly')) {
+      return 'monthly';
+    }
+    if (id.contains('yearly') || id.contains('annual')) {
+      return 'yearly';
+    }
+    return 'unknown';
   }
 
   Future<void> _persistPremiumSubscriptionMetadata({

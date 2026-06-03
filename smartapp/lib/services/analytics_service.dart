@@ -210,6 +210,55 @@ class AnalyticsService extends GetxService {
     }
   }
 
+  /// Logs GA4 [purchase] for verified subscription revenue (Firebase only).
+  Future<void> logSubscriptionPurchase({
+    required String transactionId,
+    required String productId,
+    required String productName,
+    required String subscriptionType,
+    required String platform,
+    required double value,
+    required String currency,
+  }) async {
+    if (transactionId.isEmpty) {
+      _debug.log('subscription purchase skipped: missing transaction_id');
+      return;
+    }
+    if (value <= 0 || currency.isEmpty) {
+      _debug.log('subscription purchase skipped: invalid value/currency');
+      return;
+    }
+
+    try {
+      _debug.log(
+        'firebase purchase transaction=$transactionId product=$productId '
+        'type=$subscriptionType value=$value $currency',
+      );
+      await _analytics.logPurchase(
+        transactionId: transactionId,
+        currency: currency,
+        value: value,
+        items: <AnalyticsEventItem>[
+          AnalyticsEventItem(
+            itemId: productId,
+            itemName: productName,
+            price: value,
+            quantity: 1,
+            itemCategory: 'subscription',
+          ),
+        ],
+        parameters: <String, Object>{
+          'product_id': productId,
+          'subscription_type': subscriptionType,
+          'platform': platform,
+          'is_restore': 0,
+        },
+      );
+    } catch (error) {
+      _debug.log('firebase purchase log failed: $error');
+    }
+  }
+
   Future<void> logError(
     String message, {
     String severity = 'error',
