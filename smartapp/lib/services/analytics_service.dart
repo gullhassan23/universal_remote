@@ -219,6 +219,7 @@ class AnalyticsService extends GetxService {
     required String platform,
     required double value,
     required String currency,
+    String? orderId,
   }) async {
     if (transactionId.isEmpty) {
       _debug.log('subscription purchase skipped: missing transaction_id');
@@ -252,10 +253,58 @@ class AnalyticsService extends GetxService {
           'subscription_type': subscriptionType,
           'platform': platform,
           'is_restore': 0,
+          if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
         },
       );
     } catch (error) {
       _debug.log('firebase purchase log failed: $error');
+      rethrow;
+    }
+  }
+
+  /// Funnel event after backend-verified subscription purchase (Firebase only).
+  Future<void> logSubscriptionCompleted({
+    required String transactionId,
+    required String productId,
+    required String productName,
+    required String subscriptionType,
+    required String platform,
+    required double value,
+    required String currency,
+    String? orderId,
+  }) async {
+    if (transactionId.isEmpty) {
+      _debug.log('subscription_completed skipped: missing transaction_id');
+      return;
+    }
+    if (value <= 0 || currency.isEmpty) {
+      _debug.log('subscription_completed skipped: invalid value/currency');
+      return;
+    }
+
+    try {
+      _debug.log(
+        'firebase subscription_completed transaction=$transactionId '
+        'product=$productId type=$subscriptionType value=$value $currency',
+      );
+      await _analytics.logEvent(
+        name: 'subscription_completed',
+        parameters: sanitizeEventParameters(<String, Object?>{
+          'transaction_id': transactionId,
+          'product_id': productId,
+          'product_name': productName,
+          'subscription_type': subscriptionType,
+          'platform': platform,
+          'value': value,
+          'currency': currency,
+          'quantity': 1,
+          'is_restore': 0,
+          if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
+        }),
+      );
+    } catch (error) {
+      _debug.log('firebase subscription_completed log failed: $error');
+      rethrow;
     }
   }
 

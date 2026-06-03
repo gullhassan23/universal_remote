@@ -640,21 +640,23 @@ class SubscriptionIAPService extends GetxService {
 
     if (value <= 0 || currency.isEmpty) return;
 
+    // Revenue is reported via [logSubscriptionPurchase] (GA4 purchase) for all
+    // platforms. This legacy iOS helper is kept for dashboards that key off
+    // the custom in_app_purchase event name.
     try {
       await Get.find<AnalyticsService>().logEvent(
-            'in_app_purchase',
-            params: <String, Object?>{
-              'transaction_id': transactionId,
-              'product_id': productId,
-              'product_name': subscriptionProduct.title,
-              'price': value,
-              'value': value,
-              'currency': currency,
-              'quantity': 1,
-              // Used by Firebase to mark subscription vs one-time purchases.
-              'subscription': 1,
-            },
-          );
+        'in_app_purchase',
+        params: <String, Object?>{
+          'transaction_id': transactionId,
+          'product_id': productId,
+          'product_name': subscriptionProduct.title,
+          'price': value,
+          'value': value,
+          'currency': currency,
+          'quantity': 1,
+          'subscription': 1,
+        },
+      );
     } catch (error) {
       _log('Firebase in_app_purchase log failed: $error');
     }
@@ -688,19 +690,48 @@ class SubscriptionIAPService extends GetxService {
     final String currency = productDetails.currencyCode;
     if (value <= 0 || currency.isEmpty) return;
 
+    final String? orderId = _extractAndroidOrderId(purchase);
+    final analytics = Get.find<AnalyticsService>();
+    final String subscriptionType = _subscriptionTypeFromProductId(productId);
+    final String platform = _platformLabel();
+    final String productName = subscriptionProduct.title;
+
     try {
-      await Get.find<AnalyticsService>().logSubscriptionPurchase(
+      await analytics.logSubscriptionPurchase(
         transactionId: transactionId,
         productId: productId,
-        productName: subscriptionProduct.title,
-        subscriptionType: _subscriptionTypeFromProductId(productId),
-        platform: _platformLabel(),
+        productName: productName,
+        subscriptionType: subscriptionType,
+        platform: platform,
         value: value,
         currency: currency,
+        orderId: orderId,
       );
+      // Mark revenue logged before the completion event so a partial failure
+      // cannot double-count purchase revenue on a retried stream update.
       _loggedPurchaseTransactionIds.add(transactionId);
     } catch (error) {
-      _log('Firebase purchase log failed: $error');
+      _log('Firebase purchase revenue log failed: $error');
+      return;
+    }
+
+    try {
+      await analytics.logSubscriptionCompleted(
+        transactionId: transactionId,
+        productId: productId,
+        productName: productName,
+        subscriptionType: subscriptionType,
+        platform: platform,
+        value: value,
+        currency: currency,
+        orderId: orderId,
+      );
+      _log(
+        'Firebase subscription analytics logged transaction=$transactionId '
+        'product=$productId value=$value $currency',
+      );
+    } catch (error) {
+      _log('Firebase subscription_completed log failed: $error');
     }
   }
 
