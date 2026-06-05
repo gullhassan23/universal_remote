@@ -1,111 +1,9 @@
-# name: smartapp
-# description: Flutter Universal TV Remote App (Samsung first, extensible to other brands).
-# publish_to: "none"
-
-# # Android version
-# version: 1.0.9+10
-# # IOS version
-# # version: 1.0.4+5
-
-# environment:
-#   sdk: ">=3.0.0 <4.0.0"
-
-# dependencies:
-#   flutter:
-#     sdk: flutter
-
-#   cupertino_icons: ^1.0.8
-
-#   # State management & routing
-#   get: ^4.6.6
-
-#   # Network info (WiFi IP, gateway, etc.)
-#   network_info_plus: ^6.1.0
-#   flutter_secure_storage: ^10.0.0
-#   cloud_firestore: ^6.2.0
-#   cloud_functions: ^6.0.0
-#   firebase_messaging: ^16.1.3
-#   flutter_local_notifications: ^18.0.1
-#   in_app_purchase: ^3.2.0
-#   flutter_dotenv: ^5.2.1
-
-#   # HTTP client for discovery (REST probe on port 8001)
-#   http: ^1.2.2
-
-#   # firebase
-#   firebase_core: ^4.6.0
-#   # Firebase iOS IAP revenue reporting guidance is >= 12.5.0.
-#   # Your current pub registry latest available is 12.4.1, so we pin to that.
-#   firebase_analytics: ^12.4.1
-
-#   # Analytics
-#   gameanalytics_sdk: ^1.2.7
-#   package_info_plus: ^8.3.1
-
-#   # mDNS discovery for Android TV Remote (_androidtvremote._tcp)
-#   multicast_dns: ^0.3.2
-
-#   # WebSocket client for Samsung TV control (port 8002)
-#   web_socket_channel: ^3.0.1
-
-#   # Local storage for last connected TV and tokens
-#   shared_preferences: ^2.3.2
-#   file_picker: ^8.1.6
-#   image_picker: ^1.1.2
-#   flutter_chrome_cast: ^1.4.5
-#   smooth_page_indicator: ^1.1.0
-#   vibration: ^3.1.4
-#   speech_to_text: ^7.0.0
-#   google_mobile_ads: ^8.0.0
-#   url_launcher: ^6.3.2
-#   flutter_carousel_widget: ^3.1.0
-#   adapty_flutter: ^3.15.5
-#   firebase_remote_config: ^6.3.0
-#   gma_mediation_meta: ^1.5.2
-#   gma_mediation_liftoffmonetize: ^1.5.0
-#   gma_mediation_mintegral: ^2.1.0
-
-# dev_dependencies:
-#   flutter_test:
-#     sdk: flutter
-
-#   flutter_lints: ^4.0.0
-#   flutter_launcher_icons: ^0.14.4
-
-# flutter_launcher_icons:
-#   android: true
-#   ios: true
-#   macos:
-#     generate: true
-#   windows:
-#     generate: true
-#   image_path: assets/images/appicon/launcher_source.png
-#   adaptive_icon_background: "#2196F3"
-#   adaptive_icon_foreground: assets/images/appicon/launcher_source.png
-#   remove_alpha_ios: true
-
-# flutter:
-#   uses-material-design: true
-#   assets:
-#     - assets/images/
-#     - assets/images/premium/
-#     - assets/images/onboarding/
-#     - assets/images/settings/
-#     - assets/images/bottomnav/
-#     - assets/images/remote_wallpapers/
-#     - assets/images/remote_wallpapers/wallpaper1/
-#     - assets/images/remote_wallpapers/wallpaper2/
-#     - assets/images/remote_wallpapers/wallpaper3/
-#     - assets/images/remote_wallpapers/wallpaper6/
-
-#     - .env
-
 name: smartapp
 description: Flutter Universal TV Remote App (Samsung first, extensible to other brands).
 publish_to: "none"
 
 # Android version
-version: 1.0.9+10
+version: 1.0.10+11
 # IOS version
 # version: 1.0.4+5
 
@@ -158,14 +56,14 @@ dependencies:
   smooth_page_indicator: ^1.1.0
   vibration: ^3.1.4
   speech_to_text: ^7.0.0
-  google_mobile_ads: ^6.0.0
+  google_mobile_ads: ^8.0.0
   url_launcher: ^6.3.2
   flutter_carousel_widget: ^3.1.0
   adapty_flutter: ^3.15.5
   firebase_remote_config: ^6.3.0
-  gma_mediation_meta: ^1.5.0
-  gma_mediation_liftoffmonetize: ^1.4.1
-  gma_mediation_mintegral: ^2.0.1
+  gma_mediation_meta: ^1.5.2
+  gma_mediation_liftoffmonetize: ^1.5.0
+  gma_mediation_mintegral: ^2.1.0
 
 dev_dependencies:
   flutter_test:
