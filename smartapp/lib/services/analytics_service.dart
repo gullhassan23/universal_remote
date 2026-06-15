@@ -63,17 +63,6 @@ class AnalyticsService extends GetxService {
     await _fanout!.init();
     _debug.log(
         'initialized build=$build gaKeysPresent=${gameKey.isNotEmpty && secretKey.isNotEmpty}');
-
-    if (kDebugMode) {
-      await _analytics.logEvent(
-        name: 'debug_session_start',
-        parameters: <String, Object>{
-          'platform': defaultTargetPlatform.name,
-          'build': build,
-        },
-      );
-      _debug.log('sent debug_session_start for Firebase DebugView');
-    }
   }
 
   Future<void> logScreen({
