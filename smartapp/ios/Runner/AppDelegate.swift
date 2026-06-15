@@ -1,12 +1,38 @@
 import Flutter
 import UIKit
 
+#if DEBUG
+/// Enables Firebase Analytics DebugView when launching via `flutter run`, VS Code, or Xcode.
+/// Must run before Firebase initializes (before plugin registration).
+private func enableFirebaseAnalyticsDebugMode() {
+  let defaults = UserDefaults.standard
+  defaults.set(true, forKey: "/google/measurement/debug_mode")
+  defaults.set(true, forKey: "/google/firebase/debug_mode")
+  defaults.synchronize()
+
+  var args = ProcessInfo.processInfo.arguments
+  if !args.contains("-FIRAnalyticsDebugEnabled") {
+    args.append("-FIRAnalyticsDebugEnabled")
+  }
+  if !args.contains("-FIRDebugEnabled") {
+    args.append("-FIRDebugEnabled")
+  }
+  ProcessInfo.processInfo.setValue(args, forKey: "arguments")
+
+  NSLog("[Firebase] Analytics DebugView enabled (debug build)")
+}
+#endif
+
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    #if DEBUG
+    enableFirebaseAnalyticsDebugMode()
+    #endif
+
     GeneratedPluginRegistrant.register(with: self)
 
     if let controller = window?.rootViewController as? FlutterViewController {

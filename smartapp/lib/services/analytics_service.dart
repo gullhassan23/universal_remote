@@ -35,7 +35,9 @@ class AnalyticsService extends GetxService {
   Future<void> initialize() async {
     final debugEnabled =
         (dotenv.env['ANALYTICS_DEBUG'] ?? '').trim().toLowerCase() == 'true';
-    _debug = AnalyticsDebug(enabled: debugEnabled);
+    _debug = AnalyticsDebug(enabled: debugEnabled || kDebugMode);
+
+    await _analytics.setAnalyticsCollectionEnabled(true);
 
     final pkg = await PackageInfo.fromPlatform();
     final build = '${pkg.version}+${pkg.buildNumber}';
@@ -61,6 +63,17 @@ class AnalyticsService extends GetxService {
     await _fanout!.init();
     _debug.log(
         'initialized build=$build gaKeysPresent=${gameKey.isNotEmpty && secretKey.isNotEmpty}');
+
+    if (kDebugMode) {
+      await _analytics.logEvent(
+        name: 'debug_session_start',
+        parameters: <String, Object>{
+          'platform': defaultTargetPlatform.name,
+          'build': build,
+        },
+      );
+      _debug.log('sent debug_session_start for Firebase DebugView');
+    }
   }
 
   Future<void> logScreen({

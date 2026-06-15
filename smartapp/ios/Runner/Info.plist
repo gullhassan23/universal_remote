@@ -52,6 +52,10 @@
 	<string>ca-app-pub-3605518487927639~7530935451</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier is used to deliver personalized ads to you.</string>
+	<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
+	<true/>
+	<key>FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED</key>
+	<false/>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
