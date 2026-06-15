@@ -86,6 +86,7 @@ function buildIosTemporaryResult(payload) {
     raw: {
       platform: "ios",
       verificationMode: "apple_temp_21002",
+      environment: "Sandbox",
       productId: payload.productId || null,
       transactionId: payload.transactionId || null,
     },
@@ -187,6 +188,7 @@ function buildIosResult(payload, appleResponse) {
       platform: "ios",
       verificationMode: "apple_verify_receipt",
       appleStatus: appleResponse.status,
+      environment: appleResponse.environment || null,
       latestProductId: latest?.product_id || null,
       transactionId: latest?.transaction_id || payload.transactionId || null,
       originalTransactionId: latest?.original_transaction_id || null,

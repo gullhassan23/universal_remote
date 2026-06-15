@@ -49,6 +49,7 @@ class SubscriptionIAPService extends GetxService {
   final Set<String> _processedPurchaseKeys = <String>{};
   final Set<String> _inFlightPurchaseKeys = <String>{};
   final Set<String> _loggedPurchaseTransactionIds = <String>{};
+  String? _activePurchaseProductId;
   bool _initialized = false;
   Future<void>? _initializeFuture;
   PremiumActivationHook? _premiumActivationHook;
@@ -180,6 +181,7 @@ class SubscriptionIAPService extends GetxService {
     lastError.value = null;
     lastMessage.value = null;
     _resetProcessedStateForProduct(product.id);
+    _activePurchaseProductId = product.id;
 
     try {
       final PurchaseParam purchaseParam =
@@ -190,6 +192,7 @@ class SubscriptionIAPService extends GetxService {
       );
       if (!launched) {
         lastError.value = 'Purchase flow did not start';
+        _activePurchaseProductId = null;
       } else {
         lastMessage.value = 'Complete your purchase in the store dialog.';
       }
@@ -197,6 +200,7 @@ class SubscriptionIAPService extends GetxService {
     } catch (error) {
       lastError.value = error.toString();
       _log('buy() failed: $error');
+      _activePurchaseProductId = null;
       return false;
     } finally {
       isPurchasing.value = false;
@@ -251,20 +255,28 @@ class SubscriptionIAPService extends GetxService {
             lastMessage.value = 'Purchase is pending approval.';
             break;
           case PurchaseStatus.purchased:
-            await _handleVerifiedFlow(purchase: purchase, isRestore: false);
+            await _handleVerifiedFlow(
+              purchase: purchase,
+              isRestore: false,
+            );
             break;
           case PurchaseStatus.restored:
-            await _handleVerifiedFlow(purchase: purchase, isRestore: true);
+            await _handleVerifiedFlow(
+              purchase: purchase,
+              isRestore: _resolveIsRestore(purchase),
+            );
             break;
           case PurchaseStatus.error:
             lastError.value = purchase.error?.message ?? 'Purchase error';
             _log('Purchase error: ${purchase.error}');
+            _clearActivePurchaseIfMatched(purchase.productID);
             await _completePurchaseIfNeeded(purchase);
             _processedPurchaseKeys.add(purchaseKey);
             break;
           case PurchaseStatus.canceled:
             lastError.value = 'Purchase canceled';
             _log('Purchase canceled by user.');
+            _clearActivePurchaseIfMatched(purchase.productID);
             await _completePurchaseIfNeeded(purchase);
             _processedPurchaseKeys.add(purchaseKey);
             break;
@@ -295,6 +307,7 @@ class SubscriptionIAPService extends GetxService {
         verification: verification,
         isRestore: isRestore,
       );
+      _clearActivePurchaseIfMatched(purchase.productID);
       _processedPurchaseKeys.add(_buildPurchaseKey(purchase));
       await _completePurchaseIfNeeded(purchase);
       lastMessage.value = isRestore
@@ -587,12 +600,14 @@ class SubscriptionIAPService extends GetxService {
       purchase: purchase,
       productId: productId,
       isRestore: isRestore,
+      verification: verification,
     );
 
     await _logSubscriptionPurchaseToFirebase(
       purchase: purchase,
       productId: productId,
       isRestore: isRestore,
+      verification: verification,
     );
 
     if (Get.isRegistered<AdaptyService>()) {
@@ -616,6 +631,7 @@ class SubscriptionIAPService extends GetxService {
     required PurchaseDetails purchase,
     required String productId,
     required bool isRestore,
+    required SubscriptionVerificationResult verification,
   }) async {
     if (isRestore) return;
     // Firebase often auto-logs IAP on Android; we do manual logging only
@@ -640,6 +656,9 @@ class SubscriptionIAPService extends GetxService {
 
     if (value <= 0 || currency.isEmpty) return;
 
+    final String purchaseEnvironment =
+        _resolvePurchaseEnvironment(verification: verification);
+
     // Revenue is reported via [logSubscriptionPurchase] (GA4 purchase) for all
     // platforms. This legacy iOS helper is kept for dashboards that key off
     // the custom in_app_purchase event name.
@@ -655,6 +674,7 @@ class SubscriptionIAPService extends GetxService {
           'currency': currency,
           'quantity': 1,
           'subscription': 1,
+          'purchase_environment': purchaseEnvironment,
         },
       );
     } catch (error) {
@@ -666,6 +686,7 @@ class SubscriptionIAPService extends GetxService {
     required PurchaseDetails purchase,
     required String productId,
     required bool isRestore,
+    required SubscriptionVerificationResult verification,
   }) async {
     if (isRestore) return;
     if (!Get.isRegistered<AnalyticsService>()) return;
@@ -695,6 +716,8 @@ class SubscriptionIAPService extends GetxService {
     final String subscriptionType = _subscriptionTypeFromProductId(productId);
     final String platform = _platformLabel();
     final String productName = subscriptionProduct.title;
+    final String purchaseEnvironment =
+        _resolvePurchaseEnvironment(verification: verification);
 
     try {
       await analytics.logSubscriptionPurchase(
@@ -706,6 +729,7 @@ class SubscriptionIAPService extends GetxService {
         value: value,
         currency: currency,
         orderId: orderId,
+        purchaseEnvironment: purchaseEnvironment,
       );
       // Mark revenue logged before the completion event so a partial failure
       // cannot double-count purchase revenue on a retried stream update.
@@ -725,10 +749,11 @@ class SubscriptionIAPService extends GetxService {
         value: value,
         currency: currency,
         orderId: orderId,
+        purchaseEnvironment: purchaseEnvironment,
       );
       _log(
         'Firebase subscription analytics logged transaction=$transactionId '
-        'product=$productId value=$value $currency',
+        'product=$productId value=$value $currency env=$purchaseEnvironment',
       );
     } catch (error) {
       _log('Firebase subscription_completed log failed: $error');
@@ -747,6 +772,41 @@ class SubscriptionIAPService extends GetxService {
       return 'yearly';
     }
     return 'unknown';
+  }
+
+  /// Sandbox/TestFlight often delivers a brand-new purchase as [restored].
+  /// Treat it as a purchase when the user just started a buy flow.
+  bool _resolveIsRestore(PurchaseDetails purchase) {
+    if (purchase.status != PurchaseStatus.restored) return false;
+    final String? activeProductId = _activePurchaseProductId;
+    if (activeProductId != null && activeProductId == purchase.productID) {
+      _log(
+        'Treating restored update as new purchase for ${purchase.productID} '
+        '(sandbox/TestFlight buy flow).',
+      );
+      return false;
+    }
+    return true;
+  }
+
+  void _clearActivePurchaseIfMatched(String productId) {
+    if (_activePurchaseProductId == productId) {
+      _activePurchaseProductId = null;
+    }
+  }
+
+  String _resolvePurchaseEnvironment({
+    required SubscriptionVerificationResult verification,
+  }) {
+    final Map<String, dynamic>? raw = verification.raw;
+    if (raw != null) {
+      final dynamic env = raw['environment'] ?? raw['purchaseEnvironment'];
+      if (env is String && env.isNotEmpty) {
+        return env.toLowerCase();
+      }
+    }
+    if (kDebugMode) return 'sandbox';
+    return 'production';
   }
 
   Future<void> _persistPremiumSubscriptionMetadata({

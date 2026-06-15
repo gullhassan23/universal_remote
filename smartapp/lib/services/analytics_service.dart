@@ -220,6 +220,7 @@ class AnalyticsService extends GetxService {
     required double value,
     required String currency,
     String? orderId,
+    String? purchaseEnvironment,
   }) async {
     if (transactionId.isEmpty) {
       _debug.log('subscription purchase skipped: missing transaction_id');
@@ -233,7 +234,8 @@ class AnalyticsService extends GetxService {
     try {
       _debug.log(
         'firebase purchase transaction=$transactionId product=$productId '
-        'type=$subscriptionType value=$value $currency',
+        'type=$subscriptionType value=$value $currency '
+        'env=${purchaseEnvironment ?? 'unknown'}',
       );
       await _analytics.logPurchase(
         transactionId: transactionId,
@@ -254,6 +256,8 @@ class AnalyticsService extends GetxService {
           'platform': platform,
           'is_restore': 0,
           if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
+          if (purchaseEnvironment != null && purchaseEnvironment.isNotEmpty)
+            'purchase_environment': purchaseEnvironment,
         },
       );
     } catch (error) {
@@ -272,6 +276,7 @@ class AnalyticsService extends GetxService {
     required double value,
     required String currency,
     String? orderId,
+    String? purchaseEnvironment,
   }) async {
     if (transactionId.isEmpty) {
       _debug.log('subscription_completed skipped: missing transaction_id');
@@ -285,7 +290,8 @@ class AnalyticsService extends GetxService {
     try {
       _debug.log(
         'firebase subscription_completed transaction=$transactionId '
-        'product=$productId type=$subscriptionType value=$value $currency',
+        'product=$productId type=$subscriptionType value=$value $currency '
+        'env=${purchaseEnvironment ?? 'unknown'}',
       );
       await _analytics.logEvent(
         name: 'subscription_completed',
@@ -300,6 +306,8 @@ class AnalyticsService extends GetxService {
           'quantity': 1,
           'is_restore': 0,
           if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
+          if (purchaseEnvironment != null && purchaseEnvironment.isNotEmpty)
+            'purchase_environment': purchaseEnvironment,
         }),
       );
     } catch (error) {
